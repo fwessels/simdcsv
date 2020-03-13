@@ -1,8 +1,8 @@
 package simdcsv
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 )
 
 func TestFlattenBitsIncremental(t *testing.T) {
@@ -70,4 +70,3 @@ func TestFlattenBitsIncremental(t *testing.T) {
 		}
 	}
 }
-
