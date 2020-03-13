@@ -13,7 +13,7 @@ TEXT ·_find_separator(SB), $0-24
     CALL ·__find_separator(SB)
 
     VZEROUPPER
-	MOVQ        AX, maks+16(FP)
+	MOVQ        AX, mask+16(FP)
     RET
 
 TEXT ·__find_separator(SB), $0
