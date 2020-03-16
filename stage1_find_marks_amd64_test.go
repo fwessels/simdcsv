@@ -46,3 +46,48 @@ func TestStage1(t *testing.T) {
 		}
 	}
 }
+
+func TestStage1QuotedFields(t *testing.T) {
+
+	vectors := []string{
+		`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,"13147,WELBY,WAY",01521,1,4000A1,"NO,EVIDENCE,OF,REG",50,99999,99999`,
+		`00000000000000000000000000000000000000000000000000000000000011111111111111110000000000000000011111111111111111110000000000000000`,
+		`          1                   1    111  1      11    1  1  1                 1     1 1      1                    1  1     1     `,
+	}
+
+	for i := 0; i < len(vectors); i += 3 {
+
+		v := vectors[i]
+
+		prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
+
+		q1 := find_quote_mask_and_bits([]byte(v), 0, &prev_iter_inside_quote, &quote_bits, &error_mask)
+		q2 := find_quote_mask_and_bits([]byte(v[64:]), 0, &prev_iter_inside_quote, &quote_bits, &error_mask)
+
+		quotes := fmt.Sprintf("%064b%064b", bits.Reverse64(q1), bits.Reverse64(q2))
+
+		s1 := find_separator([]byte(v), ',')
+		s2 := find_separator([]byte(v[64:]), ',')
+
+		seps := fmt.Sprintf("%064b%064b", bits.Reverse64(s1), bits.Reverse64(s2))
+		seps = strings.ReplaceAll(seps, "0", " ")
+
+		m1 := s1 & ^q1
+		m2 := s2 & ^q2
+
+		mask := fmt.Sprintf("%064b%064b", bits.Reverse64(m1), bits.Reverse64(m2))
+		mask = strings.ReplaceAll(mask, "0", " ")
+
+		if quotes != vectors[i+1] {
+			t.Errorf("TestStage1QuotedFields(%d): got: %s want: %s", i, quotes, vectors[i+1])
+		}
+
+		if mask != vectors[i+2] {
+			t.Errorf("TestStage1QuotedFields(%d): got: %s want: %s", i, mask, vectors[i+2])
+		}
+
+		//fmt.Println(quotes)
+		//fmt.Println(mask)
+	}
+}
+
