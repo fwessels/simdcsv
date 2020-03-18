@@ -136,3 +136,27 @@ REG",50,99999,99999`,
 		}
 	}
 }
+
+func TestStage1DetectDoubleQuotes(t *testing.T) {
+
+	vectors := []string{
+		`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,"the ""word"" is true",01521,1,4000A1,NO EVIDENCE,50,99999,99999    `,
+		`00000000000000000000000000000000000000000000000000000000000011111011111011111111100000000000000000000000000000000000000000000000`,
+		`          1                   1    111  1      11    1  1  1                 1     1 1      1                    1  1     1     `,
+	}
+
+	for i := 0; i < len(vectors); i += 3 {
+
+		v := vectors[i]
+
+		prev_iter_inside_quote, error_mask := uint64(0), uint64(0)
+		qb1, qb2 := uint64(0), uint64(0)
+
+		find_quote_mask_and_bits([]byte(v), 0, &prev_iter_inside_quote, &qb1, &error_mask)
+		find_quote_mask_and_bits([]byte(v[64:]), 0, &prev_iter_inside_quote, &qb2, &error_mask)
+
+		quoteBits := fmt.Sprintf("%064b%064b", bits.Reverse64(qb1), bits.Reverse64(qb2))
+
+		fmt.Println(quoteBits)
+	}
+}
