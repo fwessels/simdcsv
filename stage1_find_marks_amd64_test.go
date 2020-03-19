@@ -2,7 +2,9 @@ package simdcsv
 
 import (
 	"fmt"
+	"io"
 	"encoding/csv"
+	"reflect"
 	"testing"
 	"strings"
 	"math/bits"
