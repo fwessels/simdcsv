@@ -6,6 +6,7 @@
 #define CARRIED DX
 #define SHIFTS  R8
 #define POSITION R10
+#define LENGTH   R11 // Lengths
 
 TEXT ·_flatten_bits_incremental(SB), $0-40
 
@@ -37,8 +38,11 @@ TEXT ·__flatten_bits_incremental(SB), $0
     INCQ   ZEROS
     ADDQ   ZEROS, SHIFTS
     ADDQ   CARRIED, ZEROS
-    MOVQ   ZEROS, (DI)(INDEX*4)
-    ADDQ   $1, INDEX
+    ADDQ   $2, INDEX
+    MOVQ   ZEROS, LENGTH
+    DECQ   LENGTH
+    MOVD   LENGTH, -8(DI)(INDEX*4)
+    MOVD   ZEROS, -4(DI)(INDEX*4)
     ADDQ   ZEROS, POSITION
     XORQ   CARRIED, CARRIED // Reset CARRIED to 0 (since it has been used)
 
@@ -49,8 +53,11 @@ loop:
     INCQ   ZEROS
     SHRQ   ZEROS, MASK
     ADDQ   ZEROS, SHIFTS
-    MOVQ   ZEROS, (DI)(INDEX*4)
-    ADDQ   $1, INDEX
+    ADDQ   $2, INDEX
+    MOVQ   ZEROS, LENGTH
+    DECQ   LENGTH
+    MOVD   LENGTH, -8(DI)(INDEX*4)
+    MOVD   ZEROS, -4(DI)(INDEX*4)
     ADDQ   ZEROS, POSITION
     JMP    loop
 
