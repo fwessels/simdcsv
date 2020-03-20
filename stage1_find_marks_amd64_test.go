@@ -17,17 +17,16 @@ func TestStage1FindMarks(t *testing.T) {
 		`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE OF REG",50,99999,99999 `,
 	}
 
-	v := vectors[0]
-	Stage1FindMarks([]byte(v))
-	v = vectors[1]
-	fmt.Println(v[64:])
+	want := []string{"7 WELBY WAY", "01521", "1", "4000A1", "NO EVIDENCE OF REG", "50", ""}
 
-	prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
-	find_quote_mask_and_bits([]byte(v[64:]), 0, &prev_iter_inside_quote, &quote_bits, &error_mask)
-	fmt.Printf("%064b\n", bits.Reverse64(quote_bits))
-	fmt.Printf("%x\n", quote_bits)
-
-	Stage1FindMarks([]byte(v[64:]))
+	record := Stage1FindMarks([]byte(vectors[0][64:]))
+	if !reflect.DeepEqual(record, want) {
+		t.Errorf("TestStage1FindMarks: got: %v want: %v", record, want)
+	}
+	record = Stage1FindMarks([]byte(vectors[1][64:]))
+	if !reflect.DeepEqual(record, want) {
+		t.Errorf("TestStage1FindMarks: got: %v want: %v", record, want)
+	}
 }
 
 func TestStage1(t *testing.T) {

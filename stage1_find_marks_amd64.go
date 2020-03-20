@@ -1,23 +1,21 @@
 package simdcsv
 
-import (
-	"fmt"
-	"math/bits"
-)
-
 const INDEXES_SIZE = 1024
 
-func Stage1FindMarks(msg []byte) {
+func Stage1FindMarks(msg []byte) (record []string) {
 
 	indexes := [INDEXES_SIZE]uint32{}
 	indexes_length := uint64(0)
 
-	result := find_marks_in_slice(msg, &indexes, &indexes_length)
-	fmt.Printf("%064b\n", bits.Reverse64(result))
+	odd_ends, prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0), uint64(0)
 
-	fmt.Println(indexes[:indexes_length])
+	find_marks_in_slice(msg, &indexes, &indexes_length,
+		&odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
+
+	record = make([]string, indexes_length/2)
 	for i := uint64(0); i < indexes_length - 2; i += 2 {
 		pos := uint64(indexes[i])
-		fmt.Println(string(msg[pos:pos+uint64(indexes[i+1])]))
+		record[i/2] = string(msg[pos:pos+uint64(indexes[i+1])])
 	}
+	return
 }
