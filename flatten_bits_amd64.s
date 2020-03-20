@@ -41,8 +41,8 @@ TEXT ·__flatten_bits_incremental(SB), $0
     ADDQ   $2, INDEX
     MOVQ   ZEROS, LENGTH
     DECQ   LENGTH
-    MOVD   LENGTH, -8(DI)(INDEX*4)
-    MOVD   ZEROS, -4(DI)(INDEX*4)
+    MOVD   POSITION, -8(DI)(INDEX*4)
+    MOVD   LENGTH, -4(DI)(INDEX*4)
     ADDQ   ZEROS, POSITION
     XORQ   CARRIED, CARRIED // Reset CARRIED to 0 (since it has been used)
 
@@ -56,8 +56,8 @@ loop:
     ADDQ   $2, INDEX
     MOVQ   ZEROS, LENGTH
     DECQ   LENGTH
-    MOVD   LENGTH, -8(DI)(INDEX*4)
-    MOVD   ZEROS, -4(DI)(INDEX*4)
+    MOVD   POSITION, -8(DI)(INDEX*4)
+    MOVD   LENGTH, -4(DI)(INDEX*4)
     ADDQ   ZEROS, POSITION
     JMP    loop
 
