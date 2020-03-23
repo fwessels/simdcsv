@@ -9,17 +9,17 @@
 #define LENGTH     R14 // Lengths
 #define QUOTE_MASK R15
 
-TEXT ·_flatten_bits_incremental(SB), $0-40
+TEXT ·_flatten_bits_incremental(SB), $0-48
 
     MOVQ base_ptr+0(FP), DI
     MOVQ pbase+8(FP), SI
     MOVQ mask+16(FP), MASK
-    MOVQ carried+24(FP), R11
-    MOVQ position+32(FP), R12
+    MOVQ quote_bits+24(FP), R15
+    MOVQ carried+32(FP), R11
+    MOVQ position+40(FP), R12
     MOVQ (SI), INDEX
     MOVQ (R11), CARRIED
     MOVQ (R12), POSITION
-    MOVQ $0, R15
     CALL ·__flatten_bits_incremental(SB)
     MOVQ   POSITION, (R12)
     MOVQ   CARRIED, (R11)

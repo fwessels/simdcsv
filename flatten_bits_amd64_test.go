@@ -45,13 +45,68 @@ func TestFlattenBitsIncremental(t *testing.T) {
 		length := 0
 		carried := 0
 		position := uint64(0)
+		quote_bits := uint64(0)
 
 		for _, mask := range tc.masks {
-			flatten_bits_incremental(indexes, &length, mask, &carried, &position)
+			flatten_bits_incremental(indexes, &length, mask, quote_bits, &carried, &position)
 		}
 
 		if length != len(tc.expected) {
 			t.Errorf("TestFlattenBitsIncremental(%d): got: %d want: %d", i, length, len(tc.expected))
+		}
+
+		compare := make([]uint32, 0, 1024)
+		for idx := 0; idx < length; idx++ {
+			compare = append(compare, indexes[idx])
+		}
+
+		if !reflect.DeepEqual(compare, tc.expected) {
+			t.Errorf("TestFlattenBitsIncremental(%d): got: %v want: %v", i, compare, tc.expected)
+		}
+	}
+}
+
+func TestFlattenBitsWithQuoteBits(t *testing.T) {
+
+	testCases := []struct {
+		masks    []uint64
+		qbits    []uint64
+		expected []uint32
+	}{
+		// Single mask
+		{[]uint64{0b0000000000000000000000000000000000000000000000000000001000010000},
+			[]uint64{0b0},
+			[]uint32{0, 4, 5, 4}},
+		{[]uint64{0b0000000000000000000000000000000000000000000000000000001000010000},
+			[]uint64{0b0000000000000000000000000000000000000000000000000000000100100000},
+			[]uint32{0, 4, 6, 2}},
+		{[]uint64{0b0000000000000000010000000000000000000000100000000000001000010000},
+			[]uint64{0b0},
+			[]uint32{0, 4, 5, 4, 10, 13, 24, 22}},
+		{[]uint64{0b0000000000000000010000000000000000000000100000000000001000010000},
+			[]uint64{0b0000000000000000000000000000000000000000010000000000010000000000},
+			[]uint32{0, 4, 5, 4, 11, 11, 24, 22}},
+		{[]uint64{0b0000001100000000010000000000100000000000100000000000001000010000},
+			[]uint64{0b0},
+			[]uint32{0, 4, 5, 4, 10, 13, 24, 11, 36, 10, 47, 9, 57, 0}},
+		{[]uint64{0b0000001100000000010000000000100000000000100000000000001000010000},
+			[]uint64{0b0000000000000000001000000001010000000001000000000000000000000000},
+			[]uint32{0, 4, 5, 4, 10, 13, 25, 9, 37, 8, 47, 9, 57, 0}},
+	}
+
+	for i, tc := range testCases {
+
+		indexes := &[INDEX_SIZE]uint32{}
+		length := 0
+		carried := 0
+		position := uint64(0)
+
+		for j := range tc.masks {
+			flatten_bits_incremental(indexes, &length, tc.masks[j], tc.qbits[j], &carried, &position)
+		}
+
+		if length != len(tc.expected) {
+			t.Errorf("TestFlattenBitsWithQuoteBits(%d): got: %d want: %d", i, length, len(tc.expected))
 		}
 
 		compare := make([]uint32, 0, 1024)
