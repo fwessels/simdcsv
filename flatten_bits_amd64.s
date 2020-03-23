@@ -19,6 +19,7 @@ TEXT ·_flatten_bits_incremental(SB), $0-40
     MOVQ (SI), INDEX
     MOVQ (R11), CARRIED
     MOVQ (R12), POSITION
+    MOVQ $0, R15
     CALL ·__flatten_bits_incremental(SB)
     MOVQ   POSITION, (R12)
     MOVQ   CARRIED, (R11)
