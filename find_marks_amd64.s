@@ -20,6 +20,7 @@ TEXT ·find_marks_in_slice(SB), 7, $0
     MOVQ error_mask+64(FP), R9
 
     CALL ·__find_quote_mask_and_bits(SB)
+    PUSHQ       AX // quote_mask
 
     MOVQ        indexes+24(FP), DI
     MOVQ        indexes_length+32(FP), SI
@@ -33,7 +34,10 @@ TEXT ·find_marks_in_slice(SB), 7, $0
     MOVQ        quote_bits+56(FP), R15
     MOVQ        (R15), R15
 
-    POPQ        AX
+    POPQ        CX // quote_mask
+    POPQ        AX // separator mask
+    ANDNQ       AX, CX, AX
+
     CALL ·__flatten_bits_incremental(SB)
     // MOVQ     POSITION, (R12)
     // MOVQ     CARRIED, (R11)
