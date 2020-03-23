@@ -37,7 +37,6 @@ TEXT ·__flatten_bits_incremental(SB), $0
     // Two shifts required because maximum combined shift (63+1) exceeds 6-bits
     SHRQ   $1, MASK
     SHRQ   ZEROS, MASK
-    SHRQ   $1, QUOTE_MASK
     SHRQ   ZEROS, QUOTE_MASK
     INCQ   ZEROS
     ADDQ   ZEROS, SHIFTS
@@ -50,17 +49,19 @@ TEXT ·__flatten_bits_incremental(SB), $0
     ADDQ   ZEROS, POSITION
     XORQ   CARRIED, CARRIED // Reset CARRIED to 0 (since it has been used)
     TESTQ  $1, QUOTE_MASK           // Is there an opening quote?
-    JZ     loop
+    JZ     noquote_prologue
     ADDL   $1, (DI)(INDEX*4)        // Adjust next position ...
     SUBL   $2, 4(DI)(INDEX*4)       // ... and next length
+noquote_prologue:
+    SHRQ   $1, QUOTE_MASK
 
 loop:
     TZCNTQ MASK, ZEROS
     JCS    done        // carry is set if ZEROS == 64
 
+    SHRQ   ZEROS, QUOTE_MASK
     INCQ   ZEROS
     SHRQ   ZEROS, MASK
-    SHRQ   ZEROS, QUOTE_MASK
     ADDQ   ZEROS, SHIFTS
     ADDQ   $2, INDEX
     MOVQ   ZEROS, LENGTH
@@ -72,6 +73,7 @@ loop:
     ADDL   $1, (DI)(INDEX*4)        // Adjust next position ...
     SUBL   $2, 4(DI)(INDEX*4)       // ... and next length
 noquote:
+    SHRQ   $1, QUOTE_MASK
     ADDQ   ZEROS, POSITION
     JMP    loop
 
