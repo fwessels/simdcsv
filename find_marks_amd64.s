@@ -22,7 +22,6 @@ TEXT ·find_marks_in_slice(SB), 7, $0
     CALL ·__find_quote_mask_and_bits(SB)
     PUSHQ       AX // quote_mask
 
-    MOVQ        indexes+24(FP), DI
     MOVQ        indexes_length+32(FP), SI
     // MOVQ     mask+16(FP), MASK
     // MOVQ     carried+24(FP), R11
@@ -31,13 +30,20 @@ TEXT ·find_marks_in_slice(SB), 7, $0
     MOVQ        $0, DX   // , CARRIED
     MOVQ        $0, R10  // , POSITION
 
-    MOVQ        quote_bits+56(FP), R15
-    MOVQ        (R15), R15
-
     POPQ        CX // quote_mask
     POPQ        AX // separator mask
     ANDNQ       AX, CX, AX
 
+    MOVQ        quote_bits+56(FP), R15
+    MOVQ        (R15), R15
+    MOVQ        $0, R14
+    CMPB        0x40(DI), $0x22  // Is first char of next 64-byte a quote?
+    JNZ         skip
+    MOVQ        $1,  R14
+skip:
+    SHRQ        $1, R14, R15
+
+    MOVQ        indexes+24(FP), DI
     CALL ·__flatten_bits_incremental(SB)
     // MOVQ     POSITION, (R12)
     // MOVQ     CARRIED, (R11)
