@@ -18,7 +18,7 @@ func TestStage1FindMarks(t *testing.T) {
 		`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE,OF REG",50,99999,99999  `,
 	}
 
-	want := []string{"1103341116", "2015-12-21T00:00:00", "1251", "", "", "CA", "200304", "", "HOND", "PA", "GY", "13147 WELBY WAY", "01521", "1", "4000A1", "NO EVIDENCE OF REG", "50", ""}
+	want := []string{"1103341116", "2015-12-21T00:00:00", "1251", "", "", "CA", "200304", "", "HOND", "PA", "GY", "13147 WELBY WAY", "01521", "1", "4000A1", "NO EVIDENCE OF REG", "50", "99999"}
 
 	record := Stage1FindMarks([]byte(vectors[0]))
 	if !reflect.DeepEqual(record, want) {
