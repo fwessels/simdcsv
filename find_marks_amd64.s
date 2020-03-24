@@ -34,14 +34,13 @@ TEXT ·find_marks_in_slice(SB), 7, $0
     POPQ        AX // separator mask
     ANDNQ       AX, CX, AX
 
+    XORQ        R15, R15
+    MOVQ        $1, R14
+    CMPB        0x40(DI), $0x22  // Is first char of next 64-byte a quote?
+    CMOVQNE     R15, R14
     MOVQ        quote_bits+56(FP), R15
     MOVQ        (R15), R15
-    MOVQ        $0, R14
-    CMPB        0x40(DI), $0x22  // Is first char of next 64-byte a quote?
-    JNZ         skip
-    MOVQ        $1,  R14
-skip:
-    SHRQ        $1, R14, R15
+    SHRQ        $1, R14, R15     // Merge in bit-status of next 64-byte chunk
 
     MOVQ        indexes+24(FP), DI
     CALL ·__flatten_bits_incremental(SB)
