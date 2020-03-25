@@ -37,6 +37,22 @@ func TestStage1FindMarks(t *testing.T) {
 	}
 }
 
+func TestStage1FindMarksMergeInNextQuoteBit(t *testing.T) {
+
+	start := fmt.Sprintf("%s,", strings.Repeat("A", 45))
+	//rest := `BBBBB,CCCCC,DDDD,EEEE`
+	rest := `"NO EVIDENCE,OF REG",50,99999,99999`
+
+	vector := start + rest
+	vector += strings.Repeat(" ", 128-len(vector))
+
+	fmt.Println(vector)
+	fmt.Println(len(vector))
+	record := Stage1FindMarks([]byte(vector))
+	fmt.Println(record)
+}
+
+
 func TestStage1(t *testing.T) {
 
 	vectors := []string{
