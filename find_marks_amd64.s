@@ -17,7 +17,7 @@ loop:
 	PUSHQ   AX
 
 	CALL  ·__find_separator(SB)
-	PUSHQ AX
+    PUSHQ AX        // save separator mask
 
 	MOVQ odd_ends+56(FP), DX
 	MOVQ prev_iter_inside_quote+64(FP), CX
@@ -26,8 +26,22 @@ loop:
 
 	CALL ·__find_quote_mask_and_bits(SB)
 
-	POPQ  CX         // separator mask
+	MOVQ    AX, DX  // get quotemask
+    CALL ·__find_newline_delimiters(SB)
+
+    XORQ   R10, R10
+    TZCNTQ BX, CX
+    JCS    skipEOL      // carry is set nothing found
+    INCQ   CX
+    MOVQ   $1, R10
+    SHLQ   CX, R10     //
+skipEOL:
+    DECQ R10        // mask up and and including end-of-line marker
+
+    POPQ  CX         // separator mask
+	ORQ   BX, CX     // merge in
 	ANDNQ CX, AX, AX
+    ANDQ  R10, AX // clear out bits beyond end-of-line marker
 
 	XORQ    R15, R15
 	MOVQ    $1, R14
