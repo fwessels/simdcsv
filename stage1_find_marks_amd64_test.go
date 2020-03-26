@@ -45,9 +45,9 @@ func TestStage1FindMarks(t *testing.T) {
 
 func TestStage1FindMarksMergeInNextQuoteBit(t *testing.T) {
 
-	start := fmt.Sprintf("%s,", strings.Repeat("A", 45))
-	//rest := `BBBBB,CCCCC,DDDD,EEEE`
-	rest := `"NO EVIDENCE,OF REG",50,99999,99999`
+	const repetition = 58
+	start := fmt.Sprintf("%s,", strings.Repeat("A", repetition))
+	rest := `"NO EVIDENCE,OF REG",50,99999,99999` + "\n"
 
 	vector := start + rest
 	vector += strings.Repeat(" ", 128-len(vector))
@@ -56,6 +56,12 @@ func TestStage1FindMarksMergeInNextQuoteBit(t *testing.T) {
 	fmt.Println(len(vector))
 	record := Stage1FindMarks([]byte(vector))
 	fmt.Println(record)
+
+	want := []string{"", "NO EVIDENCE,OF REG", "50", "99999", "99999"}
+	want[0] = strings.Repeat("A", repetition)
+	if !reflect.DeepEqual(record, want) {
+		t.Errorf("TestStage1FindMarksMergeInNextQuoteBit: got: %v want: %v", record, want)
+	}
 }
 
 
