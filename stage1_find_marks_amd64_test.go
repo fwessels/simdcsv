@@ -17,6 +17,7 @@ func TestStage1FindMarks(t *testing.T) {
 		"1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,NO EVIDENCE OF REG,50,99999,99999\na,b",
 		"1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,\"NO EVIDENCE OF REG\",50,99999,99999\n ",
 		"1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,\"NO EVIDENCE,OF REG\",50,99999,99999\n ",
+		"1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,\"NO EVIDENCE, OF REG\",50,99999,99999\n",
 	}
 
 	want := []string{"1103341116", "2015-12-21T00:00:00", "1251", "", "", "CA", "200304", "", "HOND", "PA", "GY", "13147 WELBY WAY", "01521", "1", "4000A1", "NO EVIDENCE OF REG", "50", "99999", "99999"}
@@ -30,7 +31,13 @@ func TestStage1FindMarks(t *testing.T) {
 
 	// Reflect (ignored) comma in expected results
 	want[15] = "NO EVIDENCE,OF REG"
-	record := Stage1FindMarks([]byte(vectors[len(vectors)-1]))
+	record := Stage1FindMarks([]byte(vectors[len(vectors)-2]))
+	if !reflect.DeepEqual(record, want) {
+		t.Errorf("TestStage1FindMarks: got: %v want: %v", record, want)
+	}
+
+	want[15] = "NO EVIDENCE, OF REG"
+	record = Stage1FindMarks([]byte(vectors[len(vectors)-1]))
 	if !reflect.DeepEqual(record, want) {
 		t.Errorf("TestStage1FindMarks: got: %v want: %v", record, want)
 	}

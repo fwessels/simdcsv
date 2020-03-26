@@ -31,17 +31,19 @@ loop:
 
     XORQ   R10, R10
     TZCNTQ BX, CX
-    JCS    skipEOL      // carry is set nothing found
+    JCS    skipEOL   // carry is set if nothing found
     INCQ   CX
-    MOVQ   $1, R10
-    SHLQ   CX, R10     //
+    CMPQ   CX, $64   // shlq belows fails, so
+    JZ     skipEOL
+    INCQ   R10
+    SHLQ   CX, R10   // one greater than the mask
 skipEOL:
-    DECQ R10        // mask up and and including end-of-line marker
+    DECQ   R10       // mask up to and including end-of-line marker
 
     POPQ  CX         // separator mask
-	ORQ   BX, CX     // merge in
+	ORQ   BX, CX     // merge in end-of-line marker (if set)
 	ANDNQ CX, AX, AX
-    ANDQ  R10, AX // clear out bits beyond end-of-line marker
+    ANDQ  R10, AX    // clear out bits beyond end-of-line marker
 
 	XORQ    R15, R15
 	MOVQ    $1, R14
