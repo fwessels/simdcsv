@@ -8,12 +8,13 @@ TEXT ·find_marks_in_slice(SB), 7, $0
 	VPBROADCASTB X6, Y6
 	XORQ         AX, AX
 	MOVQ         AX, pmsg+88(FP)
+	MOVQ         AX, endofline+96(FP)
 
 loop:
 	MOVQ    msg+0(FP), DI
-	MOVQ    pmsg+88(FP), AX
-	VMOVDQU (DI)(AX*1), Y8      // load low 32-bytes
-	VMOVDQU 0x20(DI)(AX*1), Y9  // load high 32-bytes
+	ADDQ    pmsg+88(FP), DI
+	VMOVDQU (DI), Y8      // load low 32-bytes
+	VMOVDQU 0x20(DI), Y9  // load high 32-bytes
 	ADDQ    $0x40, pmsg+88(FP)
 
 	CALL  ·__find_separator(SB)
@@ -33,7 +34,12 @@ loop:
     TZCNTQ BX, CX
     JCS    skipEOL   // carry is set if nothing found
     INCQ   CX
-    CMPQ   CX, $64   // shlq belows fails, so
+    INCQ   endofline+96(FP) // set end of line flag
+
+    SUBQ   $0x40, pmsg+88(FP) // correct starting position for next line
+    ADDQ   CX, pmsg+88(FP)
+
+    CMPQ   CX, $64   // shlq belows fails, so treat as special case
     JZ     skipEOL
     INCQ   R10
     SHLQ   CX, R10   // one greater than the mask
@@ -62,6 +68,14 @@ skipEOL:
 	MOVQ BX, (SI)                                 // INDEX
 
 	MOVQ pmsg+88(FP), AX
+    CMPQ endofline+96(FP), $0 // test for end of line
+    JZ   skipReset
+
+    MOVQ $0, endofline+96(FP) // reset end of line flag
+    MOVQ $0, (R11)            // reset state for flatten_bits_incr
+    MOVQ AX, (R12)
+
+skipReset:
 	CMPQ AX, msg_len+8(FP)
 	JLT  loop
 
