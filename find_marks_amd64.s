@@ -1,20 +1,20 @@
 //+build !noasm !appengine
 
-// find_marks_in_slice(msg []byte, indexes *[INDEXES_SIZE]uint32, indexes_length, carried, position *uint64) (out uint64)
+// find_marks_in_slice(msg []byte, indexes *[INDEXES_SIZE]uint32, indexes_length, carried, position *uint64) (pmsg, out uint64)
 TEXT ·find_marks_in_slice(SB), 7, $0
 
 	MOVQ         $0x2c, AX
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y6
 	XORQ         AX, AX
+	MOVQ         AX, pmsg+88(FP)
 
 loop:
 	MOVQ    msg+0(FP), DI
-	ADDQ    AX, DI
-	VMOVDQU (DI), Y8      // load low 32-bytes
-	VMOVDQU 0x20(DI), Y9  // load high 32-bytes
-	ADDQ    $0x40, AX
-	PUSHQ   AX
+	MOVQ    pmsg+88(FP), AX
+	VMOVDQU (DI)(AX*1), Y8      // load low 32-bytes
+	VMOVDQU 0x20(DI)(AX*1), Y9  // load high 32-bytes
+	ADDQ    $0x40, pmsg+88(FP)
 
 	CALL  ·__find_separator(SB)
     PUSHQ AX        // save separator mask
@@ -61,7 +61,7 @@ skipEOL:
 	MOVQ DX, (R11)                                // CARRIED
 	MOVQ BX, (SI)                                 // INDEX
 
-	POPQ AX
+	MOVQ pmsg+88(FP), AX
 	CMPQ AX, msg_len+8(FP)
 	JLT  loop
 
