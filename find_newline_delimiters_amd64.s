@@ -14,15 +14,27 @@ TEXT ·_find_newline_delimiters(SB), 7, $0
     RET
 
 TEXT ·__find_newline_delimiters(SB), 7, $0
-	MOVQ         $0x0a, BX // get newline
+	MOVQ         $0x0a, BX // get line feed
 	MOVQ         BX, X11
 	VPBROADCASTB X11, Y11
+	MOVQ         $0x0d, BX // get carriage return
+	MOVQ         BX, X12
+	VPBROADCASTB X12, Y12
 
 	VPCMPEQB  Y8, Y11, Y10
 	VPCMPEQB  Y9, Y11, Y11
 	VPMOVMSKB Y10, BX
 	VPMOVMSKB Y11, CX
 	SHLQ      $32, CX
-	ORQ       CX, BX          // BX is resulting mask of newline chars
+	ORQ       CX, BX          // BX is resulting mask of line feeds
+
+	VPCMPEQB  Y8, Y12, Y10
+	VPCMPEQB  Y9, Y12, Y12
+	VPMOVMSKB Y10, CX
+	ORQ       CX, BX          // Merge in lower half of carriage returns
+	VPMOVMSKB Y12, CX
+	SHLQ      $32, CX
+	ORQ       CX, BX          // Merge in uppper half of carriage returns
+
 	ANDNQ     BX, DX, BX      // clear out newline delimiters enclosed in quotes
 	RET

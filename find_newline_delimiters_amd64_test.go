@@ -2,6 +2,8 @@ package simdcsv
 
 import (
 	"testing"
+	"fmt"
+	"encoding/hex"
 )
 
 const demo_csv = `Ticket number,Issue Date,Issue time,Meter Id,Marked Time,RP State Plate,Plate Expiry Date,VIN,Make,Body Style,Color,Location,Route,Agency,Violation code,Violation Description,Fine amount,Latitude,Longitude
@@ -55,4 +57,32 @@ func TestFindNewlineDelimiters(t *testing.T) {
 	t.Run("avx2", func(t *testing.T) {
 		testFindNewlineDelimiters(t, _find_newline_delimiters)
 	})
+}
+
+func TestWindowsEndOfLine(t *testing.T) {
+
+	testCases := []struct {
+		input          string
+		expected    uint64
+	}{
+		{"........\r\n......................................................",
+			0b0000000000000000000000000000000000000000000000000000001100000000},
+		{"........\r\n........\r\n............................................",
+			0b0000000000000000000000000000000000000000000011000000001100000000},
+		{"........\r\n........\r\n..........................................\r\n",
+			0b1100000000000000000000000000000000000000000011000000001100000000},
+		{"...............................................................\r",
+			0b1000000000000000000000000000000000000000000000000000000000000000},
+		{"\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n",
+			0xffffffffffffffff},
+	}
+
+	for i, tc := range testCases {
+		fmt.Println(hex.Dump([]byte(tc.input)))
+		mask := _find_newline_delimiters([]byte(tc.input), 0)
+
+		if mask != tc.expected {
+			t.Errorf("TestWindowsEndOfLine(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
+		}
+	}
 }
