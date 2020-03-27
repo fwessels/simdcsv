@@ -27,6 +27,91 @@ func TestStage1FindMarksUnaligned(t *testing.T) {
 	}
 }
 
+func TestStage1LosAngelesParkingCitations(t *testing.T) {
+
+	t.Run("fail", func(t *testing.T) {
+		const test = `4277258042,2016-02-09T00:00:00.000,459,,,NJ,,,KW,CM,RD,"3772 MARTIN LUTHER KING, JR BLVD W",00500,55,80.69B,NO PARKING,73,99999,99999,,,
+`
+		testStage1LosAngelesParkingCitations(t, []byte(test))
+	})
+	t.Run("quoted-lines", func(t *testing.T) {
+		const test = `4272958045,2015-12-31T00:00:00.000,847,,,CA,201503,,JAGU,PA,BL,"3749 MARTIN LUTHER KING, JR BLVD",57B,56,5204A-,DISPLAY OF TABS,25,6459025.9,1827359.3,,,
+4248811976,2015-01-12T00:00:00.000,541,,,CA,201507,,CHEV,PA,WT,"107 S,ARBOLES COVRT",00503,56,22500E,BLOCKING DRIVEWAY,68,6475910.9,1729065.4,,,
+4275646756,2016-01-19T00:00:00.000,1037,,,NY,,,CADI,PA,BK,"641, CALHOUN AVE",378R1,53,80.69BS,NO PARK/STREET CLEAN,73,99999,99999,,,
+4276086533,2016-02-04T00:00:00.000,1121,,1013,CA,,,VOLK,PA,SL,"31,00 7TH ST W",00463,54,80.69C,PARKED OVER TIME LIM,58,99999,99999,,,
+4277212796,2016-02-17T00:00:00.000,1602,,1140,GA,201610,,CHEV,PA,BK,"130, ELECTRIC AVE",908R,51,80.69C,PARKED OVER TIME LIM,58,99999,99999,,,
+4277882641,2016-02-23T00:00:00.000,719,,,CA,6,,HOND,PA,GN,"18,2 MAIN ST S",00656,56,80.69AA+,NO STOP/STAND,93,99999,99999,,,
+4276685420,2016-02-25T00:00:00.000,812,,,FL,,,CHRY,PA,BK,"3281, PERLITA AVE",00674,56,80.69BS,NO PARK/STREET CLEAN,73,99999,99999,,,
+4277393536,2016-03-08T00:00:00.000,2247,,,CA,201603,,MITS,PA,MR,"1579 KING, JR BLVD",00500,55,22500E,BLOCKING DRIVEWAY,68,99999,99999,,,
+4280358482,2016-04-07T00:00:00.000,857,,,CA,201606,,UNK,MH,WT,",1931 WEST AVENUE 30",00673,56,80.69BS,NO PARK/STREET CLEAN,73,99999,99999,,,
+4281118855,2016-04-17T00:00:00.000,1544,",5",,CA,201703,,FORD,VN,GN,330 SOUTH HAMEL ROAD,00401,54,80.58L,PREFERENTIAL PARKING,68,6446091.5,1849240.9,,,
+4251090233,2015-01-14T00:00:00.000,1138,,,CA,201504,,FORD,PU,BL,"772, LANKERSHIM BLVD",378R1,53,80.69BS,NO PARK/STREET CLEAN,73,99999,99999,,,
+4284911094,2016-06-21T00:00:00.000,1520,,,CA,6,,KIA,PA,BK,"3171, OLYMPIC BLVD",00456,54,80.70,NO STOPPING/ANTI-GRI,163,99999,99999,,,
+`
+		testStage1LosAngelesParkingCitations(t, []byte(test))
+	})
+
+	t.Run("all", func(t *testing.T) {
+
+		t.Skip()
+
+		if testing.Short() {
+			t.Skip("skipping... too long")
+		}
+
+		if buf, err := ioutil.ReadFile("testdata/parking-citations.csv"); err != nil {
+			log.Fatalf("%v", err)
+		} else {
+			buf := bytes.ReplaceAll(buf, []byte{0x0d}, []byte{})
+			lines := bytes.Split(buf, []byte("\n"))
+			lines = lines[1:]
+			for len(lines) > 0 {
+				ln := 100
+				if len(lines) < ln {
+					ln = len(lines)
+				}
+
+				test := bytes.Join(lines[:ln], []byte{0x0a})
+				test = append(test, []byte{0x0a}...)
+
+				testStage1LosAngelesParkingCitations(t, test)
+
+				lines = lines[ln:]
+			}
+		}
+	})
+}
+
+func testStage1LosAngelesParkingCitations(t *testing.T, test []byte) {
+
+	record := Stage1FindMarks([]byte(test))
+	records := GolangCsvParser([]byte(test))
+
+	for i := 0; i < len(record); i += 22 {
+		if !reflect.DeepEqual(record[i:i+22], records[i/22]) {
+			t.Errorf("TestStage1FindMarksUnaligned(%d): got: %v want: %v", i, record[i:i+22], records[i/22])
+		}
+	}
+}
+
+func GolangCsvParser(csvData []byte) (records [][]string) {
+
+	records = make([][]string, 0, 1000)
+
+	r := csv.NewReader(bytes.NewReader(csvData))
+
+	for {
+		if record, err := r.Read(); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		} else {
+			records = append(records, record)
+		}
+	}
+	return
+}
+
 func BenchmarkFindMarksUnaligned(b *testing.B) {
 	test := strings.Repeat(
 		`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,NO EVIDENCE OF REG,50,99999,99999
