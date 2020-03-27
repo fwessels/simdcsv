@@ -44,7 +44,7 @@ func BenchmarkFindMarksUnaligned(b *testing.B) {
 		prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
 		carried, position := uint64(0), uint64(0)
 
-		find_marks_in_slice([]byte(test), &indexes, &indexes_length, &carried, &position,
+		find_marks_in_slice([]byte(test), &indexes, &indexes_length, INDEXES_SIZE, &carried, &position,
 			&prev_iter_inside_quote, &quote_bits, &error_mask)
 	}
 }
