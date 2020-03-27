@@ -88,11 +88,11 @@ func BenchmarkFindMarksUnaligned(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		indexes_length := uint64(0)
-		odd_ends, prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0), uint64(0)
+		prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
 		carried, position := uint64(0), uint64(0)
 
 		find_marks_in_slice([]byte(test), &indexes, &indexes_length, &carried, &position,
-			&odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
+			&prev_iter_inside_quote, &quote_bits, &error_mask)
 	}
 }
 
@@ -131,22 +131,23 @@ func TestStage1FindMarksAligned128(t *testing.T) {
 
 func TestStage1FindMarksMergeInNextQuoteBit(t *testing.T) {
 
-	const repetition = 58
-	start := fmt.Sprintf("%s,", strings.Repeat("A", repetition))
-	rest := `"NO EVIDENCE,OF REG",50,99999,99999` + "\n"
+	for repetition := 2; repetition < 64+16; repetition++ {
 
-	vector := start + rest
-	vector += strings.Repeat(" ", 128-len(vector))
+		start := fmt.Sprintf("%s,", strings.Repeat("A", repetition))
+		rest := `"NO EVIDENCE,OF REG",50,99999,99999` + "\n"
 
-	fmt.Println(vector)
-	fmt.Println(len(vector))
-	record := Stage1FindMarks([]byte(vector))
-	fmt.Println(record)
+		vector := start + rest
+		vector += strings.Repeat(" ", 128-len(vector))
 
-	want := []string{"", "NO EVIDENCE,OF REG", "50", "99999", "99999"}
-	want[0] = strings.Repeat("A", repetition)
-	if !reflect.DeepEqual(record, want) {
-		t.Errorf("TestStage1FindMarksMergeInNextQuoteBit: got: %v want: %v", record, want)
+		record := Stage1FindMarks([]byte(vector))
+		//	fmt.Println(record)
+
+		want := []string{"", "NO EVIDENCE,OF REG", "50", "99999", "99999"}
+		want[0] = strings.Repeat("A", repetition)
+		if !reflect.DeepEqual(record, want) {
+			t.Errorf("TestStage1FindMarksMergeInNextQuoteBit: got: %v want: %v", record, want)
+			panic("exit ")
+		}
 	}
 }
 
