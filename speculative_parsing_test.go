@@ -15,6 +15,9 @@ func TestAmbiguityWithFSM(t *testing.T) {
 	// Q (Quoted field)   |   E     Q      Q      Q
 	// E (quoted End)     |   Q     F      R      -
 
+	// A chunk is AMBIGUOUS if and only if the remaining valid starting
+	// states are all either unquoted states or quoted state
+
 	const ambigious = `
        l  i  c  e  ,  "  ,  "  ,  1  6 \n  B  o  b  ,  "  ,  "  ,  1  7
 	R  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
