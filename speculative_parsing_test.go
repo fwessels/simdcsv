@@ -82,3 +82,30 @@ func TestAmbiquityWithPatterns(t *testing.T) {
    q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  X  X  .  .  .
    o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .`
 }
+
+func TestSyntaxErrors(t *testing.T) {
+
+	// transition table
+	//                    | quote comma newline other
+	// -------------------|--------------------------
+	// R (Record start)   |   Q     F      R      U
+	// F (Field start)    |   Q     F      R      U
+	// U (Unquoted field) |   X     F      R      U
+	// Q (Quoted field)   |   E     Q      Q      Q
+	// E (quoted End)     |   Q     F      R      X
+	// X (Error)          |   X     X      X      X
+
+
+	const chunk1 = `
+	A  l  i  c  e  ,  "  F  "  ,  "  H  i \n  " \n  B  o  b  ,  "  M  "  ,  "  H
+	U  U  U  U  U  F  Q  Q  E  F  Q  Q  Q  Q  E  R  U  U  U  F  Q  Q  E  F  Q  Q`
+
+
+	const chunk2 = `
+	e  l  l  o \n  " \n  C  h  r  i  s  ,  M  "  ,  "  b  y  e  " \n  D  a  v  e
+	Q  Q  Q  Q  Q  E  R  U  U  U  U  U  F  U  X  X  X  X  X  X  X  X  X  X  X  X`
+
+	const chunk3 = `
+	,  "  M  "  ,  "  M  o  r  n  i  n  g  ! \n  " \n
+	X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X`
+}
