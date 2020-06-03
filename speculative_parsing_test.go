@@ -44,3 +44,41 @@ func TestAmbiguityWithFSM(t *testing.T) {
 	// states are unquoted, and the example chunk is therefore unambiguous.
 
 }
+
+func TestAmbiquityWithPatterns(t *testing.T) {
+
+	// q-o pattern
+	//                    | quote  other
+	// -------------------|-------------
+	// R (Record start)   |   Q      Q
+	// F (Field start)    |   Q      Q
+	// U (Unquoted field) |   -      -
+	// Q (Quoted field)   |   E      -
+	// E (quoted End)     |   Q      Q
+
+	// o-q pattern
+	//                    | other  quote
+	// -------------------|-------------
+	// R (Record start)   |   U      -
+	// F (Field start)    |   U      -
+	// U (Unquoted field) |   U      -
+	// Q (Quoted field)   |   Q      E
+	// E (quoted End)     |   -      -
+
+	// Both q-o and o-q patterns have a crucial property: for all
+	// possible input states, the FSM transits into the same output state,
+	// after reading an input string following the pattern
+
+	// The chunk is ambiguous if and only if it contains neither
+	// q-o pattern strings nor o-q pattern strings
+
+	const ambigious = `
+       l  i  c  e  ,  "  ,  "  ,  1  6 \n  B  o  b  ,  "  ,  "  ,  1  7
+   q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
+   o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .`
+
+	const unambiguous = `
+       l  i  c  e  ,  " \n  "  ,  1  6 \n  B  o  b  ,  "  M  "  ,  1  7
+   q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  X  X  .  .  .
+   o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .`
+}
