@@ -18,7 +18,7 @@ func TestAmbiguityWithFSM(t *testing.T) {
 	// A chunk is AMBIGUOUS if and only if the remaining valid starting
 	// states are all either unquoted states or quoted state
 
-	const ambigious = `
+	const ambiguous = `
        l  i  c  e  ,  "  ,  "  ,  1  6 \n  B  o  b  ,  "  ,  "  ,  1  7
 	R  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
 	F  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
@@ -72,7 +72,7 @@ func TestAmbiquityWithPatterns(t *testing.T) {
 	// The chunk is ambiguous if and only if it contains neither
 	// q-o pattern strings nor o-q pattern strings
 
-	const ambigious = `
+	const ambiguous = `
        l  i  c  e  ,  "  ,  "  ,  1  6 \n  B  o  b  ,  "  ,  "  ,  1  7
    q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
    o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .`
