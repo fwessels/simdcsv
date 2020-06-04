@@ -1,10 +1,17 @@
 package simdcsv
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 )
 
-func TestAmbiguityWithFSM(t *testing.T) {
+func exampleToString(input string) string {
+	out := strings.ReplaceAll(input, `\n`, " \n")
+	return strings.ReplaceAll(out[7:], `  `, "")
+}
+
+func applyFSM(input string, state int32) string {
 
 	// transition table
 	//                    | quote comma newline other
@@ -14,17 +21,73 @@ func TestAmbiguityWithFSM(t *testing.T) {
 	// U (Unquoted field) |   -     F      R      U
 	// Q (Quoted field)   |   E     Q      Q      Q
 	// E (quoted End)     |   Q     F      R      -
+	// - (Error)          |   -     -      -      -
+
+	out := fmt.Sprintf("    %c", state)
+	for _, r := range input {
+		switch r {
+		case '"':
+			switch state {
+			case 'U', '-':
+				state = '-'
+			case 'Q':
+				state = 'E'
+			default:
+				state = 'Q'
+			}
+
+		case ',', '\n':
+			switch state {
+			case 'Q', '-':
+				break // unchanged
+			default:
+				if r == ',' {
+					state = 'F'
+				} else {
+					state = 'R'
+				}
+			}
+
+		default:
+			switch state {
+			case 'Q':
+				break
+			case 'E', '-':
+				state = '-'
+			default:
+				state = 'U'
+			}
+		}
+		out += fmt.Sprintf("  %c", state)
+	}
+	return out
+}
+
+func TestAmbiguityWithFSM(t *testing.T) {
 
 	// A chunk is AMBIGUOUS if and only if the remaining valid starting
 	// states are all either unquoted states or quoted state
 
 	const ambiguous = `
        l  i  c  e  ,  "  ,  "  ,  1  6 \n  B  o  b  ,  "  ,  "  ,  1  7
-	R  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
-	F  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
-	U  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
-	Q  Q  Q  Q  Q  Q  E  F  Q  Q  Q  Q  Q  Q  Q  Q  Q  E  F  Q  Q  Q  Q
-	E  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -`
+    R  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
+    F  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
+    U  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
+    Q  Q  Q  Q  Q  Q  E  F  Q  Q  Q  Q  Q  Q  Q  Q  Q  E  F  Q  Q  Q  Q
+    E  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -`
+
+	lines :=strings.Split(ambiguous, "\n")
+	csv := exampleToString(lines[1])
+
+	initialStates := []int32{'R', 'F', 'U', 'Q', 'E'}
+
+	for i, state := range initialStates {
+		out := applyFSM(csv, state)
+		// fmt.Println(out)
+		if out != lines[i+2] {
+			t.Errorf("TestAmbiguityWithFSM mismatch: got %s, want %s", out, lines[i+2])
+		}
+	}
 
 	// Except for E, all other starting states successfully pass through the chunk.
 	// Since the remaining starting states R, F, U, and Q fall into two categories, the
