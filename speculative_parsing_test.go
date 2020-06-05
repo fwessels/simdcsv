@@ -144,6 +144,32 @@ func TestUnambiguityWithFSM(t *testing.T) {
 	}
 }
 
+func detectQoPattern(input string) bool {
+
+	for i, q := range input[:len(input)-1] {
+		if q == '"' {
+			o := input[i+1]
+			if o != '"' && o != ',' && o != '\n' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func detectOqPattern(input string) bool {
+
+	for i, q := range input[1:] {
+		if q == '"' {
+			o := input[i]
+			if o != '"' && o != ',' && o != '\n' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func TestAmbiquityWithPatterns(t *testing.T) {
 
 	// q-o pattern
@@ -175,6 +201,16 @@ func TestAmbiquityWithPatterns(t *testing.T) {
        l  i  c  e  ,  "  ,  "  ,  1  6 \n  B  o  b  ,  "  ,  "  ,  1  7
    q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
    o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .`
+
+	lines := strings.Split(ambiguous, "\n")
+	csv := exampleToString(lines[1])
+
+	hasQo := detectQoPattern(csv)
+	hasOq := detectOqPattern(csv)
+	isAmbiguous := hasQo == false && hasOq == false
+	if !isAmbiguous {
+		t.Errorf("TestAmbiquityWithPatterns mismatch: got %v, want true", isAmbiguous)
+	}
 
 	const unambiguous = `
        l  i  c  e  ,  " \n  "  ,  1  6 \n  B  o  b  ,  "  M  "  ,  1  7
