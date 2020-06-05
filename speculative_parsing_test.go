@@ -211,11 +211,25 @@ func TestAmbiquityWithPatterns(t *testing.T) {
 	if !isAmbiguous {
 		t.Errorf("TestAmbiquityWithPatterns mismatch: got %v, want true", isAmbiguous)
 	}
+}
 
-	const unambiguous = `
+func TestUnambiquityWithPatterns(t *testing.T) {
+
+		const unambiguous = `
        l  i  c  e  ,  " \n  "  ,  1  6 \n  B  o  b  ,  "  M  "  ,  1  7
-   q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  X  X  .  .  .
-   o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .`
+   q-o .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  X  .  .  .  .  .
+   o-q .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  X  .  .  .  .`
+
+	lines := strings.Split(unambiguous, "\n")
+	csv := exampleToString(lines[1])
+
+	hasQo := detectQoPattern(csv)
+	hasOq := detectOqPattern(csv)
+
+	isUnambiguous := hasQo || hasOq
+	if !isUnambiguous {
+		t.Errorf("TestUnambiquityWithPatterns mismatch: got %v, want false", isUnambiguous)
+	}
 }
 
 func TestSyntaxErrors(t *testing.T) {
