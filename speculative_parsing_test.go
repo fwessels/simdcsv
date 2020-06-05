@@ -76,16 +76,21 @@ func TestAmbiguityWithFSM(t *testing.T) {
     Q  Q  Q  Q  Q  Q  E  F  Q  Q  Q  Q  Q  Q  Q  Q  Q  E  F  Q  Q  Q  Q
     E  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -`
 
-	lines :=strings.Split(ambiguous, "\n")
+	lines := strings.Split(ambiguous, "\n")
 	csv := exampleToString(lines[1])
 
 	initialStates := []int32{'R', 'F', 'U', 'Q', 'E'}
 
+	endStates := make(map[uint8]bool)
 	for i, state := range initialStates {
 		out := applyFSM(csv, state)
 		// fmt.Println(out)
 		if out != lines[i+2] {
 			t.Errorf("TestAmbiguityWithFSM mismatch: got %s, want %s", out, lines[i+2])
+		}
+
+		if out[len(out)-1] != '-' {
+			endStates[out[len(out)-1]] = true
 		}
 	}
 
@@ -93,19 +98,50 @@ func TestAmbiguityWithFSM(t *testing.T) {
 	// Since the remaining starting states R, F, U, and Q fall into two categories, the
 	// chunk is ambiguous.
 
+	isAmbiguous := len(endStates) >= 2
+	if !isAmbiguous {
+		t.Errorf("TestAmbiguityWithFSM mismatch: got %v, want true", isAmbiguous)
+	}
+}
+
+func TestUnambiguityWithFSM(t *testing.T) {
+
 	const unambiguous = `
        l  i  c  e  ,  " \n  "  ,  1  6 \n  B  o  b  ,  "  M  "  ,  1  7
-	R  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
-	F  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
-	U  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
-	Q  Q  Q  Q  Q  Q  E  R  Q  Q  Q  Q  Q  Q  Q  Q  Q  E  -  -  -  -  -
+    R  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
+    F  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
+    U  U  U  U  U  F  Q  Q  E  F  U  U  R  U  U  U  F  Q  Q  E  F  U  U
+    Q  Q  Q  Q  Q  Q  E  R  Q  Q  Q  Q  Q  Q  Q  Q  Q  E  -  -  -  -  -
     E  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -`
+
+	lines := strings.Split(unambiguous, "\n")
+	csv := exampleToString(lines[1])
+
+	endStates := make(map[uint8]bool)
+
+	initialStates := []int32{'R', 'F', 'U', 'Q', 'E'}
+
+	for i, state := range initialStates {
+		out := applyFSM(csv, state)
+		//fmt.Println(out)
+		if out != lines[i+2] {
+			t.Errorf("TestAmbiguityWithFSM mismatch: got %s, want %s", out, lines[i+2])
+		}
+
+		if out[len(out)-1] != '-' {
+			endStates[out[len(out)-1]] = true
+		}
+	}
 
 	// The chunk has an invalid state Q, because other are not
 	// allowed after the state E, which is transited from the starting state Q
 	// after reading the string `lice,"\n",16\nBob,"`. Thus, all valid starting
 	// states are unquoted, and the example chunk is therefore unambiguous.
 
+	isAmbiguous := len(endStates) >= 2
+	if isAmbiguous {
+		t.Errorf("TestAmbiguityWithFSM mismatch: got %v, want false", isAmbiguous)
+	}
 }
 
 func TestAmbiquityWithPatterns(t *testing.T) {
@@ -158,11 +194,9 @@ func TestSyntaxErrors(t *testing.T) {
 	// E (quoted End)     |   Q     F      R      X
 	// X (Error)          |   X     X      X      X
 
-
 	const chunk1 = `
 	A  l  i  c  e  ,  "  F  "  ,  "  H  i \n  " \n  B  o  b  ,  "  M  "  ,  "  H
 	U  U  U  U  U  F  Q  Q  E  F  Q  Q  Q  Q  E  R  U  U  U  F  Q  Q  E  F  Q  Q`
-
 
 	const chunk2 = `
 	e  l  l  o \n  " \n  C  h  r  i  s  ,  M  "  ,  "  b  y  e  " \n  D  a  v  e
