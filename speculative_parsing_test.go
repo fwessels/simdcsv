@@ -232,7 +232,59 @@ func TestUnambiquityWithPatterns(t *testing.T) {
 	}
 }
 
-func TestSyntaxErrors(t *testing.T) {
+func augmentedFSM(input string, state int32) string {
+
+	// transition table
+	//                    | quote comma newline other
+	// -------------------|--------------------------
+	// R (Record start)   |   Q     F      R      U
+	// F (Field start)    |   Q     F      R      U
+	// U (Unquoted field) |   X     F      R      U
+	// Q (Quoted field)   |   E     Q      Q      Q
+	// E (quoted End)     |   Q     F      R      X
+	// X (Error)          |   X     X      X      X
+
+	out := fmt.Sprintf("    %c", state)
+	for _, r := range input {
+		switch r {
+		case '"':
+			switch state {
+			case 'U', 'X':
+				state = 'X'
+			case 'Q':
+				state = 'E'
+			default:
+				state = 'Q'
+			}
+
+		case ',', '\n':
+			switch state {
+			case 'Q', 'X':
+				break // unchanged
+			default:
+				if r == ',' {
+					state = 'F'
+				} else {
+					state = 'R'
+				}
+			}
+
+		default:
+			switch state {
+			case 'Q':
+				break
+			case 'E', 'X':
+				state = 'X'
+			default:
+				state = 'U'
+			}
+		}
+		out += fmt.Sprintf("  %c", state)
+	}
+	return out
+}
+
+func TestSyntaxErrorHandling(t *testing.T) {
 
 	// transition table
 	//                    | quote comma newline other
@@ -245,14 +297,35 @@ func TestSyntaxErrors(t *testing.T) {
 	// X (Error)          |   X     X      X      X
 
 	const chunk1 = `
-	A  l  i  c  e  ,  "  F  "  ,  "  H  i \n  " \n  B  o  b  ,  "  M  "  ,  "  H
-	U  U  U  U  U  F  Q  Q  E  F  Q  Q  Q  Q  E  R  U  U  U  F  Q  Q  E  F  Q  Q`
+       A  l  i  c  e  ,  "  F  "  ,  "  H  i \n  " \n  B  o  b  ,  "  M  "  ,  "  H
+    R  U  U  U  U  U  F  Q  Q  E  F  Q  Q  Q  Q  E  R  U  U  U  F  Q  Q  E  F  Q  Q`
 
-	const chunk2 = `
-	e  l  l  o \n  " \n  C  h  r  i  s  ,  M  "  ,  "  b  y  e  " \n  D  a  v  e
-	Q  Q  Q  Q  Q  E  R  U  U  U  U  U  F  U  X  X  X  X  X  X  X  X  X  X  X  X`
+	lines := strings.Split(chunk1, "\n")
+	csv := exampleToString(lines[1])
+	out := augmentedFSM(csv, 'R')
+	if out != lines[2] {
+		t.Errorf("TestSyntaxErrorHandling mismatch: got %s, want %s", out, lines[2])
+	}
+
+	const chunk2_WithError = `
+       e  l  l  o \n  " \n  C  h  r  i  s  ,  M  "  ,  "  b  y  e  " \n  D  a  v  e
+    Q  Q  Q  Q  Q  Q  E  R  U  U  U  U  U  F  U  X  X  X  X  X  X  X  X  X  X  X  X`
+
+	lines = strings.Split(chunk2_WithError, "\n")
+	csv = exampleToString(lines[1])
+	out = augmentedFSM(csv, 'Q')
+	if out != lines[2] {
+		t.Errorf("TestSyntaxErrorHandling mismatch: got %s, want %s", out, lines[2])
+	}
 
 	const chunk3 = `
-	,  "  M  "  ,  "  M  o  r  n  i  n  g  ! \n  " \n
-	X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X`
+       ,  "  M  "  ,  "  M  o  r  n  i  n  g  ! \n  " \n
+    X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X  X`
+
+	lines = strings.Split(chunk3, "\n")
+	csv = exampleToString(lines[1])
+	out = augmentedFSM(csv, 'X')
+	if out != lines[2] {
+		t.Errorf("TestSyntaxErrorHandling mismatch: got %s, want %s", out, lines[2])
+	}
 }
