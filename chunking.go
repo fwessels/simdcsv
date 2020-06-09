@@ -18,6 +18,32 @@ type chunkResult struct {
 	quoted     bool
 }
 
+func detectQoPattern(input []byte) bool {
+
+	for i, q := range input[:len(input)-1] {
+		if q == '"' {
+			o := input[i+1]
+			if o != '"' && o != ',' && o != '\n' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func detectOqPattern(input []byte) bool {
+
+	for i, q := range input[1:] {
+		if q == '"' {
+			o := input[i]
+			if o != '"' && o != ',' && o != '\n' {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func chunkWorker(chunks <-chan chunkInput, results chan<- chunkResult) {
 
 	for _ = range chunks {

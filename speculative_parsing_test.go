@@ -37,7 +37,7 @@ func TestAmbiguityWithFSM(t *testing.T) {
 			t.Errorf("TestAmbiguityWithFSM mismatch: got %s, want %s", out, lines[i+2])
 		}
 
-		if out[len(out)-1] != '-' {
+		if out[len(out)-1] != 'X' {
 			endStates[out[len(out)-1]] = true
 		}
 	}
@@ -73,10 +73,10 @@ func TestUnambiguityWithFSM(t *testing.T) {
 		out := augmentedFSM(csv, state)
 		//fmt.Println(out)
 		if out != lines[i+2] {
-			t.Errorf("TestAmbiguityWithFSM mismatch: got %s, want %s", out, lines[i+2])
+			t.Errorf("TestUnambiguityWithFSM mismatch: got %s, want %s", out, lines[i+2])
 		}
 
-		if out[len(out)-1] != '-' {
+		if out[len(out)-1] != 'X' {
 			endStates[out[len(out)-1]] = true
 		}
 	}
@@ -88,34 +88,8 @@ func TestUnambiguityWithFSM(t *testing.T) {
 
 	isAmbiguous := len(endStates) >= 2
 	if isAmbiguous {
-		t.Errorf("TestAmbiguityWithFSM mismatch: got %v, want false", isAmbiguous)
+		t.Errorf("TestUnambiguityWithFSM mismatch: got %v, want false", isAmbiguous)
 	}
-}
-
-func detectQoPattern(input string) bool {
-
-	for i, q := range input[:len(input)-1] {
-		if q == '"' {
-			o := input[i+1]
-			if o != '"' && o != ',' && o != '\n' {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func detectOqPattern(input string) bool {
-
-	for i, q := range input[1:] {
-		if q == '"' {
-			o := input[i]
-			if o != '"' && o != ',' && o != '\n' {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func TestAmbiquityWithPatterns(t *testing.T) {
@@ -153,8 +127,8 @@ func TestAmbiquityWithPatterns(t *testing.T) {
 	lines := strings.Split(ambiguous, "\n")
 	csv := exampleToString(lines[1])
 
-	hasQo := detectQoPattern(csv)
-	hasOq := detectOqPattern(csv)
+	hasQo := detectQoPattern([]byte(csv))
+	hasOq := detectOqPattern([]byte(csv))
 	isAmbiguous := hasQo == false && hasOq == false
 	if !isAmbiguous {
 		t.Errorf("TestAmbiquityWithPatterns mismatch: got %v, want true", isAmbiguous)
@@ -171,8 +145,8 @@ func TestUnambiquityWithPatterns(t *testing.T) {
 	lines := strings.Split(unambiguous, "\n")
 	csv := exampleToString(lines[1])
 
-	hasQo := detectQoPattern(csv)
-	hasOq := detectOqPattern(csv)
+	hasQo := detectQoPattern([]byte(csv))
+	hasOq := detectOqPattern([]byte(csv))
 
 	isUnambiguous := hasQo || hasOq
 	if !isUnambiguous {
