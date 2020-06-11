@@ -1,22 +1,26 @@
 package simdcsv
 
 import (
-	"sync"
-	"runtime"
+	"bytes"
 	"fmt"
+	"runtime"
+	"sync"
 )
 
 type chunkInput struct {
-	start uint64
-	end   uint64
+	part  int
+	chunk []byte
 }
 
 type chunkResult struct {
+	part       int
 	widowSize  uint64
 	orphanSize uint64
-	ambiguous  bool
+	status     chunkStatus
 	quoted     bool
 }
+
+const PREFIX_SIZE = 64 * 1024
 
 func detectQoPattern(input []byte) bool {
 
@@ -44,11 +48,52 @@ func detectOqPattern(input []byte) bool {
 	return false
 }
 
+func determineAmbiguity(prefixChunk []byte) (ambiguous bool) {
+
+	hasQo := detectQoPattern(prefixChunk)
+	hasOq := detectOqPattern(prefixChunk)
+	ambiguous = hasQo == false && hasOq == false
+
+	return
+}
+
+type chunkStatus int
+
+const (
+	HasNoQuotes chunkStatus = iota
+	Unambigous
+	Ambigous
+)
+
+func (s chunkStatus) String() string {
+	return [...]string{"HasNoQuotes", "Unambigous", "Ambigous"}[s]
+}
+
 func chunkWorker(chunks <-chan chunkInput, results chan<- chunkResult) {
 
-	for _ = range chunks {
+	for in := range chunks {
 
-		results <- chunkResult{0, 0, false, false}
+		prefixSize := PREFIX_SIZE
+		if len(in.chunk) < prefixSize {
+			prefixSize = len(in.chunk)
+		}
+
+		// has no quotes    | unquoted
+		// unambiguous      | unquoted
+		// unambiguous      | quoted
+		// ambiguous        | unquoted
+		// ambiguous        | quoted
+
+		chunkStatus, quoted := HasNoQuotes, false
+		if bytes.ContainsRune(in.chunk[:prefixSize], '"') {
+			if determineAmbiguity(in.chunk[:prefixSize]) {
+				chunkStatus = Ambigous
+			} else {
+				chunkStatus = Unambigous
+			}
+		}
+
+		results <- chunkResult{in.part, 0, 0, chunkStatus, quoted}
 	}
 }
 
@@ -69,18 +114,20 @@ func ChunkBlob(blob []byte, chunkSize uint64) {
 
 	// Push chunks onto input channel
 	go func() {
-		for start := uint64(0); ; start += chunkSize {
+		for part, start := 0, uint64(0); ; start += chunkSize {
 
-			end := start+chunkSize
+			end := start + chunkSize
 			if end > uint64(len(blob)) {
 				end = uint64(len(blob))
 			}
 
-			chunks <- chunkInput{start, end}
+			chunks <- chunkInput{part, blob[start:end]}
 
 			if end >= uint64(len(blob)) {
 				break
 			}
+
+			part++
 		}
 
 		// Close input channel
@@ -94,6 +141,6 @@ func ChunkBlob(blob []byte, chunkSize uint64) {
 	}()
 
 	for r := range results {
-		fmt.Println(r)
+		fmt.Println(r, r.status.String())
 	}
 }
