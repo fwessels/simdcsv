@@ -2,8 +2,6 @@ package simdcsv
 
 import (
 	"testing"
-	"fmt"
-	"encoding/hex"
 )
 
 const demo_csv = `Ticket number,Issue Date,Issue time,Meter Id,Marked Time,RP State Plate,Plate Expiry Date,VIN,Make,Body Style,Color,Location,Route,Agency,Violation code,Violation Description,Fine amount,Latitude,Longitude
@@ -78,7 +76,6 @@ func TestWindowsEndOfLine(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		fmt.Println(hex.Dump([]byte(tc.input)))
 		mask := _find_newline_delimiters([]byte(tc.input), 0)
 
 		if mask != tc.expected {
