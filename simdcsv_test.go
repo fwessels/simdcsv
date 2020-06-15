@@ -1,8 +1,8 @@
 package simdcsv
 
 import (
-	"testing"
 	"io/ioutil"
+	"testing"
 )
 
 func TestCsv(t *testing.T) {
