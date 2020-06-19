@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -21,7 +20,12 @@ func TestChunkWorker(t *testing.T) {
 	}
 }
 
+const splitSize = 1 << 10
+
 func parseCsv(filename string) {
+
+	chunks := make([]chunkResult, 0)
+	chunks = append(chunks, chunkResult{widowSize: 0})
 
 	memmap, err := mmap.Open(filename)
 	if err != nil {
@@ -39,13 +43,12 @@ func parseCsv(filename string) {
 	buf, addrBase := make([]byte, mapWindow), int64(0x0)
 	memmap.ReadAt(buf, addrBase)
 
-	addr, lines := 0, 0
+	addr, prev_addr, lines := int64(0), int64(0), 0
 	for {
-		if addr >= len(buf)/2 {
+		if addr-addrBase >= int64(len(buf)/2) {
 			addrBase += mapWindow / 2
 			fmt.Printf("Remapping at %08x\n", addrBase)
 			memmap.ReadAt(buf, addrBase)
-			addr -= mapWindow / 2
 		}
 		record, err := r.Read()
 
@@ -57,21 +60,21 @@ func parseCsv(filename string) {
 		}
 
 		// fmt.Println(record)
-		length := 0
+		length := int64(0)
 		for _, f := range record {
-			length += len(f) + 1
+			length += int64(len(f)) + 1
 		}
-		addr += length
+		prev_addr, addr = addr, addr+length
 
-		for fudge := 1; ; fudge += 1 {
-			if buf[addr-1] == 0x0a {
+		for fudge := int64(1); ; fudge += 1 {
+			if buf[addr-addrBase-1] == 0x0a {
 				break
 			}
-			if buf[addr-1-fudge] == 0x0a {
+			if buf[addr-addrBase-1-fudge] == 0x0a {
 				addr -= fudge
 				break
 			}
-			if buf[addr-1+fudge] == 0x0a {
+			if buf[addr-addrBase-1+fudge] == 0x0a {
 				addr += fudge
 				break
 			}
@@ -81,16 +84,32 @@ func parseCsv(filename string) {
 			}
 		}
 
+		if prev_addr & ^(splitSize-1) < addr & ^(splitSize-1) {
+			chunkBase := addr & ^(splitSize - 1)
+			prevOrphanSize := uint64(chunkBase - prev_addr)
+			if len(chunks) > 0 {
+				chunks[len(chunks)-1].orphanSize = prevOrphanSize
+			}
+
+			widowSize := uint64(addr - chunkBase)
+			if widowSize > 1 {
+				widowSize -= 1
+			}
+			chunks = append(chunks, chunkResult{widowSize: widowSize})
+
+			fmt.Print(hex.Dump(buf[((chunkBase-addrBase) & ^0xf)-(((int64(prevOrphanSize)>>4)+1)<<4) : ((chunkBase - addrBase) & ^0xf)]))
+			fmt.Print(hex.Dump(buf[((chunkBase - addrBase) & ^0xf) : ((chunkBase-addrBase) & ^0xf)+(((int64(widowSize)>>4)+1)<<4)]))
+			fmt.Println()
+		}
 		lines += 1
 
-		// fmt.Print(hex.Dump(buf[addr-8 : addr+8]))
-
-		// if lines > 100000 {
-		// 	break
-		// }
+		if lines > 100 {
+			break
+		}
 	}
 
 	fmt.Println(lines)
+	fmt.Println(chunks)
 }
 
 func TestVerifyChunking(t *testing.T) {
