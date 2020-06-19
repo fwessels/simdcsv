@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -20,7 +21,17 @@ func TestChunkWorker(t *testing.T) {
 	}
 }
 
-const splitSize = 1 << 10
+func dumpWithAddr(buf []byte, addr int64) {
+	d := hex.Dump(buf)
+	lines := strings.Split(d, "\n")
+
+	for i, l := range lines {
+		l = strings.ReplaceAll(l, fmt.Sprintf("%08x", i*16), fmt.Sprintf("%08x", int(addr)+i*16))
+		fmt.Println(strings.ReplaceAll(l, " 0a ", "<0a>"))
+	}
+}
+
+const splitSize = 1 << 16
 
 func parseCsv(filename string) {
 
@@ -97,19 +108,18 @@ func parseCsv(filename string) {
 			}
 			chunks = append(chunks, chunkResult{widowSize: widowSize})
 
-			fmt.Print(hex.Dump(buf[((chunkBase-addrBase) & ^0xf)-(((int64(prevOrphanSize)>>4)+1)<<4) : ((chunkBase - addrBase) & ^0xf)]))
-			fmt.Print(hex.Dump(buf[((chunkBase - addrBase) & ^0xf) : ((chunkBase-addrBase) & ^0xf)+(((int64(widowSize)>>4)+1)<<4)]))
+			start := ((chunkBase - addrBase) & ^0xf) - (((int64(prevOrphanSize) >> 4) + 1) << 4)
+			end := ((chunkBase - addrBase) & ^0xf) + (((int64(widowSize) >> 4) + 1) << 4)
+			dumpWithAddr(buf[start:end], chunkBase-(((int64(prevOrphanSize)>>4)+1)<<4))
+
 			fmt.Println()
 		}
 		lines += 1
 
-		if lines > 100 {
-			break
-		}
 	}
 
 	fmt.Println(lines)
-	fmt.Println(chunks)
+	fmt.Println(len(chunks))
 }
 
 func TestVerifyChunking(t *testing.T) {
