@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -33,17 +34,19 @@ func dumpWithAddr(buf []byte, addr int64) {
 
 const splitSize = 1 << 16
 
-func parseCsv(filename string) {
+func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 
-	chunks := make([]chunkResult, 0)
+	chunks = make([]chunkResult, 0)
 	chunks = append(chunks, chunkResult{widowSize: 0})
 
 	memmap, err := mmap.Open(filename)
+	defer memmap.Close()
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 
 	file, err := os.Open(filename)
+	defer file.Close()
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -58,7 +61,7 @@ func parseCsv(filename string) {
 	for {
 		if addr-addrBase >= int64(len(buf)/2) {
 			addrBase += mapWindow / 2
-			fmt.Printf("Remapping at %08x\n", addrBase)
+			// fmt.Printf("Remapping at %08x\n", addrBase)
 			memmap.ReadAt(buf, addrBase)
 		}
 		record, err := r.Read()
@@ -106,23 +109,48 @@ func parseCsv(filename string) {
 			if widowSize > 1 {
 				widowSize -= 1
 			}
-			chunks = append(chunks, chunkResult{widowSize: widowSize})
+			chunks = append(chunks, chunkResult{part: len(chunks), widowSize: widowSize})
 
-			start := ((chunkBase - addrBase) & ^0xf) - (((int64(prevOrphanSize) >> 4) + 1) << 4)
-			end := ((chunkBase - addrBase) & ^0xf) + (((int64(widowSize) >> 4) + 1) << 4)
-			dumpWithAddr(buf[start:end], chunkBase-(((int64(prevOrphanSize)>>4)+1)<<4))
+			if dump {
+				start := ((chunkBase - addrBase) & ^0xf) - (((int64(prevOrphanSize) >> 4) + 1) << 4)
+				end := ((chunkBase - addrBase) & ^0xf) + (((int64(widowSize) >> 4) + 1) << 4)
+				dumpWithAddr(buf[start:end], chunkBase-(((int64(prevOrphanSize)>>4)+1)<<4))
+				fmt.Println()
+			}
 
-			fmt.Println()
 		}
 		lines += 1
-
 	}
 
 	fmt.Println(lines)
 	fmt.Println(len(chunks))
+
+	return
 }
 
 func TestVerifyChunking(t *testing.T) {
 
-	parseCsv("Parking_Violations_Issued_-_Fiscal_Year_2017.csv")
+	const filename = "Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
+	sourceOfTruth := parseCsv(filename, false)
+
+	memmap, err := mmap.Open(filename)
+	defer memmap.Close()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	buf := make([]byte, splitSize)
+	for i := 0; i < len(sourceOfTruth); i++ {
+		memmap.ReadAt(buf, int64(i*splitSize))
+
+		result := deriveChunkResult(chunkInput{i, buf})
+		if !reflect.DeepEqual(result, sourceOfTruth[i]) {
+			r := result
+			r.status = sourceOfTruth[i].status
+			if !reflect.DeepEqual(r, sourceOfTruth[i]) {
+				fmt.Println(result)
+				fmt.Println(sourceOfTruth[i])
+			}
+		}
+	}
 }

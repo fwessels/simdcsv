@@ -17,7 +17,6 @@ type chunkResult struct {
 	widowSize  uint64
 	orphanSize uint64
 	status     chunkStatus
-	quoted     bool
 }
 
 const PREFIX_SIZE = 64 * 1024
@@ -57,17 +56,17 @@ func determineAmbiguity(prefixChunk []byte) (ambiguous bool) {
 	return
 }
 
-func determineQuotedness(prefixChunk []byte) (quoted bool) {
-
-	quotes := bytes.Count(prefixChunk, []byte{'"'})
-	if quotes % 2 == 0 {
-		quoted = true
- 	} else {
- 		quoted = false
-	}
-
-	return
-}
+// func determineQuotedness(prefixChunk []byte) (quoted bool) {
+//
+// 	quotes := bytes.Count(prefixChunk, []byte{'"'})
+// 	if quotes%2 == 0 {
+// 		quoted = true
+// 	} else {
+// 		quoted = false
+// 	}
+//
+// 	return
+// }
 
 type chunkStatus int
 
@@ -81,35 +80,51 @@ func (s chunkStatus) String() string {
 	return [...]string{"HasNoQuotes", "Unambigous", "Ambigous"}[s]
 }
 
+func deriveChunkResult(in chunkInput) chunkResult {
+
+	prefixSize := PREFIX_SIZE
+	if len(in.chunk) < prefixSize {
+		prefixSize = len(in.chunk)
+	}
+
+	// has no quotes    | unquoted
+	// unambiguous      | unquoted
+	// unambiguous      | quoted
+	// ambiguous        | unquoted
+	// ambiguous        | quoted
+
+	chunkStatus := HasNoQuotes
+	if bytes.ContainsRune(in.chunk[:prefixSize], '"') {
+		if determineAmbiguity(in.chunk[:prefixSize]) {
+			chunkStatus = Ambigous
+		} else {
+			chunkStatus = Unambigous
+		}
+	}
+
+	widowSize := uint64(0)
+	for i := 0; i < len(in.chunk); i++ {
+		if in.chunk[i] == '\n' {
+			break
+		}
+		widowSize++
+	}
+
+	orphanSize := uint64(0)
+	for i := len(in.chunk) - 1; i >= 0; i-- {
+		if in.chunk[i] == '\n' {
+			break
+		}
+		orphanSize++
+	}
+
+	return chunkResult{in.part, widowSize, orphanSize, chunkStatus}
+}
+
 func chunkWorker(chunks <-chan chunkInput, results chan<- chunkResult) {
 
 	for in := range chunks {
-
-		prefixSize := PREFIX_SIZE
-		if len(in.chunk) < prefixSize {
-			prefixSize = len(in.chunk)
-		}
-
-		// has no quotes    | unquoted
-		// unambiguous      | unquoted
-		// unambiguous      | quoted
-		// ambiguous        | unquoted
-		// ambiguous        | quoted
-
-		chunkStatus, quoted := HasNoQuotes, false
-		if bytes.ContainsRune(in.chunk[:prefixSize], '"') {
-			if determineAmbiguity(in.chunk[:prefixSize]) {
-				chunkStatus = Ambigous
-
-				quoted = determineQuotedness(in.chunk[:prefixSize])
-			} else {
-				chunkStatus = Unambigous
-
-				quoted = determineQuotedness(in.chunk[:prefixSize])
-			}
-		}
-
-		results <- chunkResult{in.part, 0, 0, chunkStatus, quoted}
+		results <- deriveChunkResult(in)
 	}
 }
 
