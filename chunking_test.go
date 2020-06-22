@@ -60,11 +60,16 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 	addr, prev_addr, lines := int64(0), int64(0), 0
 	assumeHasWidow := false
 
+	endOfMem := 0
 	for {
-		if addr-addrBase >= int64(len(buf)/2) {
+		if addr-addrBase >= mapWindow/2 {
 			addrBase += mapWindow / 2
 			// fmt.Printf("Remapping at %08x\n", addrBase)
-			memmap.ReadAt(buf, addrBase)
+			n, _ := memmap.ReadAt(buf, addrBase)
+			endOfMem = int(addrBase) + n
+			if n < len(buf) {
+				buf = buf[:n]
+			}
 		}
 		record, err := r.Read()
 
@@ -75,13 +80,13 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 		}
 
 		// fmt.Println(record)
-		length := int64(0)
+		length := int64(len(record) - 1) // nr of commas minus 1
 		for _, f := range record {
-			length += int64(len(f)) + 1
+			length += int64(len(f))
 		}
 		prev_addr, addr = addr, addr+length
 
-		for fudge := int64(1); ; fudge += 1 {
+		for fudge := int64(1); ; {
 			if buf[addr-addrBase-1] == 0x0a {
 				break
 			}
@@ -90,6 +95,11 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 				break
 			}
 			if buf[addr-addrBase-1+fudge] == 0x0a {
+				addr += fudge
+				break
+			}
+			fudge += 1
+			if addr+fudge >= int64(endOfMem) {
 				addr += fudge
 				break
 			}
@@ -136,11 +146,6 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 		lines += 1
 	}
 
-	// Write last orphan_size
-	if len(chunks) > 0 {
-		chunks[len(chunks)-1].orphanSize = uint64(addr - prev_addr)
-	}
-
 	fmt.Println(lines)
 	fmt.Println(len(chunks))
 
@@ -160,9 +165,9 @@ func TestVerifyChunking(t *testing.T) {
 
 	buf := make([]byte, splitSize)
 	for i := 0; i < len(sourceOfTruth); i++ {
-		memmap.ReadAt(buf, int64(i*splitSize))
+		n, _ := memmap.ReadAt(buf, int64(i*splitSize))
 
-		result := deriveChunkResult(chunkInput{i, buf})
+		result := deriveChunkResult(chunkInput{i, buf[:n]})
 		if !reflect.DeepEqual(result, sourceOfTruth[i]) {
 			r := result
 			r.status = sourceOfTruth[i].status

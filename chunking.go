@@ -84,14 +84,17 @@ func deriveChunkResult(in chunkInput) chunkResult {
 	}
 
 	widowSize := uint64(0)
-	for i := 0; i < len(in.chunk); i++ {
-		if in.chunk[i] == '\n' {
-			break
+	if in.part > 0 {
+		for i := 0; i < len(in.chunk); i++ {
+			widowSize++
+			if in.chunk[i] == '\n' {
+				break
+			}
 		}
-		widowSize++
 	}
 
 	orphanSize := uint64(0)
+
 	for i := len(in.chunk) - 1; i >= 0; i-- {
 		if in.chunk[i] == '\n' {
 			break
