@@ -58,6 +58,8 @@ func determineAmbiguity(prefixChunk []byte) (ambiguous bool) {
 
 type chunkStatus int
 
+// Determination of start of first complete line was
+// definitive or not
 const (
 	Unambigous chunkStatus = iota
 	Ambigous
@@ -73,12 +75,6 @@ func deriveChunkResult(in chunkInput) chunkResult {
 	if len(in.chunk) < prefixSize {
 		prefixSize = len(in.chunk)
 	}
-
-	// has no quotes    | unquoted
-	// unambiguous      | unquoted
-	// unambiguous      | quoted
-	// ambiguous        | unquoted
-	// ambiguous        | quoted
 
 	chunkStatus := Unambigous
 	if bytes.ContainsRune(in.chunk[:prefixSize], '"') {
