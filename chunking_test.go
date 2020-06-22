@@ -32,9 +32,7 @@ func dumpWithAddr(buf []byte, addr int64) {
 	}
 }
 
-const splitSize = 1 << 16
-
-func parseCsv(filename string, dump bool) (chunks []chunkResult) {
+func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult) {
 
 	chunks = make([]chunkResult, 0)
 	chunks = append(chunks, chunkResult{widowSize: 0})
@@ -155,25 +153,31 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 func TestVerifyChunking(t *testing.T) {
 
 	const filename = "Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
-	sourceOfTruth := parseCsv(filename, false)
 
-	memmap, err := mmap.Open(filename)
-	defer memmap.Close()
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
+	for shift := 14; shift < 20; shift++ {
 
-	buf := make([]byte, splitSize)
-	for i := 0; i < len(sourceOfTruth); i++ {
-		n, _ := memmap.ReadAt(buf, int64(i*splitSize))
+		splitSize := int64(1 << shift)
+		fmt.Println("Testing for splitSize", splitSize)
+		sourceOfTruth := memoryTrackingCsvParser(filename, splitSize, false)
 
-		result := deriveChunkResult(chunkInput{i, buf[:n]})
-		if !reflect.DeepEqual(result, sourceOfTruth[i]) {
-			r := result
-			r.status = sourceOfTruth[i].status
-			if !reflect.DeepEqual(r, sourceOfTruth[i]) {
-				fmt.Println(" truth:", sourceOfTruth[i])
-				fmt.Println("result:", result)
+		memmap, err := mmap.Open(filename)
+		defer memmap.Close()
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
+		buf := make([]byte, splitSize)
+		for i := 0; i < len(sourceOfTruth); i++ {
+			n, _ := memmap.ReadAt(buf, int64(i)*splitSize)
+
+			result := deriveChunkResult(chunkInput{i, buf[:n]})
+			if !reflect.DeepEqual(result, sourceOfTruth[i]) {
+				r := result
+				r.status = sourceOfTruth[i].status
+				if !reflect.DeepEqual(r, sourceOfTruth[i]) {
+					fmt.Println(" truth:", sourceOfTruth[i])
+					fmt.Println("result:", result)
+				}
 			}
 		}
 	}
