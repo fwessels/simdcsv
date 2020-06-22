@@ -58,6 +58,8 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 	memmap.ReadAt(buf, addrBase)
 
 	addr, prev_addr, lines := int64(0), int64(0), 0
+	assumeHasWidow := false
+
 	for {
 		if addr-addrBase >= int64(len(buf)/2) {
 			addrBase += mapWindow / 2
@@ -68,8 +70,7 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 
 		if err == io.EOF {
 			break
-		}
-		if err != nil {
+		} else if err != nil {
 			log.Fatal(err)
 		}
 
@@ -98,28 +99,46 @@ func parseCsv(filename string, dump bool) (chunks []chunkResult) {
 			}
 		}
 
-		if prev_addr & ^(splitSize-1) < addr & ^(splitSize-1) {
+		if (addr-1)&(splitSize-1) == splitSize-1 {
+			//
+			// Delimiter is last character of the chunk, next chunk has no way of
+			// knowing that it exactly start with a new line, so next chunk has to
+			// assume that it starts with a widow regardless.
+			//
+			// Likewise, if this is true, then we have no orphan (since we land
+			// precisely on a delimiter at the end of the chunk.)
+			//
+			assumeHasWidow = true
+		} else if assumeHasWidow || (prev_addr & ^(splitSize-1)) < ((addr-1) & ^(splitSize-1)) {
 			chunkBase := addr & ^(splitSize - 1)
-			prevOrphanSize := uint64(chunkBase - prev_addr)
+
+			prevOrphanSize := uint64(0)
+			if !assumeHasWidow { // orphan size of previous block is 0 is we assume we start with a widow
+				prevOrphanSize = uint64(chunkBase - prev_addr)
+			}
 			if len(chunks) > 0 {
 				chunks[len(chunks)-1].orphanSize = prevOrphanSize
 			}
 
 			widowSize := uint64(addr - chunkBase)
-			if widowSize > 1 {
-				widowSize -= 1
-			}
 			chunks = append(chunks, chunkResult{part: len(chunks), widowSize: widowSize})
 
 			if dump {
 				start := ((chunkBase - addrBase) & ^0xf) - (((int64(prevOrphanSize) >> 4) + 1) << 4)
 				end := ((chunkBase - addrBase) & ^0xf) + (((int64(widowSize) >> 4) + 1) << 4)
+
+				fmt.Println("part:", chunks[len(chunks)-1].part)
 				dumpWithAddr(buf[start:end], chunkBase-(((int64(prevOrphanSize)>>4)+1)<<4))
 				fmt.Println()
 			}
-
+			assumeHasWidow = false
 		}
 		lines += 1
+	}
+
+	// Write last orphan_size
+	if len(chunks) > 0 {
+		chunks[len(chunks)-1].orphanSize = uint64(addr - prev_addr)
 	}
 
 	fmt.Println(lines)
@@ -148,8 +167,8 @@ func TestVerifyChunking(t *testing.T) {
 			r := result
 			r.status = sourceOfTruth[i].status
 			if !reflect.DeepEqual(r, sourceOfTruth[i]) {
-				fmt.Println(result)
-				fmt.Println(sourceOfTruth[i])
+				fmt.Println(" truth:", sourceOfTruth[i])
+				fmt.Println("result:", result)
 			}
 		}
 	}
