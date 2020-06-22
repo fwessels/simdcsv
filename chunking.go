@@ -64,7 +64,7 @@ const (
 )
 
 func (s chunkStatus) String() string {
-	return [...]string{"HasNoQuotes", "Unambigous", "Ambigous"}[s]
+	return [...]string{"Unambigous", "Ambigous"}[s]
 }
 
 func deriveChunkResult(in chunkInput) chunkResult {
