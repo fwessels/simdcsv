@@ -56,23 +56,10 @@ func determineAmbiguity(prefixChunk []byte) (ambiguous bool) {
 	return
 }
 
-// func determineQuotedness(prefixChunk []byte) (quoted bool) {
-//
-// 	quotes := bytes.Count(prefixChunk, []byte{'"'})
-// 	if quotes%2 == 0 {
-// 		quoted = true
-// 	} else {
-// 		quoted = false
-// 	}
-//
-// 	return
-// }
-
 type chunkStatus int
 
 const (
-	HasNoQuotes chunkStatus = iota
-	Unambigous
+	Unambigous chunkStatus = iota
 	Ambigous
 )
 
@@ -93,12 +80,10 @@ func deriveChunkResult(in chunkInput) chunkResult {
 	// ambiguous        | unquoted
 	// ambiguous        | quoted
 
-	chunkStatus := HasNoQuotes
+	chunkStatus := Unambigous
 	if bytes.ContainsRune(in.chunk[:prefixSize], '"') {
 		if determineAmbiguity(in.chunk[:prefixSize]) {
 			chunkStatus = Ambigous
-		} else {
-			chunkStatus = Unambigous
 		}
 	}
 
