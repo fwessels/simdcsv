@@ -88,10 +88,6 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 			if buf[addr-addrBase-1] == 0x0a {
 				break
 			}
-			if buf[addr-addrBase-1-fudge] == 0x0a {
-				addr -= fudge
-				break
-			}
 			if buf[addr-addrBase-1+fudge] == 0x0a {
 				addr += fudge
 				break
@@ -175,8 +171,7 @@ func TestVerifyChunking(t *testing.T) {
 				r := result
 				r.status = sourceOfTruth[i].status
 				if !reflect.DeepEqual(r, sourceOfTruth[i]) {
-					fmt.Println(" truth:", sourceOfTruth[i])
-					fmt.Println("result:", result)
+					t.Errorf("TestVerifyChunking mismatch: got %v, want %v", result, sourceOfTruth[i])
 				}
 			}
 		}
