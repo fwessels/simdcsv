@@ -3,15 +3,19 @@ package simdcsv
 import (
 	"encoding/csv"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"github.com/fwessels/kaggle-go"
 	"golang.org/x/exp/mmap"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"text/tabwriter"
 )
 
 func TestChunkWorker(t *testing.T) {
@@ -52,18 +56,21 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 	r := csv.NewReader(file)
 
 	const mapWindow = 1024 * 1024
-	buf, addrBase := make([]byte, mapWindow), int64(0x0)
-	memmap.ReadAt(buf, addrBase)
+	buf := make([]byte, mapWindow)
+	addrBase := int64(-mapWindow / 2) // make sure we trigger a memory map
+	endOfMem := 0
 
 	addr, prev_addr, lines := int64(0), int64(0), 0
 	assumeHasWidow := false
 
-	endOfMem := 0
 	for {
 		if addr-addrBase >= mapWindow/2 {
 			addrBase += mapWindow / 2
 			// fmt.Printf("Remapping at %08x\n", addrBase)
-			n, _ := memmap.ReadAt(buf, addrBase)
+			n, err := memmap.ReadAt(buf, addrBase)
+			if err != nil && !errors.Is(err, io.EOF) {
+				log.Fatalf("memmap failed: %v", err)
+			}
 			endOfMem = int(addrBase) + n
 			if n < len(buf) {
 				buf = buf[:n]
@@ -99,6 +106,15 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 			}
 
 			if fudge >= length/2 {
+				fmt.Println(record)
+
+				chunkBase := addr & ^(splitSize - 1)
+				start := ((chunkBase - addrBase) & ^0xf) - 0x100
+				end := ((chunkBase - addrBase) & ^0xf) + 0x100
+
+				dumpWithAddr(buf[start:end], chunkBase-0x100)
+				fmt.Println()
+
 				log.Fatalf("Unable to find newline: %d", fudge)
 			}
 		}
@@ -140,15 +156,16 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 		lines += 1
 	}
 
-	fmt.Println(lines)
-	fmt.Println(len(chunks))
-
 	return
 }
 
-func TestVerifyChunking(t *testing.T) {
+func testVerifyChunking(t *testing.T, filename string) {
 
-	const filename = "Parking_Violations_Issued_-_Fiscal_Year_2017.csv"
+	fi, err := os.Stat(filename)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	filesize := fi.Size()
 
 	for shift := 14; shift < 20; shift++ {
 
@@ -164,7 +181,10 @@ func TestVerifyChunking(t *testing.T) {
 
 		buf := make([]byte, splitSize)
 		for i := 0; i < len(sourceOfTruth); i++ {
-			n, _ := memmap.ReadAt(buf, int64(i)*splitSize)
+			n, err := memmap.ReadAt(buf, int64(i)*splitSize)
+			if err != nil && !errors.Is(err, io.EOF) {
+				log.Fatalf("memmap failed: %v", err)
+			}
 
 			result := deriveChunkResult(chunkInput{i, buf[:n]})
 			if !reflect.DeepEqual(result, sourceOfTruth[i]) {
@@ -175,5 +195,96 @@ func TestVerifyChunking(t *testing.T) {
 				}
 			}
 		}
+
+		if filesize < splitSize {
+			break // no point in continuing testing
+		}
 	}
+}
+
+func TestVerifyChunking(t *testing.T) {
+
+	testVerifyChunking(t, "./test-data/country_wise_latest.csv")
+	testVerifyChunking(t, "./test-data/covid_19_clean_complete.csv")
+	testVerifyChunking(t, "./test-data/day_wise.csv")
+	testVerifyChunking(t, "./test-data/full_grouped.csv")
+	testVerifyChunking(t, "./test-data/usa_county_wise.csv")
+	testVerifyChunking(t, "./test-data/worldometer_data.csv")
+}
+
+func TestVerifyThruKaggle(t *testing.T) {
+
+	entries := kaggle.ListByVotesPopularity(10*1024*1024, 20*1024*1024, 100)
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
+	for _, r := range entries {
+		for _, f := range r {
+			fmt.Fprint(w, f+"\t")
+		}
+		fmt.Fprintln(w)
+	}
+	w.Flush()
+
+	const downloadPath = "./test-data/"
+	for index, r := range entries {
+
+		if index < 6 {
+			continue
+		}
+
+		if index >= 7 {
+			break
+		}
+
+		if err := os.RemoveAll(downloadPath); err != nil {
+			t.Errorf("Error while removing directory: %v", nil)
+		}
+
+		dataset := r[0]
+		fmt.Println("Downloading", dataset)
+		kaggle.Download(r[0], downloadPath)
+
+		files, err := ioutil.ReadDir(downloadPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, file := range files {
+			extension := filepath.Ext(file.Name())
+			if extension == ".csv" {
+
+				if blackListed(dataset + "/" + file.Name()) {
+					continue
+				}
+
+				fmt.Println(dataset + "/" + file.Name())
+				testVerifyChunking(t, downloadPath+file.Name())
+			}
+		}
+
+	}
+}
+
+func blackListed(filename string) bool {
+
+	list := []string{
+		// uses 0x0d as delimiter instead of 0x0a
+		"AnalyzeBoston/crimes-in-boston/offense_codes.csv",
+		//
+		// parse error on line 4, column 40: bare " in non-quoted-field
+		//                                         v        v
+		// 2016-03-14 12:52:21,Jeep_Grand_Cherokee_"Overland",privat,Angebot,9800,test,suv,2004,automatik,163,grand,125000,8,diesel,jeep,,2016-03-14 00:00:00,0,90480,2016-04-05 12:47:46
+		"orgesleka/used-cars-database/autos.csv",
+		//
+		// record on line 878: wrong number of fields
+		"NUFORC/ufo-sightings/complete.csv",
+	}
+
+	for _, l := range list {
+		if filename == l {
+			return true
+		}
+	}
+
+	return false
 }
