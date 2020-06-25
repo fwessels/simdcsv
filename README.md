@@ -14,3 +14,5 @@ PASS
 
 Ge, Chang and Li, Yinan and Eilebrecht, Eric and Chandramouli, Badrish and Kossmann, Donald, [Speculative Distributed CSV Data Parsing for Big Data Analytics](https://www.microsoft.com/en-us/research/publication/speculative-distributed-csv-data-parsing-for-big-data-analytics/), SIGMOD 2019.
 
+[Awesome Comma-Separated Values](https://github.com/csvspecs/awesome-csv)
+
