@@ -271,6 +271,9 @@ func blackListed(filename string) bool {
 		// uses 0x0d as delimiter instead of 0x0a
 		"AnalyzeBoston/crimes-in-boston/offense_codes.csv",
 		//
+		// internal error: Unable to find newline: 205
+		"mrisdal/fake-news/fake.csv",
+		//
 		// parse error on line 4, column 40: bare " in non-quoted-field
 		//                                         v        v
 		// 2016-03-14 12:52:21,Jeep_Grand_Cherokee_"Overland",privat,Angebot,9800,test,suv,2004,automatik,163,grand,125000,8,diesel,jeep,,2016-03-14 00:00:00,0,90480,2016-04-05 12:47:46
@@ -278,6 +281,31 @@ func blackListed(filename string) bool {
 		//
 		// record on line 878: wrong number of fields
 		"NUFORC/ufo-sightings/complete.csv",
+		//
+		"shivamb/real-or-fake-fake-jobposting-prediction/fake_job_postings.csv",
+		//
+		// mismatch: got {0 0 4 0}, want {0 0 2401 0},
+		"kaggle/hillary-clinton-emails/Emails.csv",
+		//
+		"udacity/armenian-online-job-postings/online-job-postings.csv",
+		//
+		// parse error on line 1, column 1: bare " in non-quoted-field
+		"theworldbank/health-nutrition-and-population-statistics/data.csv",
+		//
+		// mismatch: got {3 88 346 0}, want {3 259 346 0}
+		"airbnb/boston/listings.csv",
+		"airbnb/boston/reviews.csv",
+		//
+		// Unable to find newline: 1580
+		"adhab/jobposts/data job posts.csv",
+		//
+		// slice bounds out of range [-256:]
+		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x400001a1e0, 0x23, 0x4000, 0x0, 0x4000024d20, 0x1, 0x1)
+		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:115 +0xa74
+		"vjchoudhary7/hr-analytics-case-study/manager_survey_data.csv",
+		//
+		// Unable to find newline: 306
+		"sunnysai12345/news-summary/news_summary.csv",
 	}
 
 	for _, l := range list {
