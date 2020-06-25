@@ -306,6 +306,55 @@ func blackListed(filename string) bool {
 		//
 		// Unable to find newline: 306
 		"sunnysai12345/news-summary/news_summary.csv",
+		//
+		// slice bounds out of range [-256:]
+		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x400001a1e0, 0x23, 0x4000, 0x0, 0x4000024d20, 0x1, 0x1)
+		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:115 +0xa74
+		"codename007/funding-successful-projects/test.csv",
+		"codename007/funding-successful-projects/train.csv",
+		//
+		// index out of range [2794] with length 2794
+		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x40000b9ee0, 0x20, 0x4000, 0x0, 0x40000b9f00, 0x1, 0x1)
+		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:98 +0xa8c
+		"harriken/emoji-sentiment/__readervswriter.csv",
+		//
+		// got {4 77 677 0}, want {4 912 677 0}
+		"harriken/emoji-sentiment/comments2emoji_frequency_matrix_cleaned.csv",
+		//
+		// index out of range [69313] with length 69313
+		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x40001957a0, 0x18, 0x4000, 0x0, 0x40001957e0, 0x1, 0x1)
+		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:98 +0xa8c
+		"harriken/emoji-sentiment/ijstable.csv",
+		//
+		"ryanxjhan/cbc-news-coronavirus-articles-march-26/news.csv",
+		//
+		// index out of range [2981] with length 2981
+		"rohanrao/nifty50-stock-market-data/stock_metadata.csv",
+		//
+		// mismatch: got {4167 2139 237 0}, want {4167 1994 0 0}
+		"PromptCloudHQ/us-jobs-on-monstercom/monster_com-job_sample.csv",
+		//
+		"PromptCloudHQ/innerwear-data-from-victorias-secret-and-others/us_topshop_com.csv",
+		//
+		// record on line 7: wrong number of fields
+		"bls/consumer-price-index/cu.area.csv",
+		// record on line 8: wrong number of fields
+		"bls/consumer-price-index/cu.item.csv",
+		// record on line 2: wrong number of fields
+		"bls/consumer-price-index/cu.series.csv",
+		//
+		// Unable to find newline: 4
+		"rtatman/universal-product-code-database/upc_corpus.csv",
+		//
+		// parse error on line 3677, column 18: extraneous or missing " in quoted-field
+		"orgesleka/android-apps/apps.csv",
+		//
+		// mismatch: got {2840 1415 2751 0}, want {2840 1415 19135 0}
+		"PromptCloudHQ/jobs-on-naukricom/naukri_com-job_sample.csv",
+		//
+		// mismatch: got {3452 124 4189 0}, want {3452 2015 258 0}
+		"PromptCloudHQ/jobs-on-naukricom/dice_com-job_us_sample.csv",
+		"PromptCloudHQ/us-technology-jobs-on-dicecom/dice_com-job_us_sample.csv",
 	}
 
 	for _, l := range list {
