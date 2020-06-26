@@ -36,47 +36,53 @@ func dumpWithAddr(buf []byte, addr int64) {
 	}
 }
 
+type SingleByteReader struct {
+	f *os.File
+	i int64 // current reading index
+}
+
+func (m *SingleByteReader) Read(b []byte) (n int, err error) {
+	n, err = m.f.Read(b[:1])
+	m.i += int64(n)
+	return
+}
+
+func (m *SingleByteReader) GetIndex() int64 {
+	return m.i
+}
+
+func (m *SingleByteReader) Close() {
+	m.f.Close()
+}
+
+func NewSingleByteReader(filename string) *SingleByteReader {
+
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil
+	}
+
+	return &SingleByteReader{f, 0}
+}
+
 func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult) {
 
 	chunks = make([]chunkResult, 0)
 	chunks = append(chunks, chunkResult{widowSize: 0})
 
-	memmap, err := mmap.Open(filename)
-	defer memmap.Close()
-	if err != nil {
-		log.Fatalf("%v", err)
+	file := NewSingleByteReader(filename)
+	if file == nil {
+		log.Fatalf("Failed to create SingleByteReader")
 	}
-
-	file, err := os.Open(filename)
 	defer file.Close()
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
 
 	r := csv.NewReader(file)
-
-	const mapWindow = 1024 * 1024
-	buf := make([]byte, mapWindow)
-	addrBase := int64(-mapWindow / 2) // make sure we trigger a memory map
-	endOfMem := 0
 
 	addr, prev_addr, lines := int64(0), int64(0), 0
 	assumeHasWidow := false
 
 	for {
-		if addr-addrBase >= mapWindow/2 {
-			addrBase += mapWindow / 2
-			// fmt.Printf("Remapping at %08x\n", addrBase)
-			n, err := memmap.ReadAt(buf, addrBase)
-			if err != nil && !errors.Is(err, io.EOF) {
-				log.Fatalf("memmap failed: %v", err)
-			}
-			endOfMem = int(addrBase) + n
-			if n < len(buf) {
-				buf = buf[:n]
-			}
-		}
-		record, err := r.Read()
+		_ /*record*/, err := r.Read()
 
 		if err == io.EOF {
 			break
