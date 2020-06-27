@@ -91,39 +91,7 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 		}
 
 		// fmt.Println(record)
-		length := int64(len(record) - 1) // nr of commas minus 1
-		for _, f := range record {
-			length += int64(len(f))
-		}
-		prev_addr, addr = addr, addr+length
-
-		for fudge := int64(1); ; {
-			if buf[addr-addrBase-1] == 0x0a {
-				break
-			}
-			if buf[addr-addrBase-1+fudge] == 0x0a {
-				addr += fudge
-				break
-			}
-			fudge += 1
-			if addr+fudge >= int64(endOfMem) {
-				addr += fudge
-				break
-			}
-
-			if fudge >= length/2 {
-				fmt.Println(record)
-
-				chunkBase := addr & ^(splitSize - 1)
-				start := ((chunkBase - addrBase) & ^0xf) - 0x100
-				end := ((chunkBase - addrBase) & ^0xf) + 0x100
-
-				dumpWithAddr(buf[start:end], chunkBase-0x100)
-				fmt.Println()
-
-				log.Fatalf("Unable to find newline: %d", fudge)
-			}
-		}
+		prev_addr, addr = addr, file.GetIndex()
 
 		if (addr-1)&(splitSize-1) == splitSize-1 {
 			//
@@ -149,14 +117,14 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 			widowSize := uint64(addr - chunkBase)
 			chunks = append(chunks, chunkResult{part: len(chunks), widowSize: widowSize})
 
-			if dump {
-				start := ((chunkBase - addrBase) & ^0xf) - (((int64(prevOrphanSize) >> 4) + 1) << 4)
-				end := ((chunkBase - addrBase) & ^0xf) + (((int64(widowSize) >> 4) + 1) << 4)
-
-				fmt.Println("part:", chunks[len(chunks)-1].part)
-				dumpWithAddr(buf[start:end], chunkBase-(((int64(prevOrphanSize)>>4)+1)<<4))
-				fmt.Println()
-			}
+			// if dump {
+			// 	start := ((chunkBase - addrBase) & ^0xf) - (((int64(prevOrphanSize) >> 4) + 1) << 4)
+			// 	end := ((chunkBase - addrBase) & ^0xf) + (((int64(widowSize) >> 4) + 1) << 4)
+			//
+			// 	fmt.Println("part:", chunks[len(chunks)-1].part)
+			// 	dumpWithAddr(buf[start:end], chunkBase-(((int64(prevOrphanSize)>>4)+1)<<4))
+			// 	fmt.Println()
+			// }
 			assumeHasWidow = false
 		}
 		lines += 1
