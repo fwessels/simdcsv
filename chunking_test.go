@@ -245,7 +245,7 @@ func blackListed(filename string) bool {
 		// uses 0x0d as delimiter instead of 0x0a
 		"AnalyzeBoston/crimes-in-boston/offense_codes.csv",
 		//
-		// internal error: Unable to find newline: 205
+		// mismatch: got {1121 3549 5325 0}, want {1121 11583 1320 0}
 		"mrisdal/fake-news/fake.csv",
 		//
 		// parse error on line 4, column 40: bare " in non-quoted-field
@@ -270,44 +270,25 @@ func blackListed(filename string) bool {
 		"airbnb/boston/listings.csv",
 		"airbnb/boston/reviews.csv",
 		//
-		// Unable to find newline: 1580
+		// mismatch: got {5588 2 29 0}, want {5588 2834 1541 0}
 		"adhab/jobposts/data job posts.csv",
 		//
-		// slice bounds out of range [-256:]
-		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x400001a1e0, 0x23, 0x4000, 0x0, 0x4000024d20, 0x1, 0x1)
-		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:115 +0xa74
-		"vjchoudhary7/hr-analytics-case-study/manager_survey_data.csv",
-		//
-		// Unable to find newline: 306
-		"sunnysai12345/news-summary/news_summary.csv",
-		//
-		// slice bounds out of range [-256:]
-		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x400001a1e0, 0x23, 0x4000, 0x0, 0x4000024d20, 0x1, 0x1)
-		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:115 +0xa74
+		// mismatch: got {28 112 122 0}, want {28 112 198 0}
 		"codename007/funding-successful-projects/test.csv",
 		"codename007/funding-successful-projects/train.csv",
 		//
-		// index out of range [2794] with length 2794
-		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x40000b9ee0, 0x20, 0x4000, 0x0, 0x40000b9f00, 0x1, 0x1)
-		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:98 +0xa8c
+		// mismatch: got {1116 12 252 0}, want {1116 152 252 0}
 		"harriken/emoji-sentiment/__readervswriter.csv",
-		//
-		// got {4 77 677 0}, want {4 912 677 0}
 		"harriken/emoji-sentiment/comments2emoji_frequency_matrix_cleaned.csv",
-		//
-		// index out of range [69313] with length 69313
-		// github.com/fwessels/simdcsv.memoryTrackingCsvParser(0x40001957a0, 0x18, 0x4000, 0x0, 0x40001957e0, 0x1, 0x1)
-		//     /home/ec2-user/go/src/github.com/fwessels/simdcsv/chunking_test.go:98 +0xa8c
 		"harriken/emoji-sentiment/ijstable.csv",
 		//
 		"ryanxjhan/cbc-news-coronavirus-articles-march-26/news.csv",
 		//
-		// index out of range [2981] with length 2981
+		// mismatch: got {0 0 77 0}, want {0 0 0 0}
 		"rohanrao/nifty50-stock-market-data/stock_metadata.csv",
 		//
 		// mismatch: got {4167 2139 237 0}, want {4167 1994 0 0}
 		"PromptCloudHQ/us-jobs-on-monstercom/monster_com-job_sample.csv",
-		//
 		"PromptCloudHQ/innerwear-data-from-victorias-secret-and-others/us_topshop_com.csv",
 		//
 		// record on line 7: wrong number of fields
@@ -316,9 +297,6 @@ func blackListed(filename string) bool {
 		"bls/consumer-price-index/cu.item.csv",
 		// record on line 2: wrong number of fields
 		"bls/consumer-price-index/cu.series.csv",
-		//
-		// Unable to find newline: 4
-		"rtatman/universal-product-code-database/upc_corpus.csv",
 		//
 		// parse error on line 3677, column 18: extraneous or missing " in quoted-field
 		"orgesleka/android-apps/apps.csv",
