@@ -1,6 +1,7 @@
 package simdcsv
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -37,12 +38,12 @@ func dumpWithAddr(buf []byte, addr int64) {
 }
 
 type SingleByteReader struct {
-	f *os.File
+	r io.Reader
 	i int64 // current reading index
 }
 
 func (m *SingleByteReader) Read(b []byte) (n int, err error) {
-	n, err = m.f.Read(b[:1])
+	n, err = m.r.Read(b[:1])
 	m.i += int64(n)
 	return
 }
@@ -51,18 +52,11 @@ func (m *SingleByteReader) GetIndex() int64 {
 	return m.i
 }
 
-func (m *SingleByteReader) Close() {
-	m.f.Close()
-}
+func NewSingleByteReader(f *os.File) *SingleByteReader {
 
-func NewSingleByteReader(filename string) *SingleByteReader {
+	br := bufio.NewReader(f)
 
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil
-	}
-
-	return &SingleByteReader{f, 0}
+	return &SingleByteReader{br, 0}
 }
 
 func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult) {
@@ -70,13 +64,18 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 	chunks = make([]chunkResult, 0)
 	chunks = append(chunks, chunkResult{widowSize: 0})
 
-	file := NewSingleByteReader(filename)
-	if file == nil {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	sbr := NewSingleByteReader(f)
+	if sbr == nil {
 		log.Fatalf("Failed to create SingleByteReader")
 	}
-	defer file.Close()
 
-	r := csv.NewReader(file)
+	r := csv.NewReader(sbr)
 
 	addr, prev_addr, lines := int64(0), int64(0), 0
 	assumeHasWidow := false
@@ -91,7 +90,7 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 		}
 
 		// fmt.Println(record)
-		prev_addr, addr = addr, file.GetIndex()
+		prev_addr, addr = addr, sbr.GetIndex()
 
 		if (addr-1)&(splitSize-1) == splitSize-1 {
 			//
