@@ -1,7 +1,6 @@
 package simdcsv
 
 import (
-	"bufio"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -35,28 +34,6 @@ func dumpWithAddr(buf []byte, addr int64) {
 		l = strings.ReplaceAll(l, fmt.Sprintf("%08x", i*16), fmt.Sprintf("%08x", int(addr)+i*16))
 		fmt.Println(strings.ReplaceAll(l, " 0a ", "<0a>"))
 	}
-}
-
-type SingleByteReader struct {
-	r io.Reader
-	i int64 // current reading index
-}
-
-func (m *SingleByteReader) Read(b []byte) (n int, err error) {
-	n, err = m.r.Read(b[:1])
-	m.i += int64(n)
-	return
-}
-
-func (m *SingleByteReader) GetIndex() int64 {
-	return m.i
-}
-
-func NewSingleByteReader(f *os.File) *SingleByteReader {
-
-	br := bufio.NewReader(f)
-
-	return &SingleByteReader{br, 0}
 }
 
 func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult) {

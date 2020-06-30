@@ -1,8 +1,12 @@
 package simdcsv
 
 import (
+	"encoding/csv"
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
+	"strings"
 	"runtime"
 	"sync"
 )
@@ -69,6 +73,31 @@ func (s chunkStatus) String() string {
 	return [...]string{"Unambigous", "Ambigous"}[s]
 }
 
+//
+// TODO: Move back to _test file (once fast parsing is in place)
+//
+type SingleByteReader struct {
+	r io.Reader
+	i int64 // current reading index
+}
+
+func (m *SingleByteReader) Read(b []byte) (n int, err error) {
+	n, err = m.r.Read(b[:1])
+	m.i += int64(n)
+	return
+}
+
+func (m *SingleByteReader) GetIndex() int64 {
+	return m.i
+}
+
+func NewSingleByteReader(r io.Reader) *SingleByteReader {
+
+	br := bufio.NewReader(r)
+
+	return &SingleByteReader{br, 0}
+}
+
 func deriveChunkResult(in chunkInput) chunkResult {
 
 	prefixSize := PREFIX_SIZE
@@ -93,16 +122,42 @@ func deriveChunkResult(in chunkInput) chunkResult {
 		}
 	}
 
-	orphanSize := uint64(0)
-
-	for i := len(in.chunk) - 1; i >= 0; i-- {
-		if in.chunk[i] == '\n' {
-			break
-		}
-		orphanSize++
-	}
+	orphanSize := uint64(findOrphanSize(in.chunk[widowSize:]))
 
 	return chunkResult{in.part, widowSize, orphanSize, chunkStatus}
+}
+
+// Find the orphan size by, starting from the widowSize offset,
+// to iterate through the CSV content until we hit the end of the buffer
+//
+// TODO: Using SingleByteReader and encoding/csv for now
+//       Should be replaced with accelerated/SIMD code
+//
+func findOrphanSize(buf []byte) int {
+
+	sbr := NewSingleByteReader(strings.NewReader(string(buf)))
+	if sbr == nil {
+		return 0
+	}
+
+	r := csv.NewReader(sbr)
+
+	addr := int64(0)
+
+	for {
+		_ /*record*/, err := r.Read()
+
+		if err == io.EOF {
+			// For a single chunk, write last line as orphan
+			break
+		} else if err != nil {
+			break
+		}
+
+		addr = sbr.GetIndex()
+	}
+
+	return len(buf) - int(addr)
 }
 
 func chunkWorker(chunks <-chan chunkInput, results chan<- chunkResult) {
