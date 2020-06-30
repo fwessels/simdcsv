@@ -84,6 +84,10 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 		_ /*record*/, err := r.Read()
 
 		if err == io.EOF {
+			// For a single chunk, write last line as orphan
+			if len(chunks) == 1 {
+				chunks[0].orphanSize = uint64(sbr.GetIndex() - prev_addr)
+			}
 			break
 		} else if err != nil {
 			log.Fatal(err)
@@ -282,9 +286,6 @@ func blackListed(filename string) bool {
 		"harriken/emoji-sentiment/ijstable.csv",
 		//
 		"ryanxjhan/cbc-news-coronavirus-articles-march-26/news.csv",
-		//
-		// mismatch: got {0 0 77 0}, want {0 0 0 0}
-		"rohanrao/nifty50-stock-market-data/stock_metadata.csv",
 		//
 		// mismatch: got {4167 2139 237 0}, want {4167 1994 0 0}
 		"PromptCloudHQ/us-jobs-on-monstercom/monster_com-job_sample.csv",
