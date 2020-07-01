@@ -155,9 +155,14 @@ func deriveChunkResult(in chunkInput) chunkResult {
 				widowSize++
 			}
 		}
+
+		// we are now at the end (closing) quote
+		state := 'Q'
 		for ; i < len(in.chunk); i++ {
 			widowSize++
-			if in.chunk[i] == '\n' {
+			out := augmentedFSM(string(in.chunk[i]), state)
+			state = rune(out[len(out)-1])
+			if state != 'Q' && in.chunk[i] == '\n' {
 				break
 			}
 		}
