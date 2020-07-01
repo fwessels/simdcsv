@@ -98,6 +98,27 @@ func NewSingleByteReader(r io.Reader) *SingleByteReader {
 	return &SingleByteReader{br, 0}
 }
 
+func determineQuotedOrUnquoted(prefix []byte) (quoted, ambiguous bool) {
+
+	endStates := make(map[uint8]bool)
+
+	initialStates := []int32{'R', 'F', 'U', 'Q', 'E'}
+
+	for _, state := range initialStates {
+		out := augmentedFSM(string(prefix), state)
+
+		if out[len(out)-1] != 'X' {
+			endStates[out[len(out)-1]] = true
+		}
+	}
+
+	ambiguous = len(endStates) != 1
+	if !ambiguous {
+		quoted = endStates['Q'] == true
+	}
+	return
+}
+
 func deriveChunkResult(in chunkInput) chunkResult {
 
 	prefixSize := PREFIX_SIZE
@@ -114,7 +135,27 @@ func deriveChunkResult(in chunkInput) chunkResult {
 
 	widowSize := uint64(0)
 	if in.part > 0 {
-		for i := 0; i < len(in.chunk); i++ {
+		i := 0
+
+		quoted, _ := determineQuotedOrUnquoted(in.chunk[:PREFIX_SIZE])
+
+		if quoted {
+			for ; i < len(in.chunk); i++ {
+				if in.chunk[i] == '"' {
+					// Is there an escaped quote?
+					if i+1 < len(in.chunk) && in.chunk[i+1] == '"' {
+						// If so, advance one extra in order to skip
+						// next character (which is a quote)
+						i++
+						widowSize++
+					} else {
+						break
+					}
+				}
+				widowSize++
+			}
+		}
+		for ; i < len(in.chunk); i++ {
 			widowSize++
 			if in.chunk[i] == '\n' {
 				break
