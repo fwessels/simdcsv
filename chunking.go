@@ -98,17 +98,70 @@ func NewSingleByteReader(r io.Reader) *SingleByteReader {
 	return &SingleByteReader{br, 0}
 }
 
+//
+// TODO: Move back to _test file (once fast parsing is in place)
+//
+func augmentedFsmRune(r rune, state int32) int32 {
+
+	// transition table
+	//                    | quote comma newline other
+	// -------------------|--------------------------
+	// R (Record start)   |   Q     F      R      U
+	// F (Field start)    |   Q     F      R      U
+	// U (Unquoted field) |   X     F      R      U
+	// Q (Quoted field)   |   E     Q      Q      Q
+	// E (quoted End)     |   Q     F      R      X
+	// X (Error)          |   X     X      X      X
+
+	switch r {
+	case '"':
+		switch state {
+		case 'U', 'X':
+			state = 'X'
+		case 'Q':
+			state = 'E'
+		default:
+			state = 'Q'
+		}
+
+	case ',', '\n':
+		switch state {
+		case 'Q', 'X':
+			break // unchanged
+		default:
+			if r == ',' {
+				state = 'F'
+			} else {
+				state = 'R'
+			}
+		}
+
+	default:
+		switch state {
+		case 'Q':
+			break
+		case 'E', 'X':
+			state = 'X'
+		default:
+			state = 'U'
+		}
+	}
+	return state
+}
+
 func determineQuotedOrUnquoted(prefix []byte) (quoted, ambiguous bool) {
 
-	endStates := make(map[uint8]bool)
+	endStates := make(map[int32]bool)
 
 	initialStates := []int32{'R', 'F', 'U', 'Q', 'E'}
 
 	for _, state := range initialStates {
-		out := augmentedFSM(string(prefix), state)
+		for _, r := range prefix {
+			state = augmentedFsmRune(rune(r), state)
+		}
 
-		if out[len(out)-1] != 'X' {
-			endStates[out[len(out)-1]] = true
+		if state != 'X' {
+			endStates[state] = true
 		}
 	}
 
@@ -160,8 +213,7 @@ func deriveChunkResult(in chunkInput) chunkResult {
 		state := 'Q'
 		for ; i < len(in.chunk); i++ {
 			widowSize++
-			out := augmentedFSM(string(in.chunk[i]), state)
-			state = rune(out[len(out)-1])
+			state = augmentedFsmRune(rune(in.chunk[i]), state)
 			if state != 'Q' && in.chunk[i] == '\n' {
 				break
 			}

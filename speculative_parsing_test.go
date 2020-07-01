@@ -155,52 +155,9 @@ func TestUnambiquityWithPatterns(t *testing.T) {
 }
 
 func augmentedFSM(input string, state int32) string {
-
-	// transition table
-	//                    | quote comma newline other
-	// -------------------|--------------------------
-	// R (Record start)   |   Q     F      R      U
-	// F (Field start)    |   Q     F      R      U
-	// U (Unquoted field) |   X     F      R      U
-	// Q (Quoted field)   |   E     Q      Q      Q
-	// E (quoted End)     |   Q     F      R      X
-	// X (Error)          |   X     X      X      X
-
 	out := fmt.Sprintf("    %c", state)
 	for _, r := range input {
-		switch r {
-		case '"':
-			switch state {
-			case 'U', 'X':
-				state = 'X'
-			case 'Q':
-				state = 'E'
-			default:
-				state = 'Q'
-			}
-
-		case ',', '\n':
-			switch state {
-			case 'Q', 'X':
-				break // unchanged
-			default:
-				if r == ',' {
-					state = 'F'
-				} else {
-					state = 'R'
-				}
-			}
-
-		default:
-			switch state {
-			case 'Q':
-				break
-			case 'E', 'X':
-				state = 'X'
-			default:
-				state = 'U'
-			}
-		}
+		state = augmentedFsmRune(r, state)
 		out += fmt.Sprintf("  %c", state)
 	}
 	return out
