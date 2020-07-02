@@ -36,14 +36,14 @@ func dumpWithAddr(buf []byte, addr int64) {
 	}
 }
 
-func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult, lines int) {
+func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult, lines int, maxLineLength int64) {
 
 	chunks = make([]chunkResult, 0)
 	chunks = append(chunks, chunkResult{widowSize: 0})
 
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, 0
+		return nil, 0, 0
 	}
 	defer f.Close()
 
@@ -72,6 +72,9 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 
 		// fmt.Println(record)
 		prev_addr, addr = addr, sbr.GetIndex()
+		if addr-prev_addr > maxLineLength {
+			maxLineLength = addr - prev_addr
+		}
 
 		if (addr-1)&(splitSize-1) == splitSize-1 {
 			//
@@ -125,8 +128,8 @@ func testVerifyChunking(t *testing.T, filename string) {
 
 		splitSize := int64(1 << shift)
 		fmt.Println("Testing for splitSize", splitSize)
-		sourceOfTruth, lines := memoryTrackingCsvParser(filename, splitSize, false)
-		fmt.Println("Average line length:", int(filesize)/lines)
+		sourceOfTruth, lines, maxLineLength := memoryTrackingCsvParser(filename, splitSize, false)
+		fmt.Println("line length: avg =", int(filesize)/lines, "max =", maxLineLength)
 
 		memmap, err := mmap.Open(filename)
 		defer memmap.Close()
