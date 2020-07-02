@@ -225,9 +225,6 @@ func blackListed(filename string) bool {
 		// uses 0x0d as delimiter instead of 0x0a
 		"AnalyzeBoston/crimes-in-boston/offense_codes.csv",
 		//
-		// mismatch: got {1121 3549 5325 0}, want {1121 11583 1320 0}
-		"mrisdal/fake-news/fake.csv",
-		//
 		// parse error on line 4, column 40: bare " in non-quoted-field
 		//                                         v        v
 		// 2016-03-14 12:52:21,Jeep_Grand_Cherokee_"Overland",privat,Angebot,9800,test,suv,2004,automatik,163,grand,125000,8,diesel,jeep,,2016-03-14 00:00:00,0,90480,2016-04-05 12:47:46
