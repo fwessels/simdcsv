@@ -36,14 +36,14 @@ func dumpWithAddr(buf []byte, addr int64) {
 	}
 }
 
-func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult) {
+func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunks []chunkResult, lines int) {
 
 	chunks = make([]chunkResult, 0)
 	chunks = append(chunks, chunkResult{widowSize: 0})
 
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil
+		return nil, 0
 	}
 	defer f.Close()
 
@@ -54,7 +54,7 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 
 	r := csv.NewReader(sbr)
 
-	addr, prev_addr, lines := int64(0), int64(0), 0
+	addr, prev_addr := int64(0), int64(0)
 	assumeHasWidow := false
 
 	for {
@@ -87,7 +87,7 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 			chunkBase := addr & ^(splitSize - 1)
 
 			prevOrphanSize := uint64(0)
-			if !assumeHasWidow { // orphan size of previous block is 0 is we assume we start with a widow
+			if !assumeHasWidow { // orphan size of previous block is 0 if we assume we start with a widow
 				prevOrphanSize = uint64(chunkBase - prev_addr)
 			}
 			if len(chunks) > 0 {
@@ -125,7 +125,8 @@ func testVerifyChunking(t *testing.T, filename string) {
 
 		splitSize := int64(1 << shift)
 		fmt.Println("Testing for splitSize", splitSize)
-		sourceOfTruth := memoryTrackingCsvParser(filename, splitSize, false)
+		sourceOfTruth, lines := memoryTrackingCsvParser(filename, splitSize, false)
+		fmt.Println("Average line length:", int(filesize)/lines)
 
 		memmap, err := mmap.Open(filename)
 		defer memmap.Close()
