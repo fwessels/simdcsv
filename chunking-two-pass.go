@@ -1,8 +1,15 @@
 package simdcsv
 
-func ChunkTwoPass(buf []byte) (quotes, positionDelimiterEven, positionDelimiterOdd int, lastCharIsQuote bool) {
+type chunkInfo struct {
+	quotes                int
+	positionDelimiterEven int
+	positionDelimiterOdd  int
+	lastCharIsQuote       bool
+}
 
-	positionDelimiterEven, positionDelimiterOdd = -1, -1
+func ChunkTwoPass(buf []byte) (ci chunkInfo) {
+
+	ci.positionDelimiterEven, ci.positionDelimiterOdd = -1, -1
 
 	for i := 0; i < len(buf)-1; i++ {
 		b := buf[i]
@@ -10,22 +17,22 @@ func ChunkTwoPass(buf []byte) (quotes, positionDelimiterEven, positionDelimiterO
 			if buf[i+1] == '"' {
 				i++ // skip second quote
 			} else {
-				quotes++
+				ci.quotes++
 			}
 		} else if b == '\n' {
-			if quotes&1 == 1 {
-				if positionDelimiterOdd == -1 {
-					positionDelimiterOdd = i
+			if ci.quotes&1 == 1 {
+				if ci.positionDelimiterOdd == -1 {
+					ci.positionDelimiterOdd = i
 				}
 			} else {
-				if positionDelimiterEven == -1 {
-					positionDelimiterEven = i
+				if ci.positionDelimiterEven == -1 {
+					ci.positionDelimiterEven = i
 				}
 			}
 		}
 	}
 
-	lastCharIsQuote = buf[len(buf)-1] == '"'
+	ci.lastCharIsQuote = buf[len(buf)-1] == '"'
 
 	return
 }
