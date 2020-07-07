@@ -78,25 +78,30 @@ func TestChunkTwoPass(t *testing.T) {
 	}
 }
 
-func TestTwoPassChain(t *testing.T) {
+func testTwoPassChain(t *testing.T, filename string, chunkSize int) {
 
-	sourceOfTruth, _ /*lines*/, _ /*maxLineLength*/ := memoryTrackingCsvParser("test-data/Emails.csv", 1024*1024, false)
+	sourceOfTruth, _ /*lines*/, _ /*maxLineLength*/ := memoryTrackingCsvParser(filename, int64(chunkSize), false)
 
-	csv, err := ioutil.ReadFile("test-data/Emails.csv")
+	csv, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
 
 	chunkInfos := make([]chunkInfo, 0, 100)
 
-	for i := 0; i < len(csv); i += 1024 * 1024 {
-		end := i + 1024*1024
+	for i := 0; i < len(csv); i += chunkSize {
+		end := i + chunkSize
 		if end > len(csv) {
 			end = len(csv)
 		}
 
 		ci := ChunkTwoPass(csv[i:end])
 		chunkInfos = append(chunkInfos, ci)
+	}
+
+	if len(chunkInfos) != len(sourceOfTruth) {
+		t.Errorf("TestChunkTwoPass(sizes differ): got: %v want: %v", len(chunkInfos), len(sourceOfTruth))
+		return
 	}
 
 	totalQuotes := 0
@@ -109,9 +114,13 @@ func TestTwoPassChain(t *testing.T) {
 		}
 
 		if uint64(afterFirstDelim) != sourceOfTruth[i].widowSize {
-			t.Errorf("TestChunkTwoPass: got: %v want: %v", afterFirstDelim, sourceOfTruth[i].widowSize)
+			t.Errorf("TestChunkTwoPass[%d]: got: %v want: %v", i, afterFirstDelim, sourceOfTruth[i].widowSize)
 		}
 
 		totalQuotes += ci.quotes
 	}
+}
+
+func TestTwoPassChain(t *testing.T) {
+	testTwoPassChain(t, "test-data/Emails.csv", 256*1024)
 }
