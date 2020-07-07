@@ -74,6 +74,9 @@ func memoryTrackingCsvParser(filename string, splitSize int64, dump bool) (chunk
 		prev_addr, addr = addr, sbr.GetIndex()
 		if addr-prev_addr > maxLineLength {
 			maxLineLength = addr - prev_addr
+			if maxLineLength >= splitSize {
+				panic("maxLineLength >= splitSize")
+			}
 		}
 
 		if (addr-1)&(splitSize-1) == splitSize-1 {
