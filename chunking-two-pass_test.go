@@ -153,4 +153,46 @@ Dagobert,Duck,dago
 	if !reflect.DeepEqual(widowSizes, expected) {
 		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
 	}
+
+	//
+	// Escaped qoute at last two positions of chunk
+	//
+	fileTrunc := append([]byte(file)[0:0x5e], []byte(file)[0x5f:]...)
+
+	if !(fileTrunc[0x5d] != '"' && fileTrunc[0x5e] == '"' && fileTrunc[0x5f] == '"'  && fileTrunc[0x60] != '"') {
+		panic("Unexpected situation")
+	}
+
+	chunkInfos = chunkInfos[:0]
+	chunkInfos = append(chunkInfos, ChunkTwoPass(fileTrunc[0:0x60]))
+	chunkInfos = append(chunkInfos, ChunkTwoPass(fileTrunc[0x60:]))
+
+	widowSizes = GetWidowSizes(chunkInfos)
+	expected = []int{0, 3}
+
+	if !reflect.DeepEqual(widowSizes, expected) {
+		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
+	}
+
+	//
+	// Escaped qoute at first two positions of chunk
+	//
+	fileExtended := append([]byte(file)[0:0x5f], 'r')
+	fileExtended = append(fileExtended, []byte(file)[0x5f:]...)
+	fmt.Println(hex.Dump(fileExtended))
+
+	if !(fileExtended[0x5f] != '"' && fileExtended[0x60] == '"' && fileExtended[0x61] == '"'  && fileExtended[0x62] != '"') {
+		panic("Unexpected situation")
+	}
+
+	chunkInfos = chunkInfos[:0]
+	chunkInfos = append(chunkInfos, ChunkTwoPass(fileExtended[0:0x60]))
+	chunkInfos = append(chunkInfos, ChunkTwoPass(fileExtended[0x60:]))
+
+	widowSizes = GetWidowSizes(chunkInfos)
+	expected = []int{0, 5}
+
+	if !reflect.DeepEqual(widowSizes, expected) {
+		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
+	}
 }
