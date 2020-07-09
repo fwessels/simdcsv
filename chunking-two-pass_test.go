@@ -195,4 +195,22 @@ Dagobert,Duck,dago
 	if !reflect.DeepEqual(widowSizes, expected) {
 		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
 	}
+	
+	//
+	// Both escaped qoutes at last two positions of first chunk
+	// and first two positions of second chunk
+	//
+	chunkInfos = chunkInfos[:0]
+	chunkInfos = append(chunkInfos, ChunkTwoPass(fileTrunc[0:0x60]))
+	chunkInfos = append(chunkInfos, ChunkTwoPass(fileExtended[0x60:]))
+
+	fmt.Print(hex.Dump(fileTrunc[:0x60]))
+	fmt.Println(hex.Dump(fileExtended[0x60:]))
+
+	widowSizes = GetWidowSizes(chunkInfos)
+	expected = []int{0, 5}
+
+	if !reflect.DeepEqual(widowSizes, expected) {
+		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
+	}
 }
