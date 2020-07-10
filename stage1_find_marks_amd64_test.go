@@ -1,13 +1,16 @@
 package simdcsv
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io"
-	"encoding/csv"
-	"reflect"
-	"testing"
-	"strings"
+	"log"
+	"bytes"
 	"math/bits"
+	"reflect"
+	"strings"
+	"io/ioutil"
+	"testing"
 )
 
 func TestStage1FindMarksUnaligned(t *testing.T) {
