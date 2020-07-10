@@ -195,7 +195,7 @@ Dagobert,Duck,dago
 	if !reflect.DeepEqual(widowSizes, expected) {
 		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
 	}
-	
+
 	//
 	// Both escaped qoutes at last two positions of first chunk
 	// and first two positions of second chunk
@@ -212,5 +212,31 @@ Dagobert,Duck,dago
 
 	if !reflect.DeepEqual(widowSizes, expected) {
 		t.Errorf("TestLastCharIsQuote: got: %v want: %v", widowSizes, expected)
+	}
+}
+
+func BenchmarkFirstPass(b *testing.B) {
+
+	csv, err := ioutil.ReadFile("test-data/Emails.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	b.SetBytes(int64(len(csv)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	const chunkSize = 512*1024
+
+	for j := 0; j < b.N; j++ {
+
+		for i := 0; i < len(csv); i += chunkSize {
+			end := i + chunkSize
+			if end > len(csv) {
+				end = len(csv)
+			}
+
+			ChunkTwoPass(csv[i:end])
+		}
 	}
 }
