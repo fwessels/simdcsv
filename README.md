@@ -12,9 +12,9 @@ PASS
 
 ## Benchmarking 
 
-````
+```
 BenchmarkFirstPass-16                 21          54604947 ns/op         469.09 MB/s           0 B/op          0 allocs/op
-``
+```
 
 ## References
 
