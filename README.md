@@ -10,6 +10,12 @@ BenchmarkFindMarksUnaligned-8             525680              1959 ns/op        
 PASS
 ```
 
+## Benchmarking 
+
+````
+BenchmarkFirstPass-16                 21          54604947 ns/op         469.09 MB/s           0 B/op          0 allocs/op
+``
+
 ## References
 
 Ge, Chang and Li, Yinan and Eilebrecht, Eric and Chandramouli, Badrish and Kossmann, Donald, [Speculative Distributed CSV Data Parsing for Big Data Analytics](https://www.microsoft.com/en-us/research/publication/speculative-distributed-csv-data-parsing-for-big-data-analytics/), SIGMOD 2019.
