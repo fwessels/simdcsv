@@ -29,6 +29,7 @@ Dagobert,Duck,dago
 	// 00000070  63 6b 2c 64 6f 6e 0a 44  61 67 6f 62 65 72 74 2c  |ck,don.Dagobert,|
 	// 00000080  44 75 63 6b 2c 64 61 67  6f 0a                    |Duck,dago.|
 
-	out := chunking_first_pass([]byte(file)[0x30:0x70], 0xa)
+	out, even, odd, quotes := chunking_first_pass([]byte(file)[0x30:0x70], 0xa)
 	fmt.Printf("%064b\n", out)
+	fmt.Println(even, odd, quotes)
 }
