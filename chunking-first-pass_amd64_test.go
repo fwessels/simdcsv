@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	_ "io/ioutil"
+	"math/bits"
 	"testing"
 )
 
@@ -32,4 +33,75 @@ Dagobert,Duck,dago
 	out, even, odd, quotes := chunking_first_pass([]byte(file)[0x30:0x70], 0xa)
 	fmt.Printf("%064b\n", out)
 	fmt.Println(even, odd, quotes)
+}
+
+func handleMasks(quoteMask, newlineMask uint64, quotes *uint64, even, odd *int) {
+
+	const clearMask = 0xfffffffffffffffe
+
+	quotePos := bits.TrailingZeros64(quoteMask)
+	newlinePos := bits.TrailingZeros64(newlineMask)
+
+	for {
+		fmt.Println("  quotePos:", quotePos)
+		fmt.Println("newlinePos:", newlinePos)
+
+		if quotePos < newlinePos {
+			*quotes += 1
+			// clear out active bit
+			quoteMask &= clearMask << quotePos
+			quotePos = bits.TrailingZeros64(quoteMask)
+
+		} else {
+
+			if newlinePos == 64 {
+				break
+			}
+
+			if *quotes&1 == 0 {
+				if *even == -1 {
+					*even = newlinePos
+				}
+			} else {
+				if *odd == -1 {
+					*odd = newlinePos
+				}
+			}
+
+			newlineMask &= clearMask << newlinePos
+			newlinePos = bits.TrailingZeros64(newlineMask)
+		}
+	}
+}
+
+func TestHandleMasks(t *testing.T) {
+
+	testCases := []struct {
+		quoteMask      uint64
+		newlineMask    uint64
+		expectedQuotes uint64
+		expectedEven   int
+		expectedOdd    int
+	}{
+		{0b00101000, 0b1000000, 2, 6, -1},
+		{0b10001000, 0b1000000, 2, -1, 6},
+	}
+
+	for i, tc := range testCases {
+		quotes, even, odd := uint64(0), -1, -1
+		handleMasks(tc.quoteMask, tc.newlineMask, &quotes, &even, &odd)
+		fmt.Println(quotes, even, odd)
+
+		if quotes != tc.expectedQuotes {
+			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, quotes, tc.expectedQuotes)
+		}
+
+		if even != tc.expectedEven {
+			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, even, tc.expectedEven)
+		}
+
+		if odd != tc.expectedOdd {
+			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, odd, tc.expectedOdd)
+		}
+	}
 }
