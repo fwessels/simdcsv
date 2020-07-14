@@ -48,30 +48,27 @@ loop:
 
 
 TEXT ·handle_masks(SB), 7, $0
-	SUBQ    $0x8, SP
-	MOVQ    BP, 0(SP)
-	LEAQ    0(SP), BP
-	MOVQ    0x10(SP), AX
+	MOVQ    quoteMask+0(FP), AX
 	BSFQ    AX, DX
-	MOVQ    0x18(SP), BX
+	MOVQ    newlineMask+8(FP), BX
 	BSFQ    BX, SI
 	BSFQ    AX, DI
 	MOVL    $0x40, DI
-	CMOVQCS DI, DX
+	CMOVQEQ DI, DX
 	BSFQ    BX, R8
-	CMOVQHI DI, SI
-	MOVQ    0x30(SP), R8
-	MOVQ    0x28(SP), R9
-	MOVQ    0x20(SP), R10
+	CMOVQEQ DI, SI
+	MOVQ    even+16(FP), R8
+	MOVQ    odd+24(FP), R9
+	MOVQ    quotes+32(FP), R10
 
 loop:
-	CMPQ    SI, DX
+	CMPQ    DX, SI
 	JGE     label1
 	INCQ    0(R10)
 	CMPQ    DX, $0x40
 	SBBQ    R11, R11
 	MOVQ    DX, CX
-	MOVQ    $-0x2, R12
+	MOVQ    $-2, R12
 	SHLQ    CL, R12
 	ANDQ    R12, R11
 	ANDQ    R11, AX
@@ -109,6 +106,4 @@ label2:
 	JMP  label3
 
 done:
-	MOVQ 0(SP), BP
-	ADDQ $0x8, SP
 	RET

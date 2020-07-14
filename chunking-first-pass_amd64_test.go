@@ -105,3 +105,18 @@ func TestHandleMasks(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleMasksAsm(t *testing.T) {
+
+	{
+		quotes, even, odd := uint64(0), -1, -1
+		handle_masks(0b00101000, 0b1000000, &even, &odd, &quotes)
+		fmt.Println(quotes, even, odd)
+	}
+
+	{
+		quotes, even, odd := uint64(0), -1, -1
+		handle_masks(0b10001000, 0b1000000, &even, &odd, &quotes)
+		fmt.Println(quotes, even, odd)
+	}
+}
