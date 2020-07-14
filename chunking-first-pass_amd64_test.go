@@ -159,6 +159,29 @@ func TestHandleMasks(t *testing.T) {
 			0x5555555555555555,
 			32, 0, 2,
 		},
+		//
+		// Test cases using nextCharIsQuote
+		//
+		{
+			0xa000000000000000, 0,
+			0x0,
+			2, -1, -1,
+		},
+		{
+			0xa000000000000000, 1,
+			0x0,
+			1, -1, -1,
+		},
+		{
+			0xaaaaaaaaaaaaaaaa, 1,
+			0x5555555555555555,
+			31, 0, 2,
+		},
+		{
+			0x5555555555555555, 1,
+			0xaaaaaaaaaaaaaaaa,
+			32, 3, 1,
+		},
 	}
 
 	for i, tc := range testCases {
