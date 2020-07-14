@@ -159,6 +159,21 @@ func TestHandleMasks(t *testing.T) {
 			0x5555555555555555,
 			32, 0, 2,
 		},
+		{
+			0xffffffffffffffff, 0,
+			0x0,
+			0, -1, -1,
+		},
+		{
+			0x0, 0,
+			0xffffffffffffffff,
+			0, 0, -1,
+		},
+		{
+			0x1, 0,
+			0xfffffffffffffffe,
+			1, -1, 1,
+		},
 		//
 		// Test cases using nextCharIsQuote
 		//
