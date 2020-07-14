@@ -35,7 +35,12 @@ Dagobert,Duck,dago
 	fmt.Println(even, odd, quotes)
 }
 
-func handleMasks(quoteMask, newlineMask uint64, quotes *uint64, even, odd *int) {
+//
+//       quoteMask = 64-bit mask of quotes
+//     newlineMask = 64-bit mask of new lines
+// nextCharIsQuote = bool indicate next char is a quote (first char of next ZMM word)
+//
+func handleMasks(quoteMask, newlineMask, nextCharIsQuote uint64, quotes *uint64, even, odd *int) {
 
 	const clearMask = 0xfffffffffffffffe
 
@@ -48,9 +53,9 @@ func handleMasks(quoteMask, newlineMask uint64, quotes *uint64, even, odd *int) 
 
 		if quotePos < newlinePos {
 			// check if we have two consecutive escaped quotes
-			if quotePos == 63 /**/ || quoteMask & (1 << (quotePos+1)) != 0 {
+			if quotePos == 63 && nextCharIsQuote != 0 || quoteMask&(1<<(quotePos+1)) != 0 {
 				// clear out both active bit and subsequent bit
-				quoteMask &= clearMask << (quotePos+1)
+				quoteMask &= clearMask << (quotePos + 1)
 			} else {
 				*quotes += 1
 				// clear out active bit
@@ -82,60 +87,83 @@ func handleMasks(quoteMask, newlineMask uint64, quotes *uint64, even, odd *int) 
 func TestHandleMasks(t *testing.T) {
 
 	testCases := []struct {
-		quoteMask      uint64
-		newlineMask    uint64
-		expectedQuotes uint64
-		expectedEven   int
-		expectedOdd    int
+		quoteMask       uint64
+		nextCharIsQuote uint64
+		newlineMask     uint64
+		expectedQuotes  uint64
+		expectedEven    int
+		expectedOdd     int
 	}{
 		//
 		// Generic test cases
 		//
 		{
-			0b00101000,
-			0b01000000, 2, 6, -1,
+			0b00101000, 0,
+			0b01000000,
+			2, 6, -1,
 		},
 		{
-			0b10001000,
-			0b01000000, 2, -1, 6,
+			0b10001000, 0,
+			0b01000000,
+			2, -1, 6,
 		},
 		{
-			0b00000010001000,
-			0b10000001000000, 2, 13, 6,
+			0b00000010001000, 0,
+			0b10000001000000,
+			2, 13, 6,
 		},
 		{
-			0b00000000100000,
-			0b10000000000100, 1, 2, 13,
+			0b00000000100000, 0,
+			0b10000000000100,
+			1, 2, 13,
 		},
 		{
-			0b00100000000010,
-			0b10000000000100, 2, 13, 2,
+			0b00100000000010, 0,
+			0b10000000000100,
+			2, 13, 2,
 		},
 		//
 		//
 		// Test cases with escaped quotes
 		//
 		{
-			0b11011000,
-			0b00000000, 0, -1, -1,
+			0b11011000, 0,
+			0b00000000,
+			0, -1, -1,
 		},
 		{
-			0b00010100,
-			0b01000000, 2, 6, -1,
+			0b00010100, 0,
+			0b01000000,
+			2, 6, -1,
 		},
 		{
-			0b00010110,
-			0b01000000, 1, -1, 6,
+			0b00010110, 0,
+			0b01000000,
+			1, -1, 6,
 		},
 		{
-			0b0001101000010110,
-			0b0100000001000000, 2, 14, 6,
+			0b0001101000010110, 0,
+			0b0100000001000000,
+			2, 14, 6,
+		},
+		//
+		// Special cases
+		//
+		{
+			0x5555555555555555, 0,
+			0xaaaaaaaaaaaaaaaa,
+			32, 3, 1,
+		},
+		{
+			0xaaaaaaaaaaaaaaaa, 0,
+			0x5555555555555555,
+			32, 0, 2,
 		},
 	}
 
 	for i, tc := range testCases {
 		quotes, even, odd := uint64(0), -1, -1
-		handleMasks(tc.quoteMask, tc.newlineMask, &quotes, &even, &odd)
+		handleMasks(tc.quoteMask, tc.newlineMask, tc.nextCharIsQuote, &quotes, &even, &odd)
 
 		//quotesAsm, evenAsm, oddAsm := uint64(0), -1, -1
 		//handle_masks(tc.quoteMask, tc.newlineMask, &quotesAsm, &evenAsm, &oddAsm)
