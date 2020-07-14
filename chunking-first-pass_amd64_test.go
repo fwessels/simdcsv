@@ -43,8 +43,8 @@ func handleMasks(quoteMask, newlineMask uint64, quotes *uint64, even, odd *int) 
 	newlinePos := bits.TrailingZeros64(newlineMask)
 
 	for {
-		fmt.Println("  quotePos:", quotePos)
-		fmt.Println("newlinePos:", newlinePos)
+		//fmt.Println("  quotePos:", quotePos)
+		//fmt.Println("newlinePos:", newlinePos)
 
 		if quotePos < newlinePos {
 			*quotes += 1
@@ -83,8 +83,26 @@ func TestHandleMasks(t *testing.T) {
 		expectedEven   int
 		expectedOdd    int
 	}{
-		{0b00101000, 0b1000000, 2, 6, -1},
-		{0b10001000, 0b1000000, 2, -1, 6},
+		{
+			0b00101000,
+			0b01000000, 2, 6, -1,
+		},
+		{
+			0b10001000,
+			0b01000000, 2, -1, 6,
+		},
+		{
+			0b00000010001000,
+			0b10000001000000, 2, 13, 6,
+		},
+		{
+			0b00000000100000,
+			0b10000000000100, 1, 2, 13,
+		},
+		{
+			0b00100000000010,
+			0b10000000000100, 2, 13, 2,
+		},
 	}
 
 	for i, tc := range testCases {
