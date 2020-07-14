@@ -57,9 +57,9 @@ TEXT ·handle_masks(SB), 7, $0
 	CMOVQEQ DI, DX
 	BSFQ    BX, R8
 	CMOVQEQ DI, SI
-	MOVQ    even+16(FP), R8
-	MOVQ    odd+24(FP), R9
-	MOVQ    quotes+32(FP), R10
+	MOVQ    quotes+16(FP), R10
+	MOVQ    even+24(FP), R9
+	MOVQ    odd+32(FP), R8
 
 loop:
 	CMPQ    DX, SI

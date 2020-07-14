@@ -108,7 +108,19 @@ func TestHandleMasks(t *testing.T) {
 	for i, tc := range testCases {
 		quotes, even, odd := uint64(0), -1, -1
 		handleMasks(tc.quoteMask, tc.newlineMask, &quotes, &even, &odd)
-		fmt.Println(quotes, even, odd)
+
+		quotesAsm, evenAsm, oddAsm := uint64(0), -1, -1
+		handle_masks(tc.quoteMask, tc.newlineMask, &quotesAsm, &evenAsm, &oddAsm)
+
+		if quotes != quotesAsm {
+			t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, quotes, quotesAsm)
+		}
+		if even != evenAsm {
+			t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, even, evenAsm)
+		}
+		if odd != oddAsm {
+			t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, odd, oddAsm)
+		}
 
 		if quotes != tc.expectedQuotes {
 			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, quotes, tc.expectedQuotes)
@@ -121,20 +133,5 @@ func TestHandleMasks(t *testing.T) {
 		if odd != tc.expectedOdd {
 			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, odd, tc.expectedOdd)
 		}
-	}
-}
-
-func TestHandleMasksAsm(t *testing.T) {
-
-	{
-		quotes, even, odd := uint64(0), -1, -1
-		handle_masks(0b00101000, 0b1000000, &even, &odd, &quotes)
-		fmt.Println(quotes, even, odd)
-	}
-
-	{
-		quotes, even, odd := uint64(0), -1, -1
-		handle_masks(0b10001000, 0b1000000, &even, &odd, &quotes)
-		fmt.Println(quotes, even, odd)
 	}
 }
