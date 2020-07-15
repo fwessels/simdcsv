@@ -1,20 +1,19 @@
 //+build !noasm !appengine
 
-// chunking_first_pass(buf []byte, separator uint64) (out uint64)
+// chunking_first_pass(buf []byte, quoteChar uint64) (out uint64)
 TEXT ·chunking_first_pass(SB), 7, $0
 
 	MOVQ         buf+0(FP), DI
-	MOVQ         separator+24(FP), AX // get separator
+	MOVQ         quoteChar+24(FP), AX // get character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y6
 	MOVQ         $0x0a, AX            // get new line
 	MOVQ         AX, X7
 	VPBROADCASTB X7, Y7
 
-	MOVQ    quotes+32(FP), R11
-	MOVQ    even+40(FP), R9
-	MOVQ    odd+48(FP), R8
-
+	MOVQ quotes+32(FP), R11
+	MOVQ even+40(FP), R9
+	MOVQ odd+48(FP), R8
 	XORQ DX, DX
 
 loop:
@@ -40,31 +39,52 @@ loop:
 	ORQ       CX, AX
 
 	// TODO: Determine status of next char
-	MOVQ      $0, R10
+	MOVQ $0, R10
+
+	// Cache even and odd positions
+	MOVQ (R8), R14
+	MOVQ (R9), R15
 
 	PUSHQ DI
 	PUSHQ DX
-	CALL      ·handle_masks(SB)
-	POPQ DX
-	POPQ DI
+	CALL  ·handle_masks(SB)
+	POPQ  DX
+	POPQ  DI
 
-	ADDQ      $0x40, DX
-	CMPQ      DX, buf_len+8(FP)
+	// Check if even has changed, add base upon initial change
+	CMPQ R15, $-1
+	JNZ  skipEven
+	CMPQ (R9), R15
+	JZ   skipEven
+	ADDQ DX, (R9)
+
+skipEven:
+
+	// Check if odd has changed, add base upon initial change
+	CMPQ R14, $-1
+	JNZ  skipOdd
+	CMPQ (R8), R14
+	JZ   skipOdd
+	ADDQ DX, (R8)
+
+skipOdd:
+
+	ADDQ $0x40, DX
+	CMPQ DX, buf_len+8(FP)
 	JLT  loop
 
 	VZEROUPPER
 	RET
 
-
 //
 TEXT ·handle_masks_test(SB), 7, $0
-	MOVQ    quoteMask+0(FP), AX
-	MOVQ    newlineMask+8(FP), BX
-	MOVQ    lastCharIsQuote+16(FP), R10
-	MOVQ    quotes+24(FP), R11
-	MOVQ    even+32(FP), R9
-	MOVQ    odd+40(FP), R8
-	CALL    ·handle_masks(SB)
+	MOVQ quoteMask+0(FP), AX
+	MOVQ newlineMask+8(FP), BX
+	MOVQ lastCharIsQuote+16(FP), R10
+	MOVQ quotes+24(FP), R11
+	MOVQ even+32(FP), R9
+	MOVQ odd+40(FP), R8
+	CALL ·handle_masks(SB)
 	RET
 
 //
