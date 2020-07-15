@@ -263,10 +263,11 @@ func BenchmarkFirstPassAsm(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for j := 0; j < b.N; j++ {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			quotes, even, odd := 0, -1, -1
 
-		quotes, even, odd := 0, -1, -1
-
-		chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quotes, &even, &odd)
-	}
+			chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quotes, &even, &odd)
+		}
+	})
 }
