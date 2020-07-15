@@ -13,7 +13,8 @@ PASS
 ## Benchmarking 
 
 ```
-BenchmarkFirstPass-16                 21          54604947 ns/op         469.09 MB/s           0 B/op          0 allocs/op
+benchmark              old MB/s     new MB/s     speedup
+BenchmarkFirstPass     760.36       4495.12      5.91x
 ```
 
 ## References
