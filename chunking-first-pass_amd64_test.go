@@ -3,7 +3,7 @@ package simdcsv
 import (
 	"encoding/hex"
 	"fmt"
-	_ "io/ioutil"
+	"io/ioutil"
 	"math/bits"
 	"testing"
 )
@@ -30,9 +30,9 @@ Dagobert,Duck,dago
 	// 00000070  63 6b 2c 64 6f 6e 0a 44  61 67 6f 62 65 72 74 2c  |ck,don.Dagobert,|
 	// 00000080  44 75 63 6b 2c 64 61 67  6f 0a                    |Duck,dago.|
 
-	out, even, odd, quotes := chunking_first_pass([]byte(file)[0x30:0x70], 0xa)
-	fmt.Printf("%064b\n", out)
-	fmt.Println(even, odd, quotes)
+	quotes, even, odd := uint64(0), -1, -1
+	chunking_first_pass([]byte(file)[0x30:0x70], 0xa, &quotes, &even, &odd)
+	fmt.Println(quotes, even, odd)
 }
 
 //
@@ -204,7 +204,7 @@ func TestHandleMasks(t *testing.T) {
 		handleMasks(tc.quoteMask, tc.newlineMask, tc.nextCharIsQuote, &quotes, &even, &odd)
 
 		quotesAsm, evenAsm, oddAsm := uint64(0), -1, -1
-		handle_masks(tc.quoteMask, tc.newlineMask, tc.nextCharIsQuote, &quotesAsm, &evenAsm, &oddAsm)
+		handle_masks_test(tc.quoteMask, tc.newlineMask, tc.nextCharIsQuote, &quotesAsm, &evenAsm, &oddAsm)
 
 		if quotes != quotesAsm {
 			t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, quotes, quotesAsm)
@@ -227,5 +227,26 @@ func TestHandleMasks(t *testing.T) {
 		if odd != tc.expectedOdd {
 			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, odd, tc.expectedOdd)
 		}
+	}
+}
+
+func BenchmarkFirstPassAsm(b *testing.B) {
+
+	csv, err := ioutil.ReadFile("test-data/Emails.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	const chunkSize = 512 * 1024
+
+	b.SetBytes(chunkSize /*int64(len(csv))*/)
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for j := 0; j < b.N; j++ {
+
+		quotes, even, odd := uint64(0), -1, -1
+
+		chunking_first_pass(csv[0:chunkSize], 0xa, &quotes, &even, &odd)
 	}
 }
