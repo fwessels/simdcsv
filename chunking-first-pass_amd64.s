@@ -1,30 +1,31 @@
 //+build !noasm !appengine
 
-// chunking_first_pass(buf []byte, quoteChar uint64) (out uint64)
+// func chunking_first_pass(buf []byte, quoteChar, delimiterChar uint64, quotes *uint64, even, odd *int)
 TEXT ·chunking_first_pass(SB), 7, $0
 
 	MOVQ         buf+0(FP), DI
-	MOVQ         quoteChar+24(FP), AX // get character for quote
+	MOVQ         quoteChar+24(FP), AX     // get character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y6
-	MOVQ         $0x0a, AX            // get new line
+	MOVQ         delimiterChar+32(FP), AX // get character for delimiter
 	MOVQ         AX, X7
 	VPBROADCASTB X7, Y7
 
-	MOVQ quotes+32(FP), R11
-	MOVQ even+40(FP), R9
-	MOVQ odd+48(FP), R8
+	MOVQ quotes+40(FP), R11
+	MOVQ even+48(FP), R9
+	MOVQ odd+56(FP), R8
+
 	XORQ DX, DX
 
 loop:
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
 
-	// find new line delimiter
+	// detect quotes
 	VPCMPEQB Y8, Y6, Y10
 	VPCMPEQB Y9, Y6, Y11
 
-	// find new line
+	// find new line delimiter
 	VPCMPEQB Y8, Y7, Y12
 	VPCMPEQB Y9, Y7, Y13
 

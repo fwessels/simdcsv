@@ -39,6 +39,18 @@ func ChunkTwoPass(buf []byte) (ci chunkInfo) {
 	return
 }
 
+func ChunkTwoPassAsm(buf []byte) (ci chunkInfo) {
+
+	ci.positionDelimiterEven, ci.positionDelimiterOdd = -1, -1
+
+	chunking_first_pass(buf, '"', 0xa, &ci.quotes, &ci.positionDelimiterEven, &ci.positionDelimiterOdd)
+
+	ci.firstCharIsQuote = buf[0] == '"'
+	ci.lastCharIsQuote = buf[len(buf)-1] == '"'
+
+	return
+}
+
 func GetWidowSizes(chunkInfos []chunkInfo) (widowSizes []int) {
 
 	widowSizes = make([]int, 0, 100)
