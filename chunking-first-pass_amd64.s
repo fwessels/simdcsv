@@ -81,8 +81,8 @@ skipOdd:
 TEXT ·handle_masks_test(SB), 7, $0
 	MOVQ quoteMask+0(FP), AX
 	MOVQ newlineMask+8(FP), BX
-	MOVQ lastCharIsQuote+16(FP), R10
-	MOVQ quotes+24(FP), R11
+	MOVQ quoteNextMask+16(FP), R11
+	MOVQ quotes+24(FP), R10
 	MOVQ even+32(FP), R9
 	MOVQ odd+40(FP), R8
 	CALL ·handle_masks(SB)
@@ -99,15 +99,16 @@ TEXT ·handle_masks(SB), 7, $0
 	CMOVQEQ DI, SI
 
 loop:
-	CMPQ  DX, SI
-	JGE   label1
-	CMPQ  DX, $0x3f
-	JNE   label2
-	TESTQ R10, R10
-	JE    label2
-
-label6:
+	CMPQ DX, SI
+	JGE  label1
+	CMPQ DX, $0x3f
+	JNE  label2
+	MOVQ (R11), R12
+	BTL  $0x0, R12
+	JAE  label2
 	LEAQ 0x1(DX), CX
+	ANDQ $-0x2, R12
+	MOVQ R12, (R11)
 	CMPQ CX, $0x40
 	SBBQ DX, DX
 	MOVQ $-0x2, R12
@@ -115,7 +116,7 @@ label6:
 	ANDQ DX, R12
 	ANDQ R12, AX
 
-label3:
+label4:
 	BSFQ    AX, DX
 	CMOVQEQ DI, DX
 	JMP     loop
@@ -127,29 +128,36 @@ label2:
 	MOVL  $0x1, R13
 	SHLQ  CL, R13
 	ANDQ  R12, R13
-	TESTQ R13, AX
-	JNE   label6
-	INCQ  (R11)
-	CMPQ  DX, $0x40
-	SBBQ  R12, R12
-	MOVQ  DX, CX
-	MOVQ  $-0x2, R13
-	SHLQ  CL, R13
-	ANDQ  R12, R13
-	ANDQ  R13, AX
-	JMP   label3
+	TESTQ AX, R13
+	JE    label3
+	MOVQ  $-0x2, DX
+	SHLQ  CL, DX
+	ANDQ  R12, DX
+	ANDQ  DX, AX
+	JMP   label4
+
+label3:
+	INCQ (R10)
+	CMPQ DX, $0x40
+	SBBQ R12, R12
+	MOVQ DX, CX
+	MOVQ $-0x2, R13
+	SHLQ CL, R13
+	ANDQ R12, R13
+	ANDQ R13, AX
+	JMP  label4
 
 label1:
 	CMPQ SI, $0x40
 	JE   done
-	MOVQ (R11), R12
+	MOVQ (R10), R12
 	BTL  $0x0, R12
-	JB   label4
-	CMPQ 0(R9), $-0x1
-	JNE  label5
-	MOVQ SI, 0(R9)
+	JB   label5
+	CMPQ (R9), $-0x1
+	JNE  label6
+	MOVQ SI, (R9)
 
-label5:
+label6:
 	CMPQ    SI, $0x40
 	SBBQ    R12, R12
 	MOVQ    SI, CX
@@ -162,11 +170,11 @@ label5:
 	MOVQ    R12, SI
 	JMP     loop
 
-label4:
-	CMPQ 0(R8), $-0x1
-	JNE  label5
-	MOVQ SI, 0(R8)
-	JMP  label5
+label5:
+	CMPQ (R8), $-0x1
+	JNE  label6
+	MOVQ SI, (R8)
+	JMP  label6
 
 done:
 	RET
