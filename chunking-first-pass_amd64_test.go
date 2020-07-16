@@ -314,6 +314,54 @@ func TestHandleSubsequentMasks(t *testing.T) {
 			strings.Repeat(" ", 64) + `"""` + strings.Repeat(" ", 61),
 			1,
 		},
+		//
+		// four subsequent quotes
+		{
+			strings.Repeat(" ", 60) + `""""` + strings.Repeat(" ", 64),
+			0,
+		},
+		{
+			strings.Repeat(" ", 61) + `""""` + strings.Repeat(" ", 63),
+			0,
+		},
+		{
+			strings.Repeat(" ", 62) + `""""` + strings.Repeat(" ", 62),
+			0,
+		},
+		{
+			strings.Repeat(" ", 63) + `""""` + strings.Repeat(" ", 61),
+			0,
+		},
+		{
+			strings.Repeat(" ", 64) + `""""` + strings.Repeat(" ", 60),
+			0,
+		},
+		//
+		// five subsequent quotes
+		{
+			strings.Repeat(" ", 59) + `"""""` + strings.Repeat(" ", 64),
+			1,
+		},
+		{
+			strings.Repeat(" ", 60) + `"""""` + strings.Repeat(" ", 63),
+			1,
+		},
+		{
+			strings.Repeat(" ", 61) + `"""""` + strings.Repeat(" ", 62),
+			1,
+		},
+		{
+			strings.Repeat(" ", 62) + `"""""` + strings.Repeat(" ", 61),
+			1,
+		},
+		{
+			strings.Repeat(" ", 63) + `"""""` + strings.Repeat(" ", 60),
+			1,
+		},
+		{
+			strings.Repeat(" ", 64) + `"""""` + strings.Repeat(" ", 59),
+			1,
+		},
 	}
 
 	for ii, tc := range testCases {
