@@ -256,7 +256,7 @@ func TestHandleMasks(t *testing.T) {
 	}
 }
 
-func TestHandleSubsequentMasks(t *testing.T) {
+func testHandleSubsequentMasks(t *testing.T, f func(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int)) {
 
 	getMasks := func(str string) (masks []uint64) {
 
@@ -367,7 +367,7 @@ func TestHandleSubsequentMasks(t *testing.T) {
 	for ii, tc := range testCases {
 
 		quoteMasks := getMasks(tc.quoteString)
-		fmt.Printf("%016x %016x\n", quoteMasks[0], quoteMasks[1])
+		// fmt.Printf("%016x %016x\n", quoteMasks[0], quoteMasks[1])
 
 		quoteMask, quoteNextMask := quoteMasks[0], uint64(0)
 		quotes, even, odd := uint64(0), -1, -1
@@ -378,15 +378,23 @@ func TestHandleSubsequentMasks(t *testing.T) {
 			} else {
 				quoteNextMask = 0
 			}
-			handleMasks(quoteMask, 0, &quoteNextMask, &quotes, &even, &odd)
+			f(quoteMask, 0, &quoteNextMask, &quotes, &even, &odd)
 			quoteMask = quoteNextMask
 		}
-		fmt.Println(quotes)
 
 		if quotes != tc.expectedQuotes {
 			t.Errorf("TestHandleMasks(%d): got: %d want: %d", ii, quotes, tc.expectedQuotes)
 		}
 	}
+}
+
+func TestHandleSubsequentMasks(t *testing.T) {
+	t.Run("go", func(t *testing.T) {
+		testHandleSubsequentMasks(t, handleMasks)
+	})
+	t.Run("avx2", func(t *testing.T) {
+		testHandleSubsequentMasks(t, handle_masks_test)
+	})
 }
 
 func BenchmarkFirstPassAsm(b *testing.B) {
