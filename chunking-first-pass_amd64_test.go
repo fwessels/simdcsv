@@ -110,11 +110,11 @@ func handleMasks(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, e
 	}
 }
 
-func TestHandleMasks(t *testing.T) {
+func testHandleMasks(t *testing.T, f func(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int)) {
 
 	testCases := []struct {
 		quoteMask       uint64
-		nextCharIsQuote uint64
+		quoteNextMask   uint64
 		newlineMask     uint64
 		expectedQuotes  uint64
 		expectedEven    int
@@ -186,7 +186,32 @@ func TestHandleMasks(t *testing.T) {
 			32, 0, 2,
 		},
 		{
+			0xaaaaaaaaaaaaaaaa, 1,
+			0x5555555555555555,
+			31, 0, 2,
+		},
+		{
 			0xffffffffffffffff, 0,
+			0x0,
+			0, -1, -1,
+		},
+		{
+			0xfffffffffffffffe, 0,
+			0x0,
+			1, -1, -1,
+		},
+		{
+			0xfffffffffffffffe, 1,
+			0x0,
+			0, -1, -1,
+		},
+		{
+			0x8000000000000000, 0,
+			0x0,
+			1, -1, -1,
+		},
+		{
+			0x8000000000000000, 1,
 			0x0,
 			0, -1, -1,
 		},
@@ -226,21 +251,8 @@ func TestHandleMasks(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		nextQuoteMask, quotes, even, odd := uint64(0), uint64(0), -1, -1
-		handleMasks(tc.quoteMask, tc.newlineMask, &nextQuoteMask, &quotes, &even, &odd)
-
-		// quotesAsm, evenAsm, oddAsm := uint64(0), -1, -1
-		// handle_masks_test(tc.quoteMask, tc.newlineMask, tc.nextCharIsQuote, &quotesAsm, &evenAsm, &oddAsm)
-
-		// if quotes != quotesAsm {
-		// 	t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, quotes, quotesAsm)
-		// }
-		// if even != evenAsm {
-		// 	t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, even, evenAsm)
-		// }
-		// if odd != oddAsm {
-		// 	t.Errorf("TestHandleMasks(%d): mismatch for asm: %d want: %d", i, odd, oddAsm)
-		// }
+		quotes, even, odd := uint64(0), -1, -1
+		f(tc.quoteMask, tc.newlineMask, &tc.quoteNextMask, &quotes, &even, &odd)
 
 		if quotes != tc.expectedQuotes {
 			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, quotes, tc.expectedQuotes)
@@ -254,6 +266,15 @@ func TestHandleMasks(t *testing.T) {
 			t.Errorf("TestHandleMasks(%d): got: %d want: %d", i, odd, tc.expectedOdd)
 		}
 	}
+}
+
+func TestHandleMasks(t *testing.T) {
+	t.Run("go", func(t *testing.T) {
+		testHandleMasks(t, handleMasks)
+	})
+	t.Run("avx2", func(t *testing.T) {
+		testHandleMasks(t, handleMasksAvx2Test)
+	})
 }
 
 func testHandleSubsequentMasks(t *testing.T, f func(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int)) {
