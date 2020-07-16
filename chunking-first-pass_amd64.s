@@ -48,7 +48,7 @@ loop:
 
 	PUSHQ DI
 	PUSHQ DX
-	CALL  ·handle_masks(SB)
+	CALL  ·handleMasksAvx2(SB)
 	POPQ  DX
 	POPQ  DI
 
@@ -78,18 +78,18 @@ skipOdd:
 	RET
 
 //
-TEXT ·handle_masks_test(SB), 7, $0
+TEXT ·handleMasksAvx2Test(SB), 7, $0
 	MOVQ quoteMask+0(FP), AX
 	MOVQ newlineMask+8(FP), BX
 	MOVQ quoteNextMask+16(FP), R11
 	MOVQ quotes+24(FP), R10
 	MOVQ even+32(FP), R9
 	MOVQ odd+40(FP), R8
-	CALL ·handle_masks(SB)
+	CALL ·handleMasksAvx2(SB)
 	RET
 
 //
-TEXT ·handle_masks(SB), 7, $0
+TEXT ·handleMasksAvx2(SB), 7, $0
 	BSFQ    AX, DX
 	BSFQ    BX, SI
 	BSFQ    AX, DI

@@ -393,7 +393,7 @@ func TestHandleSubsequentMasks(t *testing.T) {
 		testHandleSubsequentMasks(t, handleMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testHandleSubsequentMasks(t, handle_masks_test)
+		testHandleSubsequentMasks(t, handleMasksAvx2Test)
 	})
 }
 
