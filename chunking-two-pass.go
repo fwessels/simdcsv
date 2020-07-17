@@ -39,16 +39,17 @@ func ChunkTwoPass(buf []byte) (ci chunkInfo) {
 	return
 }
 
-func ChunkTwoPassAsm(buf []byte) (ci chunkInfo) {
+func ChunkTwoPassAvx2(buf []byte) (ci chunkInfo) {
 
 	quoteNextMask := 0
 	ci.positionDelimiterEven, ci.positionDelimiterOdd = -1, -1
 
 	chunking_first_pass(buf, '"', 0xa, &quoteNextMask, &ci.quotes, &ci.positionDelimiterEven, &ci.positionDelimiterOdd)
 
-	ci.firstCharIsQuote = buf[0] == '"'
-	ci.lastCharIsQuote = buf[len(buf)-1] == '"'
-
+	if len(buf) > 0 {
+		ci.firstCharIsQuote = buf[0] == '"'
+		ci.lastCharIsQuote = buf[len(buf)-1] == '"'
+	}
 	return
 }
 

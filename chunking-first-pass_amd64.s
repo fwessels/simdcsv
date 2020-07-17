@@ -1,21 +1,29 @@
 //+build !noasm !appengine
 
 #define CREATE_MASK(Y1, Y2, R1, R2) \
-	VPMOVMSKB Y1, R1                \
-	VPMOVMSKB Y2, R2                \
-	SHLQ      $32, R2               \
+	VPMOVMSKB Y1, R1  \
+	VPMOVMSKB Y2, R2  \
+	SHLQ      $32, R2 \
 	ORQ       R1, R2
 
 #define INIT_ONCE(R1, P1, LABEL) \
-	CMPQ R1, $-1                 \
-	JNZ  LABEL                   \
-	CMPQ (P1), R1                \
-	JZ   LABEL                   \
-	ADDQ DX, (P1)                \
+	CMPQ   R1, $-1  \
+	JNZ    LABEL    \
+	CMPQ   (P1), R1 \
+	JZ     LABEL    \
+	ADDQ   DX, (P1) \
 LABEL:
 
 // func chunking_first_pass(buf []byte, quoteChar, delimiterChar uint64, quoteNextMask, quotes *int, even, odd *int)
 TEXT ·chunking_first_pass(SB), 7, $0
+
+	// validate buffer is non-null and multiple of 64 bytes
+	MOVQ  buf_len+8(FP), AX
+	TESTQ AX, AX
+	JE    done
+	ANDQ  $0x3f, AX
+	TESTQ AX, AX
+	JNE   done
 
 	MOVQ         buf+0(FP), DI
 	MOVQ         quoteChar+24(FP), AX     // get character for quote
@@ -39,14 +47,20 @@ TEXT ·chunking_first_pass(SB), 7, $0
 	VPCMPEQB Y8, Y6, Y10
 	VPCMPEQB Y9, Y6, Y11
 
-    CREATE_MASK(Y10, Y11, AX, CX)
-	MOVQ      CX, (R11)
+	CREATE_MASK(Y10, Y11, AX, CX)
+	MOVQ CX, (R11)
+
+	// check i
+	MOVQ DX, CX
+	ADDQ $0x40, CX
+	CMPQ CX, buf_len+8(FP)
+	JGE  handleLastMask
 
 loop:
 	// find new line delimiter
 	VPCMPEQB Y8, Y7, Y12
 	VPCMPEQB Y9, Y7, Y13
-    CREATE_MASK(Y12, Y13, CX, BX)
+	CREATE_MASK(Y12, Y13, CX, BX)
 
 	VMOVDQU 0x40(DI)(DX*1), Y8 // load next low 32-bytes
 	VMOVDQU 0x60(DI)(DX*1), Y9 // load next high 32-bytes
@@ -54,12 +68,13 @@ loop:
 	// detect next quotes mask
 	VPCMPEQB Y8, Y6, Y10
 	VPCMPEQB Y9, Y6, Y11
-    CREATE_MASK(Y10, Y11, AX, CX)
+	CREATE_MASK(Y10, Y11, AX, CX)
 
-    // load previous quote mask and store new one
-	MOVQ      (R11), AX
-	MOVQ      CX, (R11)
+	// load previous quote mask and store new one
+	MOVQ (R11), AX
+	MOVQ CX, (R11)
 
+continue:
 	// cache even and odd positions
 	MOVQ (R8), R14
 	MOVQ (R9), R15
@@ -75,13 +90,33 @@ loop:
 	INIT_ONCE(R14, R8, skipOdd)
 
 	ADDQ $0x40, DX
+
+	// check if we can peek ahead for the next mask
 	MOVQ DX, CX
 	ADDQ $0x40, CX
 	CMPQ CX, buf_len+8(FP)
 	JLT  loop
 
+	// check if we need to handle the last mask
+	CMPQ DX, buf_len+8(FP)
+	JLT  handleLastMask
+
+done:
 	VZEROUPPER
 	RET
+
+handleLastMask:
+	// for last 64-byte iteration, just determine new lines mask
+	// and load (adjusted) quote mask from cached position
+
+	// find new line delimiter
+	VPCMPEQB Y8, Y7, Y12
+	VPCMPEQB Y9, Y7, Y13
+	CREATE_MASK(Y12, Y13, CX, BX)
+
+	MOVQ (R11), AX
+	MOVQ $0, (R11)
+	JMP  continue
 
 //
 TEXT ·handleMasksAvx2Test(SB), 7, $0

@@ -38,6 +38,27 @@ Dagobert,Duck,dago
 	fmt.Println(quotes, even, odd)
 }
 
+func TestFirstPassBufferValidation(t *testing.T) {
+
+	testCases := []struct {
+		buffer   string
+		expected int
+	}{
+		{"", 0},  // test empty buffer
+		{" ", 0}, // test buffer that is not a multiple of 64-bytes
+		{strings.Repeat(` "`, 32), 32},
+		{strings.Repeat(` "`, 64), 64},
+	}
+
+	for i, tc := range testCases {
+		ci := ChunkTwoPassAvx2([]byte(tc.buffer))
+
+		if ci.quotes != tc.expected {
+			t.Errorf("TestFirstPassBufferValidation(%d): got: %d want: %d", i, ci.quotes, tc.expected)
+		}
+	}
+}
+
 func TestFirstPass(t *testing.T) {
 
 	csv, err := ioutil.ReadFile("test-data/Emails.csv")
@@ -49,7 +70,7 @@ func TestFirstPass(t *testing.T) {
 		chunk := csv[0:size]
 
 		ci := ChunkTwoPass(chunk)
-		ciAsm := ChunkTwoPassAsm(chunk)
+		ciAsm := ChunkTwoPassAvx2(chunk)
 		fmt.Println(ciAsm)
 		if !reflect.DeepEqual(ci, ciAsm) {
 			t.Errorf("TestFirstPass: mismatch for asm: %v want: %v", ci, ciAsm)
