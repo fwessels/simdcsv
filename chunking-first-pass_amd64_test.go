@@ -436,7 +436,6 @@ func BenchmarkFirstPassAsm(b *testing.B) {
 		for pb.Next() {
 			quoteNextMask, quotes, even, odd := 0, 0, -1, -1
 
-			chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quoteNextMask, &quotes, &even, &odd)
-		}
+			chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quoteNextMask, &quotes, &even, &odd)}
 	})
 }
