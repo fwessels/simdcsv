@@ -43,18 +43,27 @@ func TestFirstPassBufferValidation(t *testing.T) {
 	testCases := []struct {
 		buffer   string
 		expected int
+		even     int
+		odd      int
 	}{
-		{"", 0},  // test empty buffer
-		{" ", 0}, // test buffer that is not a multiple of 64-bytes
-		{strings.Repeat(` "`, 32), 32},
-		{strings.Repeat(` "`, 64), 64},
+		{"", 0, -1, -1},  // test empty buffer
+		{" ", 0, -1, -1}, // test buffer that is not a multiple of 64-bytes
+		{strings.Repeat(` "`, 1) + "\n " + strings.Repeat(` "`, 1) + "\n " + strings.Repeat(` "`, 28), 30, 6, 2},
+		{strings.Repeat(` "`, 1) + "\n " + strings.Repeat(` "`, 33) + "\n " + strings.Repeat(` "`, 28), 62, 70, 2},
 	}
 
 	for i, tc := range testCases {
 		ci := ChunkTwoPassAvx2([]byte(tc.buffer))
+		fmt.Println(ci)
 
 		if ci.quotes != tc.expected {
 			t.Errorf("TestFirstPassBufferValidation(%d): got: %d want: %d", i, ci.quotes, tc.expected)
+		}
+		if ci.positionDelimiterEven != tc.even {
+			t.Errorf("TestFirstPassBufferValidation(%d): got: %d want: %d", i, ci.positionDelimiterEven, tc.even)
+		}
+		if ci.positionDelimiterOdd != tc.odd {
+			t.Errorf("TestFirstPassBufferValidation(%d): got: %d want: %d", i, ci.positionDelimiterOdd, tc.odd)
 		}
 	}
 }
