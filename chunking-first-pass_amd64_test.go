@@ -32,8 +32,9 @@ Dagobert,Duck,dago
 	// 00000070  63 6b 2c 64 6f 6e 0a 44  61 67 6f 62 65 72 74 2c  |ck,don.Dagobert,|
 	// 00000080  44 75 63 6b 2c 64 61 67  6f 0a                    |Duck,dago.|
 
+	quoteNextMask := 0
 	quotes, even, odd := 0, -1, -1
-	chunking_first_pass([]byte(file)[0x30:0x70], '"', 0xa, &quotes, &even, &odd)
+	chunking_first_pass([]byte(file)[0x30:0x70], '"', 0xa, &quoteNextMask, &quotes, &even, &odd)
 	fmt.Println(quotes, even, odd)
 }
 
@@ -44,7 +45,7 @@ func TestFirstPass(t *testing.T) {
 		panic(err)
 	}
 
-	for size := 1024; size <= 128*1024; size *= 2 {
+	for size := 512 * 1024; size <= 512*1024; size *= 2 {
 		chunk := csv[0:size]
 
 		ci := ChunkTwoPass(chunk)
@@ -433,9 +434,9 @@ func BenchmarkFirstPassAsm(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			quotes, even, odd := 0, -1, -1
+			quoteNextMask, quotes, even, odd := 0, 0, -1, -1
 
-			chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quotes, &even, &odd)
+			chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quoteNextMask, &quotes, &even, &odd)
 		}
 	})
 }
