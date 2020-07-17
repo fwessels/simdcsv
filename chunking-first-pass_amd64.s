@@ -1,5 +1,19 @@
 //+build !noasm !appengine
 
+#define CREATE_MASK(Y1, Y2, R1, R2) \
+	VPMOVMSKB Y1, R1                \
+	VPMOVMSKB Y2, R2                \
+	SHLQ      $32, R2               \
+	ORQ       R1, R2
+
+#define INIT_ONCE(R1, P1, LABEL) \
+	CMPQ R1, $-1                 \
+	JNZ  LABEL                   \
+	CMPQ (P1), R1                \
+	JZ   LABEL                   \
+	ADDQ DX, (P1)                \
+LABEL:
+
 // func chunking_first_pass(buf []byte, quoteChar, delimiterChar uint64, quoteNextMask, quotes *int, even, odd *int)
 TEXT ·chunking_first_pass(SB), 7, $0
 
@@ -25,21 +39,14 @@ TEXT ·chunking_first_pass(SB), 7, $0
 	VPCMPEQB Y8, Y6, Y10
 	VPCMPEQB Y9, Y6, Y11
 
-	VPMOVMSKB Y10, AX
-	VPMOVMSKB Y11, CX
-	SHLQ      $32, CX
-	ORQ       AX, CX
+    CREATE_MASK(Y10, Y11, AX, CX)
 	MOVQ      CX, (R11)
 
 loop:
 	// find new line delimiter
 	VPCMPEQB Y8, Y7, Y12
 	VPCMPEQB Y9, Y7, Y13
-
-	VPMOVMSKB Y12, BX
-	VPMOVMSKB Y13, CX
-	SHLQ      $32, CX
-	ORQ       CX, BX
+    CREATE_MASK(Y12, Y13, CX, BX)
 
 	VMOVDQU 0x40(DI)(DX*1), Y8 // load next low 32-bytes
 	VMOVDQU 0x60(DI)(DX*1), Y9 // load next high 32-bytes
@@ -47,15 +54,13 @@ loop:
 	// detect next quotes mask
 	VPCMPEQB Y8, Y6, Y10
 	VPCMPEQB Y9, Y6, Y11
+    CREATE_MASK(Y10, Y11, AX, CX)
 
-	VPMOVMSKB Y10, AX
-	VPMOVMSKB Y11, CX
-	SHLQ      $32, CX
-	ORQ       AX, CX
+    // load previous quote mask and store new one
 	MOVQ      (R11), AX
 	MOVQ      CX, (R11)
 
-	// Cache even and odd positions
+	// cache even and odd positions
 	MOVQ (R8), R14
 	MOVQ (R9), R15
 
@@ -65,23 +70,10 @@ loop:
 	POPQ  DX
 	POPQ  DI
 
-	// Check if even has changed, add base upon initial change
-	CMPQ R15, $-1
-	JNZ  skipEven
-	CMPQ (R9), R15
-	JZ   skipEven
-	ADDQ DX, (R9)
+	// check if either even or odd has changed, and add base upon initial change
+	INIT_ONCE(R15, R9, skipEven)
+	INIT_ONCE(R14, R8, skipOdd)
 
-skipEven:
-
-	// Check if odd has changed, add base upon initial change
-	CMPQ R14, $-1
-	JNZ  skipOdd
-	CMPQ (R8), R14
-	JZ   skipOdd
-	ADDQ DX, (R8)
-
-skipOdd:
 	ADDQ $0x40, DX
 	MOVQ DX, CX
 	ADDQ $0x40, CX
