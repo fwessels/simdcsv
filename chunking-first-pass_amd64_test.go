@@ -54,7 +54,6 @@ func TestFirstPassBufferValidation(t *testing.T) {
 
 	for i, tc := range testCases {
 		ci := ChunkTwoPassAvx2([]byte(tc.buffer))
-		fmt.Println(ci)
 
 		if ci.quotes != tc.expected {
 			t.Errorf("TestFirstPassBufferValidation(%d): got: %d want: %d", i, ci.quotes, tc.expected)
@@ -449,16 +448,9 @@ func TestHandleSubsequentMasks(t *testing.T) {
 	})
 }
 
-func BenchmarkFirstPassAsm(b *testing.B) {
+func benchmarkFirstPassAvx2(b *testing.B, chunk []byte) {
 
-	csv, err := ioutil.ReadFile("test-data/Emails.csv")
-	if err != nil {
-		panic(err)
-	}
-
-	const chunkSize = 512 * 1024
-
-	b.SetBytes(chunkSize /*int64(len(csv))*/)
+	b.SetBytes(int64(len(chunk)))
 	b.ReportAllocs()
 	b.ResetTimer()
 
@@ -466,6 +458,28 @@ func BenchmarkFirstPassAsm(b *testing.B) {
 		for pb.Next() {
 			quoteNextMask, quotes, even, odd := 0, 0, -1, -1
 
-			chunking_first_pass(csv[0:chunkSize], '"', 0xa, &quoteNextMask, &quotes, &even, &odd)}
+			chunking_first_pass(chunk, '"', 0xa, &quoteNextMask, &quotes, &even, &odd)
+		}
+	})
+}
+
+func BenchmarkFirstPassAvx2(b *testing.B) {
+
+	csv, err := ioutil.ReadFile("test-data/Emails.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("32K", func(b *testing.B) {
+		benchmarkFirstPassAvx2(b, csv[0:16*1024])
+	})
+	b.Run("128K", func(b *testing.B) {
+		benchmarkFirstPassAvx2(b, csv[0:64*1024])
+	})
+	b.Run("256K", func(b *testing.B) {
+		benchmarkFirstPassAvx2(b, csv[0:256*1024])
+	})
+	b.Run("1024K", func(b *testing.B) {
+		benchmarkFirstPassAvx2(b, csv[0:1024*1024])
 	})
 }
