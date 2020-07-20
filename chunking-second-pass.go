@@ -1,9 +1,12 @@
 package simdcsv
 
+const PreprocessedDelimiter = 0x0
+const PreprocessedSeparator = 0x1
+
 func PreprocessDoubleQuotes(in []byte) (out []byte) {
 
-	// Replace separator with '\0'
-	// Remove surrounding quotes
+	// Replace delimiter and separators
+	// Remove any surrounding quotes
 	// Replace double quotes with single quote
 
 	out = make([]byte, 0, len(in))
@@ -16,6 +19,8 @@ func PreprocessDoubleQuotes(in []byte) (out []byte) {
 			if b == '"' && i+1 < len(in) && in[i+1] == '"' {
 				// replace escaped quote with single quote
 				out = append(out, '"')
+				// and skip next char
+				i += 1
 			} else if b == '"' {
 				quoted = false
 			} else {
@@ -24,9 +29,17 @@ func PreprocessDoubleQuotes(in []byte) (out []byte) {
 		} else {
 			if b == '"' {
 				quoted = true
+			} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
+				// replace delimiter with '\1'
+				out = append(out, PreprocessedDelimiter)
+				// and skip next char
+				i += 1
+			} else if b == '\n' {
+				// replace delimiter with '\1'
+				out = append(out, PreprocessedDelimiter)
 			} else if b == ',' {
 				// replace separator with '\0'
-				out = append(out, 0x0)
+				out = append(out, PreprocessedSeparator)
 			} else {
 				out = append(out, b)
 			}
@@ -35,4 +48,3 @@ func PreprocessDoubleQuotes(in []byte) (out []byte) {
 
 	return
 }
-

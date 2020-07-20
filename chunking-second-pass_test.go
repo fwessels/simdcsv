@@ -1,6 +1,7 @@
 package simdcsv
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"testing"
@@ -41,5 +42,15 @@ Dagobert,Duck,dago
 	// 00000060  44 75 22 63 0a 6b 00 64  6f 6e 0a 44 61 67 6f 62  |Du"c.k.don.Dagob|
 	// 00000070  65 72 74 00 44 75 63 6b  00 64 61 67 6f 0a        |ert.Duck.dago.|
 
+	lines := bytes.Split([]byte(preprocessed), []byte{PreprocessedDelimiter})
+	for _, line := range lines {
+		fields := bytes.Split([]byte(line), []byte{PreprocessedSeparator})
+		for i, field := range fields {
+			fmt.Print(string(field))
+			if i < len(fields)-1 {
+				fmt.Print(",")
+			}
+		}
+		fmt.Println()
+	}
 }
-
