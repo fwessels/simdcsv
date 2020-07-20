@@ -78,18 +78,17 @@ func TestFirstPass(t *testing.T) {
 		chunk := csv[0:size]
 
 		ci := ChunkTwoPass(chunk)
-		ciAsm := ChunkTwoPassAvx2(chunk)
-		fmt.Println(ciAsm)
-		if !reflect.DeepEqual(ci, ciAsm) {
-			t.Errorf("TestFirstPass: mismatch for asm: %v want: %v", ci, ciAsm)
+		ciAvx2 := ChunkTwoPassAvx2(chunk)
+		if !reflect.DeepEqual(ciAvx2, ci) {
+			t.Errorf("TestFirstPass: mismatch for avx2: %v want: %v", ciAvx2, ci)
 		}
 	}
 }
 
 //
-//       quoteMask = 64-bit mask of quotes
-//     newlineMask = 64-bit mask of new lines
-// nextCharIsQuote = bool indicate next char is a quote (first char of next ZMM word)
+//      quoteMask = 64-bit mask of quotes
+//    newlineMask = 64-bit mask of new lines
+//  quoteNextMask = 64-bit mask of next set of quotes (pointer to)
 //
 func handleMasks(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int) {
 
@@ -143,12 +142,12 @@ func handleMasks(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, e
 func testHandleMasks(t *testing.T, f func(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int)) {
 
 	testCases := []struct {
-		quoteMask       uint64
-		quoteNextMask   uint64
-		newlineMask     uint64
-		expectedQuotes  uint64
-		expectedEven    int
-		expectedOdd     int
+		quoteMask      uint64
+		quoteNextMask  uint64
+		newlineMask    uint64
+		expectedQuotes uint64
+		expectedEven   int
+		expectedOdd    int
 	}{
 		//
 		// Generic test cases
@@ -307,27 +306,27 @@ func TestHandleMasks(t *testing.T) {
 	})
 }
 
-func testHandleSubsequentMasks(t *testing.T, f func(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int)) {
+func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
 
-	getMasks := func(str string) (masks []uint64) {
-
-		if len(str)%64 != 0 {
-			panic("Input strings should be a multipe of 64")
-		}
-
-		masks = make([]uint64, 0)
-
-		for i := 0; i < len(str); i += 64 {
-			mask := uint64(0)
-			for b, c := range str[i : i+64] {
-				if c == '"' {
-					mask = mask | (1 << b)
-				}
-			}
-			masks = append(masks, mask)
-		}
-		return
+	if len(buf)%64 != 0 {
+		panic("Input strings should be a multipe of 64")
 	}
+
+	masks = make([]uint64, 0)
+
+	for i := 0; i < len(buf); i += 64 {
+		mask := uint64(0)
+		for b, c := range buf[i : i+64] {
+			if c == cmp {
+				mask = mask | (1 << b)
+			}
+		}
+		masks = append(masks, mask)
+	}
+	return
+}
+
+func testHandleSubsequentMasks(t *testing.T, f func(quoteMask, newlineMask uint64, quoteNextMask, quotes *uint64, even, odd *int)) {
 
 	testCases := []struct {
 		quoteString    string
@@ -417,7 +416,7 @@ func testHandleSubsequentMasks(t *testing.T, f func(quoteMask, newlineMask uint6
 
 	for ii, tc := range testCases {
 
-		quoteMasks := getMasks(tc.quoteString)
+		quoteMasks := getBitMasks([]byte(tc.quoteString), '"')
 		// fmt.Printf("%016x %016x\n", quoteMasks[0], quoteMasks[1])
 
 		quoteMask, quoteNextMask := quoteMasks[0], uint64(0)
@@ -470,10 +469,10 @@ func BenchmarkFirstPassAvx2(b *testing.B) {
 		panic(err)
 	}
 
-	b.Run("32K", func(b *testing.B) {
+	b.Run("16K", func(b *testing.B) {
 		benchmarkFirstPassAvx2(b, csv[0:16*1024])
 	})
-	b.Run("128K", func(b *testing.B) {
+	b.Run("64K", func(b *testing.B) {
 		benchmarkFirstPassAvx2(b, csv[0:64*1024])
 	})
 	b.Run("256K", func(b *testing.B) {
