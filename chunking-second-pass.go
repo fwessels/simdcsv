@@ -83,7 +83,7 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) {
 	output[0] = 0
 	index := 1
 
-	ParseSecondPassMasks(separatorMasks[0], delimiterMasks[0], quoteMasks[0], &output, &index, &quoted)
+	/*ParseSecondPassMasks*/ parse_second_pass(separatorMasks[0], delimiterMasks[0], quoteMasks[0], &output, &index, &quoted)
 
 	for i := 0; i < index-1; i += 2 {
 		if output[i] == ^uint64(0) || output[i+1] == ^uint64(0) {
