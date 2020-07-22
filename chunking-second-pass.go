@@ -74,14 +74,27 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) {
 	delimiterMasks := getBitMasks([]byte(buffer), byte(delimiter))
 	quoteMasks := getBitMasks([]byte(buffer), byte(quote))
 
-	fmt.Printf(" separator: %064b\n", separatorMasks[0])
-	fmt.Printf(" delimiter: %064b\n", delimiterMasks[0])
-	fmt.Printf("     quote: %064b\n", quoteMasks[0])
+	fmt.Printf(" separator: %064b\n", bits.Reverse64(separatorMasks[0]))
+	fmt.Printf(" delimiter: %064b\n", bits.Reverse64(delimiterMasks[0]))
+	fmt.Printf("     quote: %064b\n", bits.Reverse64(quoteMasks[0]))
 
-	ParseSecondPassMasks(separatorMasks[0], delimiterMasks[0], quoteMasks[0])
+	output := [128]uint64{}
+	quoted := uint64(0)
+	output[0] = 0
+	index := 1
+
+	ParseSecondPassMasks(separatorMasks[0], delimiterMasks[0], quoteMasks[0], &output, &index, &quoted)
+
+	for i := 0; i < index-1; i += 2 {
+		if output[i] == ^uint64(0) || output[i+1] == ^uint64(0) {
+			break
+		}
+		fmt.Printf("%016x - %016x: %s\n", output[i], output[i+1], string(buffer[output[i]:output[i+1]]))
+	}
 }
 
-func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask uint64) {
+
+func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask uint64, output *[128]uint64, index *int, quoted *uint64) {
 
 	const clearMask = 0xfffffffffffffffe
 
@@ -92,19 +105,34 @@ func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask uint64) {
 	for {
 		if separatorPos < delimiterPos && separatorPos < quotePos {
 
-			fmt.Println("Encountered separator at", separatorPos)
+			output[*index] += uint64(separatorPos)
+			*index++
+			output[*index] += uint64(separatorPos + 1)
+			*index++
+
 			separatorMask &= clearMask << separatorPos
 			separatorPos = bits.TrailingZeros64(separatorMask)
 
 		} else if delimiterPos < separatorPos && delimiterPos < quotePos {
 
-			fmt.Println("Encountered delimiter at", delimiterPos)
+			output[*index] += uint64(delimiterPos)
+			*index++
+			output[*index] += uint64(delimiterPos + 1)
+			*index++
+
 			delimiterMask &= clearMask << delimiterPos
 			delimiterPos = bits.TrailingZeros64(delimiterMask)
 
 		} else if quotePos < separatorPos && quotePos < delimiterPos {
 
-			fmt.Println("Encountered qoute at", quotePos)
+			if *quoted == 0 {
+				output[*index-1] += 1
+			} else {
+				output[*index] -= 1
+			}
+
+			*quoted = ^*quoted
+
 			quoteMask &= clearMask << quotePos
 			quotePos = bits.TrailingZeros64(quoteMask)
 

@@ -54,3 +54,21 @@ Dagobert,Duck,dago
 		fmt.Println()
 	}
 }
+
+func TestParseSecondPass(t *testing.T) {
+
+	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
+`
+	fmt.Println(hex.Dump([]byte(file)))
+
+	ParseSecondPass([]byte(file)[:64], '\n', ',', '"')
+}
+
+func TestParseSecondPassQuoted(t *testing.T) {
+
+	const file = `A,"A",BB,,"DDD","EEEE","",,HHHHH,,,,JJJJJJ,,,,,OOOOOOO,,,,,,UUU
+`
+	fmt.Println(hex.Dump([]byte(file)))
+
+	ParseSecondPass([]byte(file)[:64], '\n', ',', '"')
+}
