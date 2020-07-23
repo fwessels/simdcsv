@@ -25,7 +25,7 @@ loop:
 	MOVQ quote_bits+72(FP), R8
 	MOVQ error_mask+80(FP), R9
 
-	CALL ·__find_quote_mask_and_bits(SB)
+	// CALL ·__find_quote_mask_and_bits(SB)
 
 	MOVQ    AX, DX  // get quotemask
     CALL ·__find_newline_delimiters(SB)
