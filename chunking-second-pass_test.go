@@ -72,3 +72,32 @@ func TestParseSecondPassQuoted(t *testing.T) {
 
 	ParseSecondPass([]byte(file)[:64], '\n', ',', '"')
 }
+
+func BenchmarkParseSecondPass(b *testing.B) {
+
+	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
+`
+	//fmt.Println(hex.Dump([]byte(file)))
+
+	separatorMasks := getBitMasks([]byte(file), byte(','))
+	delimiterMasks := getBitMasks([]byte(file), byte('\n'))
+	quoteMasks := getBitMasks([]byte(file), byte('"'))
+
+	output := [128]uint64{}
+	quoted := uint64(0)
+	output[0] = 0
+	index := 1
+
+	b.SetBytes(int64(len(file)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+
+		quoted = uint64(0)
+		output[0] = 0
+		index = 1
+
+		parse_second_pass(separatorMasks[0], delimiterMasks[0], quoteMasks[0], &output, &index, &quoted)
+	}
+}
