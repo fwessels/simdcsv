@@ -68,7 +68,7 @@ func SecondPass(buffer []byte) {
 	ParseSecondPass(buf, delimiter, separator, quote)
 }
 
-func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) {
+func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) []uint64 {
 
 	separatorMasks := getBitMasks([]byte(buffer), byte(separator))
 	delimiterMasks := getBitMasks([]byte(buffer), byte(delimiter))
@@ -82,8 +82,12 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) {
 	quoted := uint64(0)
 	output[0] = 0
 	index := 1
+	offset := uint64(0)
 
-	/*ParseSecondPassMasks*/ parse_second_pass(separatorMasks[0], delimiterMasks[0], quoteMasks[0], &output, &index, &quoted)
+	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
+		ParseSecondPassMasks /*parse_second_pass*/(separatorMasks[maskIndex], delimiterMasks[maskIndex], quoteMasks[maskIndex], offset, &output, &index, &quoted)
+		offset += 0x40
+	}
 
 	for i := 0; i < index-1; i += 2 {
 		if output[i] == ^uint64(0) || output[i+1] == ^uint64(0) {
@@ -91,10 +95,12 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) {
 		}
 		fmt.Printf("%016x - %016x: %s\n", output[i], output[i+1], string(buffer[output[i]:output[i+1]]))
 	}
+
+	return output[:index-1]
 }
 
 
-func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask uint64, output *[128]uint64, index *int, quoted *uint64) {
+func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64, output *[128]uint64, index *int, quoted *uint64) {
 
 	const clearMask = 0xfffffffffffffffe
 
@@ -105,9 +111,9 @@ func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask uint64, output
 	for {
 		if separatorPos < delimiterPos && separatorPos < quotePos {
 
-			output[*index] += uint64(separatorPos)
+			output[*index] += uint64(separatorPos) + offset
 			*index++
-			output[*index] += uint64(separatorPos + 1)
+			output[*index] += uint64(separatorPos) + offset + 1
 			*index++
 
 			separatorMask &= clearMask << separatorPos
@@ -115,9 +121,9 @@ func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask uint64, output
 
 		} else if delimiterPos < separatorPos && delimiterPos < quotePos {
 
-			output[*index] += uint64(delimiterPos)
+			output[*index] += uint64(delimiterPos) + offset
 			*index++
-			output[*index] += uint64(delimiterPos + 1)
+			output[*index] += uint64(delimiterPos)  + offset + 1
 			*index++
 
 			delimiterMask &= clearMask << delimiterPos

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -99,5 +100,19 @@ func BenchmarkParseSecondPass(b *testing.B) {
 		index = 1
 
 		parse_second_pass(separatorMasks[0], delimiterMasks[0], quoteMasks[0], &output, &index, &quoted)
+	}
+}
+
+func TestParseSecondPassMultipleMasks(t *testing.T) {
+
+	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
+`
+	fmt.Println(hex.Dump([]byte(file)))
+
+	output := ParseSecondPass([]byte(file), '\n', ',', '"')
+	expected := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f}
+
+	if !reflect.DeepEqual(output, expected) {
+		t.Errorf("TestParseSecondPassMultipleMasks: got: %v want: %v", output, expected)
 	}
 }
