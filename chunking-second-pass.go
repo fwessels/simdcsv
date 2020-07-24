@@ -1,9 +1,10 @@
 package simdcsv
 
 import (
-	"fmt"
+	_ "fmt"
 	"math/bits"
 )
+
 const PreprocessedDelimiter = 0x0
 const PreprocessedSeparator = 0x1
 
@@ -65,46 +66,47 @@ func SecondPass(buffer []byte) {
 		delimiter, separator, quote = PreprocessedDelimiter, PreprocessedSeparator, 0x02
 	}
 
-	ParseSecondPass(buf, delimiter, separator, quote)
+	ParseSecondPass(buf, delimiter, separator, quote, parse_second_pass)
 }
 
-func ParseSecondPass(buffer []byte, delimiter, separator, quote rune) ([]uint64, []uint64) {
+func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
+	f func(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)) ([]uint64, []uint64) {
 
 	separatorMasks := getBitMasks([]byte(buffer), byte(separator))
 	delimiterMasks := getBitMasks([]byte(buffer), byte(delimiter))
 	quoteMasks := getBitMasks([]byte(buffer), byte(quote))
 
-	fmt.Printf(" separator: %064b\n", bits.Reverse64(separatorMasks[0]))
-	fmt.Printf(" delimiter: %064b\n", bits.Reverse64(delimiterMasks[0]))
-	fmt.Printf("     quote: %064b\n", bits.Reverse64(quoteMasks[0]))
+	//fmt.Printf(" separator: %064b\n", bits.Reverse64(separatorMasks[0]))
+	//fmt.Printf(" delimiter: %064b\n", bits.Reverse64(delimiterMasks[0]))
+	//fmt.Printf("     quote: %064b\n", bits.Reverse64(quoteMasks[0]))
 
 	columns, rows := [128]uint64{}, [128]uint64{}
 	quoted := uint64(0)
 	columns[0] = 0
 	index, line := 1, 0
 	offset := uint64(0)
+	scratch1, scratch2 := uint64(0), uint64(0)
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
-		ParseSecondPassMasks /*parse_second_pass*/(separatorMasks[maskIndex], delimiterMasks[maskIndex], quoteMasks[maskIndex], offset, &quoted, &columns, &index, &rows, &line)
+		f(separatorMasks[maskIndex], delimiterMasks[maskIndex], quoteMasks[maskIndex], offset, &quoted, &columns, &index, &rows, &line, scratch1, scratch2)
 		offset += 0x40
 	}
 
-	for i := 0; i < index-1; i += 2 {
-		if columns[i] == ^uint64(0) || columns[i+1] == ^uint64(0) {
-			break
-		}
-		fmt.Printf("%016x - %016x: %s\n", columns[i], columns[i+1], string(buffer[columns[i]:columns[i+1]]))
-	}
-
-	for l := 0; l < line; l++ {
-		fmt.Println(rows[l])
-	}
+	//for i := 0; i < index-1; i += 2 {
+	//	if columns[i] == ^uint64(0) || columns[i+1] == ^uint64(0) {
+	//		break
+	//	}
+	//	fmt.Printf("%016x - %016x: %s\n", columns[i], columns[i+1], string(buffer[columns[i]:columns[i+1]]))
+	//}
+	//
+	//for l := 0; l < line; l++ {
+	//	fmt.Println(rows[l])
+	//}
 
 	return columns[:index-1], rows[:line]
 }
 
-
-func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int) {
+func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64) {
 
 	const clearMask = 0xfffffffffffffffe
 
