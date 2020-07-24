@@ -109,10 +109,32 @@ func TestParseSecondPassMultipleMasks(t *testing.T) {
 `
 	fmt.Println(hex.Dump([]byte(file)))
 
-	output := ParseSecondPass([]byte(file), '\n', ',', '"')
+	output, _ := ParseSecondPass([]byte(file), '\n', ',', '"')
 	expected := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f}
 
 	if !reflect.DeepEqual(output, expected) {
 		t.Errorf("TestParseSecondPassMultipleMasks: got: %v want: %v", output, expected)
 	}
+}
+
+func TestParseSecondPassMultipleRows(t *testing.T) {
+
+	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+`
+	fmt.Println(hex.Dump([]byte(file)))
+
+	columns, rows := ParseSecondPass([]byte(file), '\n', ',', '"')
+	expectedCols := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f, 0x80, 0x9f, 0xa0, 0xbf, 0xc0, 0xdf, 0xe0, 0xff}
+	expectedRows := []uint64{8, 16}
+
+	if !reflect.DeepEqual(columns, expectedCols) {
+		t.Errorf("TestParseSecondPassMultipleRows: got: %v want: %v", columns, expectedCols)
+	}
+
+	if !reflect.DeepEqual(rows, expectedRows) {
+		t.Errorf("TestParseSecondPassMultipleRows: got: %v want: %v", rows, expectedRows)
+	}
+
+	fmt.Println(expectedRows)
 }
