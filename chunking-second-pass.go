@@ -70,7 +70,7 @@ func SecondPass(buffer []byte) {
 }
 
 func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
-	f func(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)) ([]uint64, []uint64) {
+	f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) ([]uint64, []uint64) {
 
 	separatorMasks := getBitMasks([]byte(buffer), byte(separator))
 	delimiterMasks := getBitMasks([]byte(buffer), byte(delimiter))
@@ -81,14 +81,17 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 	//fmt.Printf("     quote: %064b\n", bits.Reverse64(quoteMasks[0]))
 
 	columns, rows := [128]uint64{}, [128]uint64{}
-	quoted := uint64(0)
 	columns[0] = 0
 	index, line := 1, 0
 	offset := uint64(0)
-	scratch1, scratch2 := uint64(0), uint64(0)
+	input := Input{}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
-		f(separatorMasks[maskIndex], delimiterMasks[maskIndex], quoteMasks[maskIndex], offset, &quoted, &columns, &index, &rows, &line, scratch1, scratch2)
+		input.separatorMask = separatorMasks[maskIndex]
+		input.delimiterMask = delimiterMasks[maskIndex]
+		input.quoteMask = quoteMasks[maskIndex]
+
+		f(&input, offset, &columns, &index, &rows, &line)
 		offset += 0x40
 	}
 
@@ -106,13 +109,20 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 	return columns[:index-1], rows[:line]
 }
 
-func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64) {
+type Input struct {
+	separatorMask uint64
+	delimiterMask uint64
+	quoteMask     uint64
+	quoted        uint64
+}
+
+func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int) {
 
 	const clearMask = 0xfffffffffffffffe
 
-	separatorPos := bits.TrailingZeros64(separatorMask)
-	delimiterPos := bits.TrailingZeros64(delimiterMask)
-	quotePos := bits.TrailingZeros64(quoteMask)
+	separatorPos := bits.TrailingZeros64(input.separatorMask)
+	delimiterPos := bits.TrailingZeros64(input.delimiterMask)
+	quotePos := bits.TrailingZeros64(input.quoteMask)
 
 	for {
 		if separatorPos < delimiterPos && separatorPos < quotePos {
@@ -122,8 +132,8 @@ func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64
 			columns[*index] += uint64(separatorPos) + offset + 1
 			*index++
 
-			separatorMask &= clearMask << separatorPos
-			separatorPos = bits.TrailingZeros64(separatorMask)
+			input.separatorMask &= clearMask << separatorPos
+			separatorPos = bits.TrailingZeros64(input.separatorMask)
 
 		} else if delimiterPos < separatorPos && delimiterPos < quotePos {
 
@@ -134,21 +144,21 @@ func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64
 			columns[*index] += uint64(delimiterPos)  + offset + 1
 			*index++
 
-			delimiterMask &= clearMask << delimiterPos
-			delimiterPos = bits.TrailingZeros64(delimiterMask)
+			input.delimiterMask &= clearMask << delimiterPos
+			delimiterPos = bits.TrailingZeros64(input.delimiterMask)
 
 		} else if quotePos < separatorPos && quotePos < delimiterPos {
 
-			if *quoted == 0 {
+			if (*input).quoted == 0 {
 				columns[*index-1] += 1
 			} else {
 				columns[*index] -= 1
 			}
 
-			*quoted = ^*quoted
+			(*input).quoted = ^(*input).quoted
 
-			quoteMask &= clearMask << quotePos
-			quotePos = bits.TrailingZeros64(quoteMask)
+			input.quoteMask &= clearMask << quotePos
+			quotePos = bits.TrailingZeros64(input.quoteMask)
 
 		} else {
 			// we must be done
@@ -156,3 +166,4 @@ func ParseSecondPassMasks(separatorMask, delimiterMask, quoteMask, offset uint64
 		}
 	}
 }
+

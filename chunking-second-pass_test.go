@@ -56,7 +56,7 @@ Dagobert,Duck,dago
 	}
 }
 
-func testParseSecondPassUnquoted(t *testing.T, f func(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)) {
+func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
 `
@@ -79,7 +79,7 @@ func TestParseSecondPassUnquoted(t *testing.T) {
 	})
 }
 
-func testParseSecondPassQuoted(t *testing.T, f func(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)) {
+func testParseSecondPassQuoted(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
 
 	const file = `A,"A",BB,,"DDD","EEEE","",,HHHHH,,,,JJJJJJ,,,,,OOOOOOO,,,,,,UUU
 `
@@ -114,11 +114,10 @@ func BenchmarkParseSecondPass(b *testing.B) {
 	quoteMasks := getBitMasks([]byte(file), byte('"'))
 
 	columns, rows := [128]uint64{}, [128]uint64{}
-	quoted := uint64(0)
 	columns[0] = 0
 	index, line := 1, 0
 	offset := uint64(0)
-	scratch1, scratch2 := uint64(0), uint64(0)
+	input := Input{}
 
 	b.SetBytes(int64(len(file)))
 	b.ReportAllocs()
@@ -126,16 +125,19 @@ func BenchmarkParseSecondPass(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 
-		quoted = uint64(0)
 		columns[0] = 0
 		index = 1
 		line = 0
+		input.separatorMask = separatorMasks[0]
+		input.delimiterMask = delimiterMasks[0]
+		input.quoteMask = quoteMasks[0]
+		input.quoted = uint64(0)
 
-		parse_second_pass(separatorMasks[0], delimiterMasks[0], quoteMasks[0], offset, &quoted, &columns, &index, &rows, &line, scratch1, scratch2)
+		parse_second_pass(&input, offset, &columns, &index, &rows, &line)
 	}
 }
 
-func testParseSecondPassMultipleMasks(t *testing.T, f func(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)) {
+func testParseSecondPassMultipleMasks(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 `
@@ -158,7 +160,7 @@ func TestParseSecondPassMultipleMasks(t *testing.T) {
 	})
 }
 
-func testParseSecondPassMultipleRows(t *testing.T, f func(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)) {
+func testParseSecondPassMultipleRows(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh

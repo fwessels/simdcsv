@@ -1,152 +1,140 @@
-// func parse_second_pass(separatorMask, delimiterMask, quoteMask, offset uint64, quoted *uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int, scratch1, scratch2 uint64)
+// func parse_second_pass(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)
 TEXT ·parse_second_pass(SB), 7, $0
-	MOVQ    separatorMask+0(FP), DX
-	BSFQ    DX, BX
-	MOVQ    delimiterMask+8(FP), SI
-	BSFQ    SI, DI
-	MOVQ    quoteMask+16(FP), R8
-	BSFQ    R8, R9
-	BSFQ    DX, R10
-	MOVL    $0x40, R10
-	CMOVQEQ R10, BX
-	BSFQ    SI, R11
-	CMOVQEQ R10, DI
-	BSFQ    R8, R11
-	CMOVQEQ R10, R9
-	MOVQ    quoted+32(FP), R11
-	MOVQ    rows+56(FP), R12
-	MOVQ    line+64(FP), R13
-	MOVQ    columns+40(FP), R14
-	MOVQ    offset+24(FP), R15
-	MOVQ    index+48(FP), AX
+	MOVQ    input+0(FP), DX // 0x20(SP), DX
+	MOVQ    0(DX), BX
+	BSFQ    BX, SI
+	MOVQ    0x8(DX), DI
+	BSFQ    DI, R8
+	MOVQ    0x10(DX), R9
+	BSFQ    R9, R10
+	BSFQ    BX, BX
+	MOVL    $0x40, BX
+	CMOVQEQ BX, SI
+	BSFQ    DI, DI
+	CMOVQEQ BX, R8
+	BSFQ    R9, DI
+	CMOVQEQ BX, R10
+	MOVQ    offset+8(FP), R9    // 0x28(SP), R9
+	MOVQ    columns+16(FP), R13 // 0x30(SP), R13
+	MOVQ    index+24(FP), R12   // 0x38(SP), R12
+	MOVQ    rows+32(FP), DI     // 0x40(SP), DI
+	MOVQ    line+40(FP), R11    // 0x48(SP), R11
+	JMP     label1
+
+loop:
+	MOVQ AX, R11
+
+label1:
+	CMPQ    SI, R8
+	JGE     label2
+	CMPQ    SI, R10
+	JGE     label2
+	TESTB   AL, 0(R13)
+	MOVQ    0(R12), AX
+	MOVQ    0(R13)(AX*8), R14
+	LEAQ    0(SI)(R9*1), R15
+	ADDQ    R15, R14
+	MOVQ    R14, 0(R13)(AX*8)
+	MOVQ    0(R12), R14
+	LEAQ    0x1(R14), AX
+	MOVQ    AX, 0(R12)
+	MOVQ    R11, AX
+	MOVQ    0x8(R13)(R14*8), R11
+	LEAQ    0(R11)(R15*1), R11
+	LEAQ    0x1(R11), R11
+	MOVQ    R11, 0x8(R13)(R14*8)
+	INCQ    0(R12)
+	MOVQ    0(DX), R11
+	CMPQ    SI, $0x40
+	SBBQ    R14, R14
+	MOVQ    SI, CX
+	MOVQ    $-0x2, R15
+	SHLQ    CL, R15
+	ANDQ    R14, R15
+	ANDQ    R11, R15
+	BSFQ    R15, SI
+	MOVQ    R15, 0(DX)
+	CMOVQEQ BX, SI
 	JMP     loop
 
 label2:
-	MOVQ quoted+32(FP), CX
-	MOVQ rows+56(FP), R11
-	MOVQ CX, R11
-	MOVQ R12, R13
-	MOVQ rows+56(FP), R12
-
-loop:
-	CMPQ    BX, DI
-	JGE     label1
-	CMPQ    BX, R9
-	JGE     label1
-	TESTB   AL, (R14)
-	MOVQ    R13, CX
-	MOVQ    (AX), R13
-	MOVQ    (R14)(R13*8), R12
-	LEAQ    (BX)(R15*1), R11
-	ADDQ    R11, R12
-	MOVQ    R12, (R14)(R13*8)
-	MOVQ    (AX), R12
-	LEAQ    0x1(R12), R13
-	MOVQ    R13, (AX)
-	MOVQ    0x8(R14)(R12*8), R13
-	LEAQ    (R13)(R11*1), R11
-	LEAQ    0x1(R11), R11
-	MOVQ    R11, 0x8(R14)(R12*8)
-	INCQ    (AX)
-	CMPQ    BX, $0x40
-	SBBQ    R11, R11
-	MOVQ    CX, R12
-	MOVQ    BX, CX
-	MOVQ    $-0x2, R13
-	SHLQ    CL, R13
-	ANDQ    R11, R13
-	ANDQ    R13, DX
-	BSFQ    DX, BX
-	CMOVQEQ R10, BX
-	JMP     label2
-
-label1:
-	MOVQ    DX, scratch1+72(FP)
-	CMPQ    DI, BX
+	CMPQ    R8, SI
 	JGE     label3
-	CMPQ    DI, R9
+	CMPQ    R8, R10
 	JGE     label3
-	TESTB   AL, (R14)
-	MOVQ    R11, CX
-	MOVQ    (AX), R11
-	MOVQ    (R14)(R11*8), DX
-	ADDQ    DI, R15
-	ADDQ    R15, DX
-	MOVQ    DX, (R14)(R11*8)
-	MOVQ    (AX), DX
-	INCQ    DX
-	MOVQ    DX, (AX)
-	TESTB   AL, (R12)
-	MOVQ    (R13), R11
-	MOVQ    DX, (R12)(R11*8)
-	INCQ    (R13)
-	MOVQ    (AX), DX
-	MOVQ    (R14)(DX*8), R11
-	LEAQ    (R11)(R15*1), R11
-	LEAQ    0x1(R11), R11
-	MOVQ    R11, (R14)(DX*8)
-	INCQ    (AX)
-	CMPQ    DI, $0x40
-	SBBQ    DX, DX
-	MOVQ    CX, R11
-	MOVQ    DI, CX
-	MOVQ    $-0x2, R15
-	SHLQ    CL, R15
-	ANDQ    DX, R15
-	ANDQ    R15, SI
-	BSFQ    SI, DX
-	CMOVQEQ R10, DX
-
-label5:
-	MOVQ R13, R12
-	MOVQ offset+24(FP), R15
-	MOVQ DX, DI
-	MOVQ scratch1+72(FP), DX
-	JMP  label2
+	TESTB   AL, 0(R13)
+	MOVQ    0(R12), AX
+	MOVQ    0(R13)(AX*8), R14
+	LEAQ    0(R8)(R9*1), R15
+	ADDQ    R15, R14
+	MOVQ    R14, 0(R13)(AX*8)
+	MOVQ    0(R12), R14
+	INCQ    R14
+	MOVQ    R14, 0(R12)
+	TESTB   AL, 0(DI)
+	MOVQ    0(R11), AX
+	MOVQ    R14, 0(DI)(AX*8)
+	INCQ    0(R11)
+	MOVQ    0(R12), AX
+	MOVQ    0(R13)(AX*8), R14
+	LEAQ    0(R14)(R15*1), R14
+	LEAQ    0x1(R14), R14
+	MOVQ    R14, 0(R13)(AX*8)
+	INCQ    0(R12)
+	MOVQ    0x8(DX), R14
+	CMPQ    R8, $0x40
+	SBBQ    R15, R15
+	MOVQ    R8, CX
+	MOVQ    R11, AX
+	MOVQ    $-0x2, R11
+	SHLQ    CL, R11
+	ANDQ    R15, R11
+	ANDQ    R14, R11
+	BSFQ    R11, R8
+	MOVQ    R11, 0x8(DX)
+	CMOVQEQ BX, R8
+	JMP     loop
 
 label3:
-	CMPQ  R9, BX
+	CMPQ  R10, SI
 	JGE   done
-	CMPQ  R9, DI
+	CMPQ  R10, R8
 	JGE   done
-	CMPQ  (R11), $0x0
+	CMPQ  0x18(DX), $0x0
 	JNE   label4
-	TESTB AL, (R14)
-	MOVQ  R13, CX
-	MOVQ  (AX), R13
-	LEAQ  -0x1(R13), R12
-	MOVQ  -0x8(R14)(R13*8), R12
-	INCQ  R12
-	MOVQ  R12, -0x8(R14)(R13*8)
+	TESTB AL, 0(R13)
+	MOVQ  0(R12), R14
+	LEAQ  -0x1(R14), AX
+	MOVQ  -0x8(R13)(R14*8), R15
+	INCQ  R15
+	MOVQ  R15, -0x8(R13)(R14*8)
 
-label6:
-	MOVQ    (R11), R12
-	NOTQ    R12
-	MOVQ    R12, (R11)
-	MOVQ    DI, scratch2+80(FP)
-	CMPQ    R9, $0x40
+label5:
+	MOVQ    0x18(DX), R14
+	NOTQ    R14
+	MOVQ    R14, 0x18(DX)
+	MOVQ    0x10(DX), R14
+	CMPQ    R10, $0x40
 	SBBQ    R15, R15
-	MOVQ    CX, R13
-	MOVQ    R9, CX
-	MOVQ    $-0x2, DI
-	SHLQ    CL, DI
-	ANDQ    R15, DI
-	ANDQ    DI, R8
-	BSFQ    R8, DI
-	CMOVQEQ R10, DI
-	MOVQ    rows+56(FP), R12
-	MOVQ    scratch2+80(FP), CX
-	MOVQ    DI, R9
-	JMP     label5
+	MOVQ    R10, CX
+	MOVQ    R11, AX
+	MOVQ    $-0x2, R11
+	SHLQ    CL, R11
+	ANDQ    R11, R15
+	ANDQ    R14, R15
+	BSFQ    R15, R11
+	MOVQ    R15, 0x10(DX)
+	CMOVQEQ BX, R11
+	MOVQ    R11, R10
+	JMP     loop
 
 label4:
-	TESTB AL, (R14)
-	MOVQ  R13, CX
-	MOVQ  (AX), R13
-	MOVQ  (R14)(R13*8), R12
-	DECQ  R12
-	MOVQ  R12, (R14)(R13*8)
-	JMP   label6
+	TESTB AL, 0(R13)
+	MOVQ  0(R12), AX
+	MOVQ  0(R13)(AX*8), R14
+	DECQ  R14
+	MOVQ  R14, 0(R13)(AX*8)
+	JMP   label5
 
 done:
 	RET
