@@ -75,7 +75,7 @@ func TestParseSecondPassUnquoted(t *testing.T) {
 		testParseSecondPassUnquoted(t, ParseSecondPassMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassUnquoted(t, parse_second_pass)
+		testParseSecondPassUnquoted(t, parse_second_pass_test)
 	})
 }
 
@@ -99,7 +99,7 @@ func TestParseSecondPassQuoted(t *testing.T) {
 		testParseSecondPassQuoted(t, ParseSecondPassMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassQuoted(t, parse_second_pass)
+		testParseSecondPassQuoted(t, parse_second_pass_test)
 	})
 }
 
@@ -133,7 +133,7 @@ func BenchmarkParseSecondPass(b *testing.B) {
 		input.quoteMask = quoteMasks[0]
 		input.quoted = uint64(0)
 
-		parse_second_pass(&input, offset, &columns, &index, &rows, &line)
+		parse_second_pass_test(&input, offset, &columns, &index, &rows, &line)
 	}
 }
 
@@ -156,7 +156,7 @@ func TestParseSecondPassMultipleMasks(t *testing.T) {
 		testParseSecondPassMultipleMasks(t, ParseSecondPassMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassMultipleMasks(t, parse_second_pass)
+		testParseSecondPassMultipleMasks(t, parse_second_pass_test)
 	})
 }
 
@@ -185,6 +185,6 @@ func TestParseSecondPassMultipleRows(t *testing.T) {
 		testParseSecondPassMultipleRows(t, ParseSecondPassMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassMultipleRows(t, parse_second_pass)
+		testParseSecondPassMultipleRows(t, parse_second_pass_test)
 	})
 }

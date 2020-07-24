@@ -66,7 +66,7 @@ func SecondPass(buffer []byte) {
 		delimiter, separator, quote = PreprocessedDelimiter, PreprocessedSeparator, 0x02
 	}
 
-	ParseSecondPass(buf, delimiter, separator, quote, parse_second_pass)
+	ParseSecondPass(buf, delimiter, separator, quote, parse_second_pass_test)
 }
 
 func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,

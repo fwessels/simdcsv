@@ -1,24 +1,26 @@
 // func parse_second_pass(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)
+TEXT ·parse_second_pass_test(SB), 7, $0
+	MOVQ input+0(FP), DX
+	MOVQ offset+8(FP), R9
+	MOVQ columns+16(FP), R13
+	MOVQ index+24(FP), R12
+	MOVQ rows+32(FP), DI
+	MOVQ line+40(FP), R11
+	CALL ·parse_second_pass(SB)
+	RET
+
+// func parse_second_pass()
 TEXT ·parse_second_pass(SB), 7, $0
-	MOVQ    input+0(FP), DX // 0x20(SP), DX
-	MOVQ    0(DX), BX
-	BSFQ    BX, SI
-	MOVQ    0x8(DX), DI
-	BSFQ    DI, R8
-	MOVQ    0x10(DX), R9
-	BSFQ    R9, R10
-	BSFQ    BX, BX
 	MOVL    $0x40, BX
+	MOVQ    0(DX), SI
+	BSFQ    SI, SI
 	CMOVQEQ BX, SI
-	BSFQ    DI, DI
+	MOVQ    0x8(DX), R8
+	BSFQ    R8, R8
 	CMOVQEQ BX, R8
-	BSFQ    R9, DI
+	MOVQ    0x10(DX), R10
+	BSFQ    R10, R10
 	CMOVQEQ BX, R10
-	MOVQ    offset+8(FP), R9    // 0x28(SP), R9
-	MOVQ    columns+16(FP), R13 // 0x30(SP), R13
-	MOVQ    index+24(FP), R12   // 0x38(SP), R12
-	MOVQ    rows+32(FP), DI     // 0x40(SP), DI
-	MOVQ    line+40(FP), R11    // 0x48(SP), R11
 	JMP     label1
 
 loop:
