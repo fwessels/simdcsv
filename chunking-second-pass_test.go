@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -187,4 +188,20 @@ func TestParseSecondPassMultipleRows(t *testing.T) {
 	t.Run("avx2", func(t *testing.T) {
 		testParseSecondPassMultipleRows(t, parse_second_pass_test)
 	})
+}
+
+func TestParseBlockSecondPass(t *testing.T) {
+
+	const file = `aaaa,aaaa,aaaa,aaaa,aaaa,aaaaaa,bbbb,bbbb,bbbb,bbbb,bbbb,bbbbbb,cccc,cccc,cccc,cccc,cccc,cccccc,dddd,dddd,dddd,dddd,dddd,dddddd
+eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,gggg,gggg,gggggg,hhhh,hhhh,hhhh,hhhh,hhhh,hhhhhh
+`
+	buf := []byte(strings.Repeat(file, 100))
+	input := Input{}
+	columns, rows := [10240]uint64{}, [640]uint64{}
+	index, line := 1, 0
+
+	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &columns, &index, &rows, &line)
+
+	fmt.Println(index)
+	fmt.Println(line)
 }

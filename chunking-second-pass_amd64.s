@@ -1,3 +1,67 @@
+//+build !noasm !appengine
+
+#define CREATE_MASK(Y1, Y2, R1, R2) \
+	VPMOVMSKB Y1, R1  \
+	VPMOVMSKB Y2, R2  \
+	SHLQ      $32, R2 \
+	ORQ       R1, R2
+
+// func parse_block_second_pass()
+TEXT ·parse_block_second_pass(SB), 7, $0
+
+	MOVQ         delimiterChar+24(FP), AX // get character for delimiter
+	MOVQ         AX, X4
+	VPBROADCASTB X4, Y4
+	MOVQ         separatorChar+32(FP), AX // get character for separator
+	MOVQ         AX, X5
+	VPBROADCASTB X5, Y5
+	MOVQ         quoteChar+40(FP), AX     // get character for quote
+	MOVQ         AX, X6
+	VPBROADCASTB X6, Y6
+
+	XORQ DX, DX
+
+loop:
+	MOVQ buf+0(FP), DI
+	MOVQ input+48(FP), SI
+
+	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+
+	VPCMPEQB Y8, Y4, Y10
+	VPCMPEQB Y9, Y4, Y11
+	CREATE_MASK(Y10, Y11, AX, CX)
+	MOVQ     CX, 8(SI)
+
+	VPCMPEQB Y8, Y5, Y10
+	VPCMPEQB Y9, Y5, Y11
+	CREATE_MASK(Y10, Y11, AX, CX)
+	MOVQ     CX, 0(SI)
+
+	VPCMPEQB Y8, Y6, Y10
+	VPCMPEQB Y9, Y6, Y11
+	CREATE_MASK(Y10, Y11, AX, CX)
+	MOVQ     CX, 16(SI)
+
+	MOVQ offset+56(FP), R9
+	MOVQ columns+64(FP), R13
+	MOVQ index+72(FP), R12
+	MOVQ rows+80(FP), DI
+	MOVQ line+88(FP), R11
+
+	PUSHQ DX
+	MOVQ  input+48(FP), DX
+	CALL  ·parse_second_pass(SB)
+	POPQ  DX
+
+	ADDQ $0x40, offset+56(FP)
+	ADDQ $0x40, DX
+	CMPQ DX, buf_len+8(FP)
+	JLT  loop
+
+	VZEROUPPER
+	RET
+
 // func parse_second_pass(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)
 TEXT ·parse_second_pass_test(SB), 7, $0
 	MOVQ input+0(FP), DX
