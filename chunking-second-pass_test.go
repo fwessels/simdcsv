@@ -205,3 +205,28 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 	fmt.Println(index)
 	fmt.Println(line)
 }
+
+func BenchmarkParseBlockSecondPass(b *testing.B) {
+
+	const file = `aaaa,aaaa,aaaa,aaaa,aaaa,aaaaaa,bbbb,bbbb,bbbb,bbbb,bbbb,bbbbbb,cccc,cccc,cccc,cccc,cccc,cccccc,dddd,dddd,dddd,dddd,dddd,dddddd
+eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,gggg,gggg,gggggg,hhhh,hhhh,hhhh,hhhh,hhhh,hhhhhh
+`
+
+	buf := []byte(strings.Repeat(file , 1000))
+	input := Input{}
+	columns, rows := [100240]uint64{}, [6400]uint64{}
+	index, line := 1, 0
+
+	b.SetBytes(int64(len(buf)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+
+		columns[0] = 0
+		index = 1
+		line = 0
+
+		parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &columns, &index, &rows, &line)
+	}
+}
