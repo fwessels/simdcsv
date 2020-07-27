@@ -127,22 +127,26 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 	for {
 		if separatorPos < delimiterPos && separatorPos < quotePos {
 
-			columns[*index] += uint64(separatorPos) + offset
-			*index++
-			columns[*index] += uint64(separatorPos) + offset + 1
-			*index++
+			if (*input).quoted == 0 {
+				columns[*index] += uint64(separatorPos) + offset
+				*index++
+				columns[*index] += uint64(separatorPos) + offset + 1
+				*index++
+			}
 
 			input.separatorMask &= clearMask << separatorPos
 			separatorPos = bits.TrailingZeros64(input.separatorMask)
 
 		} else if delimiterPos < separatorPos && delimiterPos < quotePos {
 
-			columns[*index] += uint64(delimiterPos) + offset
-			*index++
-			rows[*line] = uint64(*index)
-			*line++
-			columns[*index] += uint64(delimiterPos)  + offset + 1
-			*index++
+			if (*input).quoted == 0 {
+				columns[*index] += uint64(delimiterPos) + offset
+				*index++
+				rows[*line] = uint64(*index)
+				*line++
+				columns[*index] += uint64(delimiterPos) + offset + 1
+				*index++
+			}
 
 			input.delimiterMask &= clearMask << delimiterPos
 			delimiterPos = bits.TrailingZeros64(input.delimiterMask)
