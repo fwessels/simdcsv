@@ -1,7 +1,8 @@
 package simdcsv
 
 import (
-	_ "fmt"
+	"fmt"
+	"log"
 	"math/bits"
 )
 
@@ -84,7 +85,7 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 	columns[0] = 0
 	index, line := 1, 0
 	offset := uint64(0)
-	input := Input{}
+	input := Input{lastSeparatorOrDelimiter: ^uint64(0)}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
 		input.separatorMask = separatorMasks[maskIndex]
@@ -114,6 +115,7 @@ type Input struct {
 	delimiterMask uint64
 	quoteMask     uint64
 	quoted        uint64
+	lastSeparatorOrDelimiter uint64
 }
 
 func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int) {
@@ -132,6 +134,8 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 				*index++
 				columns[*index] += uint64(separatorPos) + offset + 1
 				*index++
+
+				(*input).lastSeparatorOrDelimiter = uint64(separatorPos) + offset
 			}
 
 			input.separatorMask &= clearMask << separatorPos
@@ -146,6 +150,8 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 				*line++
 				columns[*index] += uint64(delimiterPos) + offset + 1
 				*index++
+
+				(*input).lastSeparatorOrDelimiter = uint64(delimiterPos) + offset
 			}
 
 			input.delimiterMask &= clearMask << delimiterPos
@@ -154,6 +160,10 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 		} else if quotePos < separatorPos && quotePos < delimiterPos {
 
 			if (*input).quoted == 0 {
+				// check that this opening quote is preceded by either a separator or delimiter
+				if (*input).lastSeparatorOrDelimiter + 1 != uint64(quotePos) + offset {
+					log.Panicf("bare quote in non-quoted-field detected at offset %d", uint64(quotePos) + offset)
+				}
 				columns[*index-1] += 1
 			} else {
 				columns[*index] -= 1

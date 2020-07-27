@@ -2,8 +2,10 @@ package simdcsv
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -188,6 +190,34 @@ func TestParseSecondPassMultipleRows(t *testing.T) {
 	t.Run("avx2", func(t *testing.T) {
 		testParseSecondPassMultipleRows(t, parse_second_pass_test)
 	})
+}
+
+func TestBareQuoteInNonQuotedField(t *testing.T) {
+
+	// opening quote can only start after either , or delimiter
+	bareQuoteInNonQuotedFields := []string{
+		` "aaaa","bbbb"`,
+		`"aaaa", "bbbb"`,
+		`"aaaa"
+ "bbbb",`,
+	}
+
+	for _, bareQuoteInNonQuotedField := range bareQuoteInNonQuotedFields {
+
+		r := csv.NewReader(strings.NewReader(bareQuoteInNonQuotedField))
+
+		_, err := r.ReadAll()
+		if err == nil {
+			log.Fatal("Expected error")
+		} else {
+			fmt.Printf("%v\n", err)
+		}
+
+		in := [64]byte{}
+		copy(in[:], bareQuoteInNonQuotedField)
+		columns, rows := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
+		fmt.Println(columns, rows)
+	}
 }
 
 func TestParseBlockSecondPass(t *testing.T) {
