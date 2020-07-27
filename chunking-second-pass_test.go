@@ -220,6 +220,39 @@ func TestBareQuoteInNonQuotedField(t *testing.T) {
 	}
 }
 
+func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
+
+	// closing quote needs to be followed immediate by either a , or delimiter
+	extraneousOrMissingQuoteInQuotedFields := []string{
+		`"aaaa" ,bbbb`,
+		`"aaaa","bbbb" `,
+		`"aaaa" `+`
+"bbbb"`,
+	}
+
+	for _, extraneousOrMissingQuoteInQuotedField := range extraneousOrMissingQuoteInQuotedFields {
+		r := csv.NewReader(strings.NewReader(extraneousOrMissingQuoteInQuotedField))
+
+		_, err := r.ReadAll()
+		if err == nil {
+			log.Fatal("Expected error")
+		} else {
+			fmt.Printf("%v\n", err)
+		}
+
+		in := [64]byte{}
+		copy(in[:], extraneousOrMissingQuoteInQuotedField)
+
+		// TODO: Fix this hack: make sure we always end with a delimiter
+		if in[len(extraneousOrMissingQuoteInQuotedField)- 1] != '\n' {
+			in[len(extraneousOrMissingQuoteInQuotedField)] = '\n'
+		}
+
+		columns, rows := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
+		fmt.Println(columns, rows)
+	}
+}
+
 func TestParseBlockSecondPass(t *testing.T) {
 
 	const file = `aaaa,aaaa,aaaa,aaaa,aaaa,aaaaaa,bbbb,bbbb,bbbb,bbbb,bbbb,bbbbbb,cccc,cccc,cccc,cccc,cccc,cccccc,dddd,dddd,dddd,dddd,dddd,dddddd

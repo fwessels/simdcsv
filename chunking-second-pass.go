@@ -1,7 +1,7 @@
 package simdcsv
 
 import (
-	"fmt"
+	_ "fmt"
 	"log"
 	"math/bits"
 )
@@ -111,11 +111,12 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 }
 
 type Input struct {
-	separatorMask uint64
-	delimiterMask uint64
-	quoteMask     uint64
-	quoted        uint64
+	separatorMask            uint64
+	delimiterMask            uint64
+	quoteMask                uint64
+	quoted                   uint64
 	lastSeparatorOrDelimiter uint64
+	lastClosingQuote         uint64
 }
 
 func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int) {
@@ -130,6 +131,12 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 		if separatorPos < delimiterPos && separatorPos < quotePos {
 
 			if (*input).quoted == 0 {
+				if  (*input).lastClosingQuote > 0 &&
+					(*input).lastClosingQuote + 1 != uint64(separatorPos) + offset {
+					log.Panicf("extraneous or missing quote in quoted field detected at offset %d", uint64(separatorPos) + offset)
+				}
+				(*input).lastClosingQuote = 0
+
 				columns[*index] += uint64(separatorPos) + offset
 				*index++
 				columns[*index] += uint64(separatorPos) + offset + 1
@@ -144,6 +151,12 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 		} else if delimiterPos < separatorPos && delimiterPos < quotePos {
 
 			if (*input).quoted == 0 {
+				if  (*input).lastClosingQuote > 0 &&
+					(*input).lastClosingQuote + 1 != uint64(delimiterPos) + offset {
+					log.Panicf("extraneous or missing quote in quoted field detected at offset %d", uint64(delimiterPos) + offset)
+				}
+				(*input).lastClosingQuote = 0
+
 				columns[*index] += uint64(delimiterPos) + offset
 				*index++
 				rows[*line] = uint64(*index)
@@ -167,6 +180,7 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 				columns[*index-1] += 1
 			} else {
 				columns[*index] -= 1
+				(*input).lastClosingQuote = uint64(quotePos) + offset // record position of last closing quote
 			}
 
 			(*input).quoted = ^(*input).quoted
