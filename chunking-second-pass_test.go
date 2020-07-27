@@ -59,7 +59,7 @@ Dagobert,Duck,dago
 	}
 }
 
-func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
+func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
 `
@@ -82,7 +82,7 @@ func TestParseSecondPassUnquoted(t *testing.T) {
 	})
 }
 
-func testParseSecondPassQuoted(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
+func testParseSecondPassQuoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `A,"A",BB,,"DDD","EEEE","",,HHHHH,,,,JJJJJJ,,,,,OOOOOOO,,,,,,UUU
 `
@@ -118,9 +118,9 @@ func BenchmarkParseSecondPass(b *testing.B) {
 
 	columns, rows := [128]uint64{}, [128]uint64{}
 	columns[0] = 0
-	index, line := 1, 0
 	offset := uint64(0)
 	input := Input{}
+	output := Output{&columns, 1, &rows, 0}
 
 	b.SetBytes(int64(len(file)))
 	b.ReportAllocs()
@@ -129,18 +129,18 @@ func BenchmarkParseSecondPass(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 
 		columns[0] = 0
-		index = 1
-		line = 0
 		input.separatorMask = separatorMasks[0]
 		input.delimiterMask = delimiterMasks[0]
 		input.quoteMask = quoteMasks[0]
 		input.quoted = uint64(0)
+		output.index = 1
+		output.line = 0
 
-		parse_second_pass_test(&input, offset, &columns, &index, &rows, &line)
+		parse_second_pass_test(&input, offset, &output)
 	}
 }
 
-func testParseSecondPassMultipleMasks(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
+func testParseSecondPassMultipleMasks(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 `
@@ -163,7 +163,7 @@ func TestParseSecondPassMultipleMasks(t *testing.T) {
 	})
 }
 
-func testParseSecondPassMultipleRows(t *testing.T, f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) {
+func testParseSecondPassMultipleRows(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
@@ -290,8 +290,8 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 
 	buf := []byte(strings.Repeat(file , 1000))
 	input := Input{}
-	columns, rows := [100240]uint64{}, [6400]uint64{}
-	index, line := 1, 0
+	columns, rows := [128000]uint64{}, [128000]uint64{}
+	output := OutputBig{&columns, 1, &rows, 0}
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
@@ -300,9 +300,9 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 	for i := 0; i < b.N; i++ {
 
 		columns[0] = 0
-		index = 1
-		line = 0
+		output.index = 1
+		output.line = 0
 
-		parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &columns, &index, &rows, &line)
+		parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
 	}
 }
