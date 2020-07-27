@@ -65,7 +65,7 @@ func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint6
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
+	output, _, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
 	expected := []uint64{0, 1, 2, 4, 5, 5, 6, 9, 10, 14, 15, 15, 16, 16, 17, 22, 23, 23, 24, 24, 25, 25, 26, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63}
 
 	if !reflect.DeepEqual(output, expected) {
@@ -88,7 +88,7 @@ func testParseSecondPassQuoted(t *testing.T, f func(input *Input, offset uint64,
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
+	output, _, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
 	expected := []uint64{0, 1, 3, 4, 6, 8, 9, 9, 11, 14, 17, 21, 24, 24, 26, 26, 27, 32, 33, 33, 34, 34, 35, 35, 36, 42,
 		43, 43, 44, 44, 45, 45, 46, 46, 47, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 63}
 
@@ -146,7 +146,7 @@ func testParseSecondPassMultipleMasks(t *testing.T, f func(input *Input, offset 
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
+	output, _, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
 	expected := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f}
 
 	if !reflect.DeepEqual(output, expected) {
@@ -170,7 +170,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	columns, rows := ParseSecondPass([]byte(file), '\n', ',', '"', f)
+	columns, rows, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f, 0x80, 0x9f, 0xa0, 0xbf, 0xc0, 0xdf, 0xe0, 0xff}
 	expectedRows := []uint64{8, 16}
 
@@ -192,19 +192,22 @@ func TestParseSecondPassMultipleRows(t *testing.T) {
 	})
 }
 
+// Opening quote can only start after either , or delimiter
 func TestBareQuoteInNonQuotedField(t *testing.T) {
 
-	// opening quote can only start after either , or delimiter
-	bareQuoteInNonQuotedFields := []string{
-		` "aaaa","bbbb"`,
-		`"aaaa", "bbbb"`,
-		`"aaaa"
- "bbbb",`,
+	bareQuoteInNonQuotedFields := []struct {
+		input    string
+		expected uint64
+	}{
+		{` "aaaa","bbbb"`, 1},
+		{`"aaaa", "bbbb"`, 8},
+		{`"aaaa"
+ "bbbb",`, 8},
 	}
 
 	for _, bareQuoteInNonQuotedField := range bareQuoteInNonQuotedFields {
 
-		r := csv.NewReader(strings.NewReader(bareQuoteInNonQuotedField))
+		r := csv.NewReader(strings.NewReader(bareQuoteInNonQuotedField.input))
 
 		_, err := r.ReadAll()
 		if err == nil {
@@ -214,24 +217,30 @@ func TestBareQuoteInNonQuotedField(t *testing.T) {
 		}
 
 		in := [64]byte{}
-		copy(in[:], bareQuoteInNonQuotedField)
-		columns, rows := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
-		fmt.Println(columns, rows)
+		copy(in[:], bareQuoteInNonQuotedField.input)
+		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
+
+		if errorOffset != bareQuoteInNonQuotedField.expected {
+			t.Errorf("TestBareQuoteInNonQuotedField: got: %d want: %d", errorOffset, bareQuoteInNonQuotedField.expected)
+		}
 	}
 }
 
+// Closing quote needs to be followed immediate by either a , or delimiter
 func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 
-	// closing quote needs to be followed immediate by either a , or delimiter
-	extraneousOrMissingQuoteInQuotedFields := []string{
-		`"aaaa" ,bbbb`,
-		`"aaaa","bbbb" `,
-		`"aaaa" `+`
-"bbbb"`,
+	extraneousOrMissingQuoteInQuotedFields := []struct {
+		input    string
+		expected uint64
+	}{
+		{`"aaaa" ,bbbb`, 7},
+		{`"aaaa" `+`
+"bbbb"`, 7},
+		{`"aaaa","bbbb" `, 14},
 	}
 
 	for _, extraneousOrMissingQuoteInQuotedField := range extraneousOrMissingQuoteInQuotedFields {
-		r := csv.NewReader(strings.NewReader(extraneousOrMissingQuoteInQuotedField))
+		r := csv.NewReader(strings.NewReader(extraneousOrMissingQuoteInQuotedField.input))
 
 		_, err := r.ReadAll()
 		if err == nil {
@@ -241,15 +250,19 @@ func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 		}
 
 		in := [64]byte{}
-		copy(in[:], extraneousOrMissingQuoteInQuotedField)
+		copy(in[:], extraneousOrMissingQuoteInQuotedField.input)
 
 		// TODO: Fix this hack: make sure we always end with a delimiter
-		if in[len(extraneousOrMissingQuoteInQuotedField)- 1] != '\n' {
-			in[len(extraneousOrMissingQuoteInQuotedField)] = '\n'
+		if in[len(extraneousOrMissingQuoteInQuotedField.input)- 1] != '\n' {
+			in[len(extraneousOrMissingQuoteInQuotedField.input)] = '\n'
 		}
 
-		columns, rows := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
-		fmt.Println(columns, rows)
+		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
+		fmt.Println(errorOffset)
+
+		if errorOffset != extraneousOrMissingQuoteInQuotedField.expected {
+			t.Errorf("TestExtraneousOrMissingQuoteInQuotedField: got: %d want: %d", errorOffset, extraneousOrMissingQuoteInQuotedField.expected)
+		}
 	}
 }
 

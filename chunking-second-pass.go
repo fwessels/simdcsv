@@ -2,7 +2,6 @@ package simdcsv
 
 import (
 	_ "fmt"
-	"log"
 	"math/bits"
 )
 
@@ -71,7 +70,7 @@ func SecondPass(buffer []byte) {
 }
 
 func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
-	f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) ([]uint64, []uint64) {
+	f func(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int)) ([]uint64, []uint64, uint64) {
 
 	separatorMasks := getBitMasks([]byte(buffer), byte(separator))
 	delimiterMasks := getBitMasks([]byte(buffer), byte(delimiter))
@@ -107,7 +106,7 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 	//	fmt.Println(rows[l])
 	//}
 
-	return columns[:index-1], rows[:line]
+	return columns[:index-1], rows[:line], input.errorOffset
 }
 
 type Input struct {
@@ -117,6 +116,7 @@ type Input struct {
 	quoted                   uint64
 	lastSeparatorOrDelimiter uint64
 	lastClosingQuote         uint64
+	errorOffset				 uint64
 }
 
 func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, index *int, rows *[128]uint64, line *int) {
@@ -131,9 +131,12 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 		if separatorPos < delimiterPos && separatorPos < quotePos {
 
 			if (*input).quoted == 0 {
+				// verify that last closing quote is immediately followed by either a separator or delimiter
 				if  (*input).lastClosingQuote > 0 &&
 					(*input).lastClosingQuote + 1 != uint64(separatorPos) + offset {
-					log.Panicf("extraneous or missing quote in quoted field detected at offset %d", uint64(separatorPos) + offset)
+					if (*input).errorOffset == 0 {
+						(*input).errorOffset = uint64(separatorPos) + offset // mark first error position
+					}
 				}
 				(*input).lastClosingQuote = 0
 
@@ -151,9 +154,12 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 		} else if delimiterPos < separatorPos && delimiterPos < quotePos {
 
 			if (*input).quoted == 0 {
+				// verify that last closing quote is immediately followed by either a separator or delimiter
 				if  (*input).lastClosingQuote > 0 &&
 					(*input).lastClosingQuote + 1 != uint64(delimiterPos) + offset {
-					log.Panicf("extraneous or missing quote in quoted field detected at offset %d", uint64(delimiterPos) + offset)
+					if (*input).errorOffset == 0 {
+						(*input).errorOffset = uint64(delimiterPos) + offset // mark first error position
+					}
 				}
 				(*input).lastClosingQuote = 0
 
@@ -175,7 +181,9 @@ func ParseSecondPassMasks(input *Input, offset uint64, columns *[128]uint64, ind
 			if (*input).quoted == 0 {
 				// check that this opening quote is preceded by either a separator or delimiter
 				if (*input).lastSeparatorOrDelimiter + 1 != uint64(quotePos) + offset {
-					log.Panicf("bare quote in non-quoted-field detected at offset %d", uint64(quotePos) + offset)
+					if (*input).errorOffset == 0 {
+						(*input).errorOffset = uint64(quotePos) + offset
+					}
 				}
 				columns[*index-1] += 1
 			} else {
