@@ -17,7 +17,7 @@ loop:
 	VMOVDQU 0x20(DI), Y9  // load high 32-bytes
 	ADDQ    $0x40, pmsg+88(FP)
 
-	CALL  ·__find_separator(SB)
+	// CALL  ·__find_separator(SB)
     PUSHQ AX        // save separator mask
 
 	MOVQ $0, DX
