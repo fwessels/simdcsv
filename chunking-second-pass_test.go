@@ -2,10 +2,8 @@ package simdcsv
 
 import (
 	"bytes"
-	"encoding/csv"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -236,8 +234,7 @@ func TestBareQuoteInNonQuotedField(t *testing.T) {
 	})
 }
 
-// Closing quote needs to be followed immediate by either a , or delimiter
-func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
+func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	extraneousOrMissingQuoteInQuotedFields := []struct {
 		input    string
@@ -250,14 +247,15 @@ func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 	}
 
 	for _, extraneousOrMissingQuoteInQuotedField := range extraneousOrMissingQuoteInQuotedFields {
-		r := csv.NewReader(strings.NewReader(extraneousOrMissingQuoteInQuotedField.input))
 
-		_, err := r.ReadAll()
-		if err == nil {
-			log.Fatal("Expected error")
-		} else {
-			fmt.Printf("%v\n", err)
-		}
+		//r := csv.NewReader(strings.NewReader(extraneousOrMissingQuoteInQuotedField.input))
+		//
+		//_, err := r.ReadAll()
+		//if err == nil {
+		//	log.Fatal("Expected error")
+		//} else {
+		//	fmt.Printf("%v\n", err)
+		//}
 
 		in := [64]byte{}
 		copy(in[:], extraneousOrMissingQuoteInQuotedField.input)
@@ -267,13 +265,22 @@ func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 			in[len(extraneousOrMissingQuoteInQuotedField.input)] = '\n'
 		}
 
-		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
-		fmt.Println(errorOffset)
+		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', f)
 
 		if errorOffset != extraneousOrMissingQuoteInQuotedField.expected {
 			t.Errorf("TestExtraneousOrMissingQuoteInQuotedField: got: %d want: %d", errorOffset, extraneousOrMissingQuoteInQuotedField.expected)
 		}
 	}
+}
+
+// Closing quote needs to be followed immediate by either a , or delimiter
+func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
+	t.Run("go", func(t *testing.T) {
+		testExtraneousOrMissingQuoteInQuotedField(t, ParseSecondPassMasks)
+	})
+	t.Run("avx2", func(t *testing.T) {
+		testExtraneousOrMissingQuoteInQuotedField(t, parse_second_pass_test)
+	})
 }
 
 func TestParseBlockSecondPass(t *testing.T) {
