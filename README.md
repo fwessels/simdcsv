@@ -4,17 +4,26 @@
 
 Investigate whether 2 stage design approach used by [simdjson-go](https://github.com/minio/simdjson-go) can also speed up CSV parsing.
 
-```$ go test -v -bench=Unaligned
-pkg: github.com/fwessels/simdcsv
-BenchmarkFindMarksUnaligned-8             525680              1959 ns/op        1659.02 MB/s        3456 B/op          1 allocs/op
-PASS
-```
+## Design goals
+
+- 1 GB/sec parsing performance for a single core
+- linear performance scaling with more cores
+- drop-in replacement for `encoding/csv`
+- zero-copy behaviour
 
 ## Benchmarking 
+
+### Stage 1
 
 ```
 benchmark              old MB/s     new MB/s     speedup
 BenchmarkFirstPass     760.36       4495.12      5.91x
+```
+
+### Stage 2
+
+```
+BenchmarkParseBlockSecondPass-8             6637            176850 ns/op        1447.55 MB/s           0 B/op          0 allocs/op
 ```
 
 ### Scaling across cores
