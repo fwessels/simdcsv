@@ -193,7 +193,7 @@ func TestParseSecondPassMultipleRows(t *testing.T) {
 }
 
 // Opening quote can only start after either , or delimiter
-func TestBareQuoteInNonQuotedField(t *testing.T) {
+func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	bareQuoteInNonQuotedFields := []struct {
 		input    string
@@ -207,23 +207,33 @@ func TestBareQuoteInNonQuotedField(t *testing.T) {
 
 	for _, bareQuoteInNonQuotedField := range bareQuoteInNonQuotedFields {
 
-		r := csv.NewReader(strings.NewReader(bareQuoteInNonQuotedField.input))
-
-		_, err := r.ReadAll()
-		if err == nil {
-			log.Fatal("Expected error")
-		} else {
-			fmt.Printf("%v\n", err)
-		}
+		//r := csv.NewReader(strings.NewReader(bareQuoteInNonQuotedField.input))
+		//
+		//_, err := r.ReadAll()
+		//if err == nil {
+		//	log.Fatal("Expected error")
+		//} else {
+		//	fmt.Printf("%v\n", err)
+		//}
 
 		in := [64]byte{}
 		copy(in[:], bareQuoteInNonQuotedField.input)
-		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', ParseSecondPassMasks)
+		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', f)
 
 		if errorOffset != bareQuoteInNonQuotedField.expected {
-			t.Errorf("TestBareQuoteInNonQuotedField: got: %d want: %d", errorOffset, bareQuoteInNonQuotedField.expected)
+			t.Errorf("testBareQuoteInNonQuotedField: got: %d want: %d", errorOffset, bareQuoteInNonQuotedField.expected)
 		}
 	}
+}
+
+// Opening quote can only start after either , or delimiter
+func TestBareQuoteInNonQuotedField(t *testing.T) {
+	t.Run("go", func(t *testing.T) {
+		testBareQuoteInNonQuotedField(t, ParseSecondPassMasks)
+	})
+	t.Run("avx2", func(t *testing.T) {
+		testBareQuoteInNonQuotedField(t, parse_second_pass_test)
+	})
 }
 
 // Closing quote needs to be followed immediate by either a , or delimiter
