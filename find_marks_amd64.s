@@ -28,7 +28,7 @@ loop:
 	// CALL ·__find_quote_mask_and_bits(SB)
 
 	MOVQ    AX, DX  // get quotemask
-    CALL ·__find_newline_delimiters(SB)
+    // CALL ·__find_newline_delimiters(SB)
 
     XORQ   R10, R10
     TZCNTQ BX, CX
