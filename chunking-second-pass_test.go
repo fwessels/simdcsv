@@ -57,6 +57,33 @@ Dagobert,Duck,dago
 	}
 }
 
+func TestPreprocessCarriageReturns(t *testing.T) {
+
+	// The Reader converts all \r\n sequences in its input to plain \n,
+	// including in multiline field values, so that the returned data does
+	// not depend on which line-ending convention an input file uses.
+
+	const data = `first,second,third` + "\r" + "\n" +
+		"aap,noot,mies" + "\r" + "\n" +
+		"vuur,boom,vis" + "\r" + "\n"
+
+	transformed := PreprocessCarriageReturns([]byte(data))
+
+	if len(transformed) != len(data) - 3 {
+		t.Errorf("TestPreprocessCarriageReturns: got: %d want: %d", len(transformed), len(data) - 3)
+	}
+
+	const crInQuotedField = `first,second,third` + "\r" + "\n" +
+		`aap,"no`+ "\r" + "\n" + `ot",mies` + "\r" + "\n" +
+		"vuur,boom,vis" + "\r" + "\n"
+
+	transformed = PreprocessCarriageReturns([]byte(crInQuotedField))
+
+	if len(transformed) != len(crInQuotedField) - 4 {
+		t.Errorf("TestPreprocessCarriageReturns: got: %d want: %d", len(transformed), len(crInQuotedField) - 4)
+	}
+}
+
 func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,

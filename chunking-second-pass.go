@@ -1,6 +1,7 @@
 package simdcsv
 
 import (
+	"bytes"
 	_ "fmt"
 	"math/bits"
 )
@@ -51,6 +52,12 @@ func PreprocessDoubleQuotes(in []byte) (out []byte) {
 		}
 	}
 
+	return
+}
+
+func PreprocessCarriageReturns(in []byte) (out []byte) {
+
+	out = bytes.ReplaceAll(in, []byte{'\r', '\n'}, []byte{'\n'})
 	return
 }
 
