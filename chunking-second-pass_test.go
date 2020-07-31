@@ -92,8 +92,7 @@ func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint6
 	//fmt.Println(hex.Dump([]byte(file)))
 
 	output, _, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
-	expected := []uint64{0, 1, 2, 4, 5, 5, 6, 9, 10, 14, 15, 15, 16, 16, 17, 22, 23, 23, 24, 24, 25, 25, 26, 32, 33, 33, 34, 34, 35, 35, 36, 36, 37, 44, 45, 45, 46, 46, 47, 47, 48, 48, 49, 49, 50, 58, 59, 59, 60, 60, 61, 61, 62, 62, 63, 63}
-
+	expected := []uint64{0, 1, 2, 2, 5, 0, 6, 3, 10, 4, 15, 0, 16, 0, 17, 5, 23, 0, 24, 0, 25, 0, 26, 6, 33, 0, 34, 0, 35, 0, 36, 0, 37, 7, 45, 0, 46, 0, 47, 0, 48, 0, 49, 0, 50, 8, 59, 0, 60, 0, 61, 0, 62, 0, 63, 0}
 	if !reflect.DeepEqual(output, expected) {
 		t.Errorf("testParseSecondPassUnquoted: got: %v want: %v", output, expected)
 	}
@@ -115,8 +114,7 @@ func testParseSecondPassQuoted(t *testing.T, f func(input *Input, offset uint64,
 	//fmt.Println(hex.Dump([]byte(file)))
 
 	output, _, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
-	expected := []uint64{0, 1, 3, 4, 6, 8, 9, 9, 11, 14, 17, 21, 24, 24, 26, 26, 27, 32, 33, 33, 34, 34, 35, 35, 36, 42,
-		43, 43, 44, 44, 45, 45, 46, 46, 47, 54, 55, 55, 56, 56, 57, 57, 58, 58, 59, 59, 60, 63}
+	expected := []uint64{0, 1, 3, 1, 6, 2, 9, 0, 11, 3, 17, 4, 24, 0, 26, 0, 27, 5, 33, 0, 34, 0, 35, 0, 36, 6, 43, 0, 44, 0, 45, 0, 46, 0, 47, 7, 55, 0, 56, 0, 57, 0, 58, 0, 59, 0, 60, 3}
 
 	if !reflect.DeepEqual(output, expected) {
 		t.Errorf("testParseSecondPassQuoted: got: %v want: %v", output, expected)
@@ -173,7 +171,7 @@ func testParseSecondPassMultipleMasks(t *testing.T, f func(input *Input, offset 
 	//fmt.Println(hex.Dump([]byte(file)))
 
 	output, _, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
-	expected := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f}
+	expected := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f}
 
 	if !reflect.DeepEqual(output, expected) {
 		t.Errorf("TestParseSecondPassMultipleMasks: got: %v want: %v", output, expected)
@@ -197,7 +195,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 	//fmt.Println(hex.Dump([]byte(file)))
 
 	columns, rows, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
-	expectedCols := []uint64{0, 0x1f, 0x20, 0x3f, 0x40, 0x5f, 0x60, 0x7f, 0x80, 0x9f, 0xa0, 0xbf, 0xc0, 0xdf, 0xe0, 0xff}
+	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f}
 	expectedRows := []uint64{8, 16}
 
 	if !reflect.DeepEqual(columns, expectedCols) {

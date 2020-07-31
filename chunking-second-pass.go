@@ -125,6 +125,7 @@ type Input struct {
 	lastSeparatorOrDelimiter uint64
 	lastClosingQuote         uint64
 	errorOffset				 uint64
+	base					 uint64
 }
 
 type Output struct {
@@ -163,9 +164,9 @@ func ParseSecondPassMasks(input *Input, offset uint64, output *Output) {
 				}
 				input.lastClosingQuote = 0
 
-				output.columns[output.index] += uint64(separatorPos) + offset
+				output.columns[output.index] = (input.base + output.columns[output.index] + uint64(separatorPos) + offset) - output.columns[output.index-1] // size of previous element
 				output.index++
-				output.columns[output.index] += uint64(separatorPos) + offset + 1
+				output.columns[output.index] = input.base + output.columns[output.index] + uint64(separatorPos) + offset + 1 // start of next element
 				output.index++
 
 				input.lastSeparatorOrDelimiter = uint64(separatorPos) + offset
@@ -186,11 +187,11 @@ func ParseSecondPassMasks(input *Input, offset uint64, output *Output) {
 				}
 				input.lastClosingQuote = 0
 
-				output.columns[output.index] += uint64(delimiterPos) + offset
+				output.columns[output.index] = (input.base + output.columns[output.index] + uint64(delimiterPos) + offset) - output.columns[output.index-1]
 				output.index++
 				output.rows[output.line] = uint64(output.index)
 				output.line++
-				output.columns[output.index] += uint64(delimiterPos) + offset + 1
+				output.columns[output.index] = input.base  + output.columns[output.index] + uint64(delimiterPos) + offset + 1 // start of next element
 				output.index++
 
 				input.lastSeparatorOrDelimiter = uint64(delimiterPos) + offset
