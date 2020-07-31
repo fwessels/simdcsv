@@ -134,7 +134,8 @@ type Output struct {
 	line    int
 }
 
-type OutputBig struct {
+// Equivalent for invoking from Assembly
+type OutputAsm struct {
 	columns unsafe.Pointer
 	index   int
 	rows    unsafe.Pointer

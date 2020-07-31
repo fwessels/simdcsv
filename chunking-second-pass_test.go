@@ -328,7 +328,7 @@ func TestParseBlockSecondPass(t *testing.T) {
 	input := Input{}
 	rows := make([]uint64, 20)
 	columns := make([]uint64, 20 * len(rows))
-	output := OutputBig{unsafe.Pointer(&columns[0]) , 1, unsafe.Pointer(&rows[0]), 0}
+	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0}
 
 	fmt.Println(len(buf))
 
@@ -360,7 +360,7 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 	input := Input{}
 	columns := make([]uint64, 128000)
 	rows := make([]uint64, 128000)
-	output := OutputBig{unsafe.Pointer(&columns[0]) , 1, unsafe.Pointer(&rows[0]), 0}
+	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0}
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
