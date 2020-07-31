@@ -115,28 +115,6 @@ func GolangCsvParser(csvData []byte) (records [][]string) {
 	return
 }
 
-func BenchmarkFindMarksUnaligned(b *testing.B) {
-	test := strings.Repeat(
-		`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,NO EVIDENCE OF REG,50,99999,99999
-1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE OF REG",50,99999,99999
-`, 100)
-
-	indexes := [INDEXES_SIZE]uint32{}
-
-	b.SetBytes(int64(len(test)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		indexes_length := uint64(0)
-		prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
-		carried, position := uint64(0), uint64(0)
-
-		find_marks_in_slice([]byte(test), &indexes, &indexes_length, INDEXES_SIZE, &carried, &position,
-			&prev_iter_inside_quote, &quote_bits, &error_mask)
-	}
-}
-
 func TestStage1FindMarksAligned128(t *testing.T) {
 
 	vectors := []string{
