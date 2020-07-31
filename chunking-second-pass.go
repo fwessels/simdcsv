@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "fmt"
 	"math/bits"
+	"unsafe"
 )
 
 const PreprocessedDelimiter = 0x0
@@ -134,9 +135,9 @@ type Output struct {
 }
 
 type OutputBig struct {
-	columns *[128000]uint64
+	columns unsafe.Pointer
 	index   int
-	rows    *[128000]uint64
+	rows    unsafe.Pointer
 	line    int
 }
 

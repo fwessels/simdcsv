@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestPreprocessDoubleQuotes(t *testing.T) {
@@ -312,18 +313,41 @@ func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 
 func TestParseBlockSecondPass(t *testing.T) {
 
-	const file = `aaaa,aaaa,aaaa,aaaa,aaaa,aaaaaa,bbbb,bbbb,bbbb,bbbb,bbbb,bbbbbb,cccc,cccc,cccc,cccc,cccc,cccccc,dddd,dddd,dddd,dddd,dddd,dddddd
-eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,gggg,gggg,gggggg,hhhh,hhhh,hhhh,hhhh,hhhh,hhhhhh
+	const vector = `1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE,OF REG",50,99999,99999
+1103700150,2015-12-21T00:00:00,1435,,,CA,201512,,GMC,VN,WH,525 S MAIN ST,1C51,1,4000A1,NO EVIDENCE OF REG,50,99999,99999
+1104803000,2015-12-21T00:00:00,2055,,,CA,201503,,NISS,PA,BK,200 WORLD WAY,2R2,2,8939,WHITE CURB,58,6439997.9,1802686.4
+1104820732,2015-12-26T00:00:00,1515,,,CA,,,ACUR,PA,WH,100 WORLD WAY,2F11,2,000,17104h,,6440041.1,1802686.2
+1105461453,2015-09-15T00:00:00,115,,,CA,200316,,CHEV,PA,BK,GEORGIA ST/OLYMPIC,1FB70,1,8069A,NO STOPPING/STANDING,93,99999,99999
+1106226590,2015-09-15T00:00:00,19,,,CA,201507,,CHEV,VN,GY,SAN PEDRO S/O BOYD,1A35W,1,4000A1,NO EVIDENCE OF REG,50,99999,99999
+1106500452,2015-12-17T00:00:00,1710,,,CA,201605,,MAZD,PA,BL,SUNSET/ALVARADO,00217,1,8070,"PARK IN GRID LOCK ZN",163,99999,99999
+1106500463,2015-12-17T00:00:00,1710,,,CA,201602,,TOYO,PA,BK,SUNSET/ALVARADO,00217,1,8070,PARK IN GRID LOCK ZN,163,99999,99999
+1106506402,2015-12-22T00:00:00,945,,,CA,201605,,CHEV,PA,BR,721 S WESTLAKE,2A75,1,8069AA,NO STOP/STAND AM,93,99999,99999
+1106506413,2015-12-22T00:00:00,1100,,,CA,201701,,NISS,PA,SI,1159 HUNTLEY DR,2A75,1,8069AA,NO STOP/STAND AM,93,99999,99999
 `
-	buf := []byte(strings.Repeat(file, 100))
+	buf := []byte(strings.Repeat(vector , 1))
 	input := Input{}
-	columns, rows := [10240]uint64{}, [640]uint64{}
-	index, line := 1, 0
+	rows := make([]uint64, 20)
+	columns := make([]uint64, 20 * len(rows))
+	output := OutputBig{unsafe.Pointer(&columns[0]) , 1, unsafe.Pointer(&rows[0]), 0}
 
-	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &columns, &index, &rows, &line)
+	fmt.Println(len(buf))
 
-	fmt.Println(index)
-	fmt.Println(line)
+	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
+
+	fmt.Println(output.index)
+	fmt.Println(output.line)
+
+	lStart := 0
+	for l := 0; l < output.line; l++ {
+		fmt.Println("line", l)
+		for i := lStart; i < int(rows[l]); i += 2 {
+			if columns[i] == ^uint64(0) || columns[i+1] == ^uint64(0) {
+				break
+			}
+			fmt.Printf("    %016x - %016x: %s\n", columns[i], columns[i+1], string(buf[columns[i]:columns[i+1]]))
+		}
+		lStart = int(rows[l])
+	}
 }
 
 func BenchmarkParseBlockSecondPass(b *testing.B) {
@@ -334,8 +358,9 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 
 	buf := []byte(strings.Repeat(file , 1000))
 	input := Input{}
-	columns, rows := [128000]uint64{}, [128000]uint64{}
-	output := OutputBig{&columns, 1, &rows, 0}
+	columns := make([]uint64, 128000)
+	rows := make([]uint64, 128000)
+	output := OutputBig{unsafe.Pointer(&columns[0]) , 1, unsafe.Pointer(&rows[0]), 0}
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
