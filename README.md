@@ -23,7 +23,8 @@ BenchmarkFirstPass     760.36       4495.12      5.91x
 ### Stage 2
 
 ```
-BenchmarkParseBlockSecondPass-8             6637            176850 ns/op        1447.55 MB/s           0 B/op          0 allocs/op
+benchmark                           old MB/s     new MB/s     speedup
+BenchmarkParseBlockSecondPass-8     209.09       1427.25      6.83x
 ```
 
 ### Scaling across cores
