@@ -2,7 +2,9 @@ package simdcsv
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/hex"
+	"log"
 	"fmt"
 	"reflect"
 	"strings"
@@ -322,29 +324,31 @@ func TestParseBlockSecondPass(t *testing.T) {
 1106506402,2015-12-22T00:00:00,945,,,CA,201605,,CHEV,PA,BR,721 S WESTLAKE,2A75,1,8069AA,NO STOP/STAND AM,93,99999,99999
 1106506413,2015-12-22T00:00:00,1100,,,CA,201701,,NISS,PA,SI,1159 HUNTLEY DR,2A75,1,8069AA,NO STOP/STAND AM,93,99999,99999
 `
-	buf := []byte(strings.Repeat(vector , 1))
-	input := Input{}
-	rows := make([]uint64, 20)
-	columns := make([]uint64, 20 * len(rows))
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0}
 
-	fmt.Println(len(buf))
+	buf := []byte(strings.Repeat(vector , 1))
+	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
+	rows := make([]uint64, 20)
+	columns := make([]string, 20 * len(rows))
+	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0}
 
 	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
 
-	fmt.Println(output.index)
-	fmt.Println(output.line)
+	simdrecords := make([][]string, 0)
 
-	lStart := 0
-	for l := 0; l < output.line; l++ {
-		fmt.Println("line", l)
-		for i := lStart; i < int(rows[l]); i += 2 {
-			if columns[i] == ^uint64(0) || columns[i+1] == ^uint64(0) {
-				break
-			}
-			fmt.Printf("    %016x - %016x: %s\n", columns[i], columns[i+1], string(buf[columns[i]:columns[i+1]]))
-		}
-		lStart = int(rows[l])
+	row := uint64(0)
+	for r := 0; r < output.line; r++ {
+		simdrecords = append(simdrecords, columns[row:rows[r]/2])
+		row = rows[r]/2
+	}
+
+	r := csv.NewReader(bytes.NewReader(buf))
+	records, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		t.Errorf("TestParseBlockSecondPass: got %v, want %v", simdrecords, records)
 	}
 }
 
