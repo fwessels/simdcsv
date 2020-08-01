@@ -92,7 +92,7 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 	columns[0] = 0
 	offset := uint64(0)
 	input := Input{lastSeparatorOrDelimiter: ^uint64(0)}
-	output := Output{&columns, 1, &rows, 0}
+	output := Output{&columns, 1, &rows, 0, 0, 0, 128}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
 		input.separatorMask = separatorMasks[maskIndex]
@@ -129,18 +129,24 @@ type Input struct {
 }
 
 type Output struct {
-	columns *[128]uint64
-	index   int
-	rows    *[128]uint64
-	line    int
+	columns  *[128]uint64
+	index    int
+	rows     *[128]uint64
+	line     int
+	col_base uint64
+	col_prev uint64
+	col_cap  uint64
 }
 
 // Equivalent for invoking from Assembly
 type OutputAsm struct {
-	columns unsafe.Pointer
-	index   int
-	rows    unsafe.Pointer
-	line    int
+	columns  unsafe.Pointer
+	index    int
+	rows     unsafe.Pointer
+	line     int
+	col_base uint64
+	col_prev uint64
+	col_cap  uint64
 }
 
 func ParseSecondPassMasks(input *Input, offset uint64, output *Output) {
@@ -189,8 +195,16 @@ func ParseSecondPassMasks(input *Input, offset uint64, output *Output) {
 
 				output.columns[output.index] = (input.base + output.columns[output.index] + uint64(delimiterPos) + offset) - output.columns[output.index-1]
 				output.index++
-				output.rows[output.line] = uint64(output.index)
-				output.line++
+
+				// write out slice info for rows
+				output.rows[output.line+0] = output.col_base							// base pointer
+				output.rows[output.line+1] = uint64(output.index) / 2 - output.col_prev // length of element
+				output.rows[output.line+2] = output.col_cap  - uint64(output.index) / 2 // capacity (remaining)
+
+				output.col_base += output.rows[output.line+1] * 16	// adjust base for next round
+				output.col_prev = uint64(output.index) / 2			// keep current index for next round
+				output.line += 3
+
 				output.columns[output.index] = input.base  + output.columns[output.index] + uint64(delimiterPos) + offset + 1 // start of next element
 				output.index++
 

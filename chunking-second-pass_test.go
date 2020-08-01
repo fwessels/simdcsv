@@ -146,7 +146,7 @@ func BenchmarkParseSecondPass(b *testing.B) {
 	columns[0] = 0
 	offset := uint64(0)
 	input := Input{}
-	output := Output{&columns, 1, &rows, 0}
+	output := Output{&columns, 1, &rows, 0, 0, 0, 128}
 
 	b.SetBytes(int64(len(file)))
 	b.ReportAllocs()
@@ -193,12 +193,17 @@ func testParseSecondPassMultipleRows(t *testing.T, f func(input *Input, offset u
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii,jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj,kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+lllllllllllllllllllllllllllllll
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
 	columns, rows, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
-	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f}
-	expectedRows := []uint64{8, 16}
+	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
+	expectedRows := []uint64{  0, 4, 124,
+		                      64, 4, 120,
+		                     128, 3, 117,
+		                     176, 1, 116}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
 		t.Errorf("TestParseSecondPassMultipleRows: got: %v want: %v", columns, expectedCols)
@@ -329,7 +334,7 @@ func TestParseBlockSecondPass(t *testing.T) {
 	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
 	rows := make([]uint64, 20)
 	columns := make([]string, 20 * len(rows))
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0}
+	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
 	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
 
@@ -362,7 +367,7 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 	input := Input{}
 	columns := make([]uint64, 128000)
 	rows := make([]uint64, 128000)
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0}
+	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
