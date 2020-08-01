@@ -21,13 +21,14 @@ TEXT ·parse_block_second_pass(SB), 7, $0
 
 	XORQ DX, DX
 
-    // Check whether it is necessary to adjust pointer for first string element
-    MOVQ output+64(FP), R9
-    MOVQ (R9), R9 // columnns pointer
-    CMPQ (R9), $0
-    JNZ  skip
-    MOVQ buf+0(FP), DI
-    MOVQ DI, (R9)
+	// Check whether it is necessary to adjust pointer for first string element
+	MOVQ output+64(FP), R9
+	MOVQ (R9), R9          // columnns pointer
+	CMPQ (R9), $0
+	JNZ  skip
+	MOVQ buf+0(FP), DI
+	MOVQ DI, (R9)
+
 skip:
 
 loop:
@@ -183,14 +184,40 @@ label5:
 	MOVQ  -0x8(R11)(AX*8), R13
 	SUBQ  R13, R12
 	MOVQ  R12, (R11)(AX*8)
-	MOVQ  0x8(R9), R11
-	INCQ  R11
-	MOVQ  R11, 0x8(R9)
-	MOVQ  0x10(R9), R12
-	TESTB AL, (R12)
+	INCQ  0x8(R9)
+	MOVQ  0x10(R9), R11
+	TESTB AL, (R11)
 	MOVQ  0x18(R9), AX
-	MOVQ  R11, (R12)(AX*8)
-	INCQ  0x18(R9)
+	MOVQ  0x20(R9), R12
+	MOVQ  R12, (R11)(AX*8)
+	MOVQ  0x10(R9), R11
+	TESTB AL, (R11)
+	MOVQ  0x18(R9), R12
+	LEAQ  0x1(R12), AX
+	MOVQ  0x8(R9), R13
+	SHRQ  $0x1, R13
+	SUBQ  0x28(R9), R13
+	MOVQ  R13, 0x8(R11)(R12*8)
+	MOVQ  0x10(R9), R11
+	TESTB AL, (R11)
+	MOVQ  0x18(R9), R12
+	LEAQ  0x2(R12), AX
+	MOVQ  0x30(R9), R13
+	MOVQ  0x8(R9), R14
+	SHRQ  $0x1, R14
+	SUBQ  R14, R13
+	MOVQ  R13, 0x10(R11)(R12*8)
+	MOVQ  0x10(R9), R11
+	TESTB AL, (R11)
+	MOVQ  0x18(R9), R12
+	LEAQ  0x1(R12), AX
+	MOVQ  0x8(R11)(R12*8), R11
+	SHLQ  $0x4, R11
+	ADDQ  R11, 0x20(R9)
+	MOVQ  0x8(R9), R11
+	SHRQ  $0x1, R11
+	MOVQ  R11, 0x28(R9)
+	ADDQ  $0x3, 0x18(R9)
 	MOVQ  (R9), R11
 	TESTB AL, (R11)
 	MOVQ  0x38(DX), R12
@@ -212,10 +239,10 @@ label6:
 	MOVQ    R8, CX
 	MOVQ    $-0x2, R13
 	SHLQ    CL, R13
-	ANDQ    R12, R13
-	ANDQ    R11, R13
-	BSFQ    R13, R8
-	MOVQ    R13, 0x8(DX)
+	ANDQ    R13, R12
+	ANDQ    R11, R12
+	BSFQ    R12, R8
+	MOVQ    R12, 0x8(DX)
 	CMOVQEQ BX, R8
 	JMP     label1
 

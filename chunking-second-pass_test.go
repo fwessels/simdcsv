@@ -332,19 +332,15 @@ func TestParseBlockSecondPass(t *testing.T) {
 
 	buf := []byte(strings.Repeat(vector , 1))
 	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
-	rows := make([]uint64, 20)
+	rows := make([][]string, 20)
 	columns := make([]string, 20 * len(rows))
 	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
 	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
 
-	simdrecords := make([][]string, 0)
+	rows = rows[:output.line/3]
+	simdrecords := rows // make([][]string, 0)
 
-	row := uint64(0)
-	for r := 0; r < output.line; r++ {
-		simdrecords = append(simdrecords, columns[row:rows[r]/2])
-		row = rows[r]/2
-	}
 
 	r := csv.NewReader(bytes.NewReader(buf))
 	records, err := r.ReadAll()
