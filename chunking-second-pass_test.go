@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/hex"
+	"io/ioutil"
 	"log"
 	"fmt"
 	"reflect"
@@ -355,15 +356,14 @@ func TestParseBlockSecondPass(t *testing.T) {
 
 func BenchmarkParseBlockSecondPass(b *testing.B) {
 
-	const file = `aaaa,aaaa,aaaa,aaaa,aaaa,aaaaaa,bbbb,bbbb,bbbb,bbbb,bbbb,bbbbbb,cccc,cccc,cccc,cccc,cccc,cccccc,dddd,dddd,dddd,dddd,dddd,dddddd
-eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,gggg,gggg,gggggg,hhhh,hhhh,hhhh,hhhh,hhhh,hhhhhh
-`
+	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	buf := []byte(strings.Repeat(file , 1000))
 	input := Input{}
-	columns := make([]uint64, 128000)
-	rows := make([]uint64, 128000)
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
+	rows := make([][]string, 10000 + 10)
+	columns := make([]string, len(rows)*20)
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
@@ -371,10 +371,29 @@ eeee,eeee,eeee,eeee,eeee,eeeeee,ffff,ffff,ffff,ffff,ffff,ffffff,gggg,gggg,gggg,g
 
 	for i := 0; i < b.N; i++ {
 
-		columns[0] = 0
-		output.index = 1
-		output.line = 0
+		output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
 		parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
+	}
+}
+
+func BenchmarkParseBlockSecondPass2(b *testing.B) {
+
+	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	b.SetBytes(int64(len(buf)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+
+		r := csv.NewReader(bytes.NewReader(buf))
+		_, err := r.ReadAll()
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
 	}
 }
