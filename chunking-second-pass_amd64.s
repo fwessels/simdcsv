@@ -21,6 +21,15 @@ TEXT ·parse_block_second_pass(SB), 7, $0
 
 	XORQ DX, DX
 
+    // Check whether it is necessary to adjust pointer for first string element
+    MOVQ output+64(FP), R9
+    MOVQ (R9), R9 // columnns pointer
+    CMPQ (R9), $0
+    JNZ  skip
+    MOVQ buf+0(FP), DI
+    MOVQ DI, (R9)
+skip:
+
 loop:
 	MOVQ buf+0(FP), DI
 	MOVQ input+48(FP), SI
