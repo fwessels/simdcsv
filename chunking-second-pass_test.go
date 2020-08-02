@@ -201,10 +201,10 @@ lllllllllllllllllllllllllllllll
 
 	columns, rows, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
-	expectedRows := []uint64{  0, 4, 124,
-		                      64, 4, 120,
-		                     128, 3, 117,
-		                     176, 1, 116}
+	expectedRows := []uint64{  0, 4, 128,
+		                      64, 4, 124,
+		                     128, 3, 120,
+		                     176, 1, 117}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
 		t.Errorf("TestParseSecondPassMultipleRows: got: %v want: %v", columns, expectedCols)

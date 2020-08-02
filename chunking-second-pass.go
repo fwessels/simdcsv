@@ -199,7 +199,7 @@ func ParseSecondPassMasks(input *Input, offset uint64, output *Output) {
 				// write out slice info for rows
 				output.rows[output.line+0] = output.col_base							// base pointer
 				output.rows[output.line+1] = uint64(output.index) / 2 - output.col_prev // length of element
-				output.rows[output.line+2] = output.col_cap  - uint64(output.index) / 2 // capacity (remaining)
+				output.rows[output.line+2] = output.col_cap - output.col_prev           // capacity (remaining)
 
 				output.col_base += output.rows[output.line+1] * 16	// adjust base for next round
 				output.col_prev = uint64(output.index) / 2			// keep current index for next round
