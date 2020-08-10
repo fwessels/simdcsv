@@ -66,8 +66,6 @@ func TestLosAngelesParkingCitations(t *testing.T) {
 
 	t.Run("all", func(t *testing.T) {
 
-		t.Skip()
-
 		if testing.Short() {
 			t.Skip("skipping... too long")
 		}
@@ -78,8 +76,9 @@ func TestLosAngelesParkingCitations(t *testing.T) {
 			buf := bytes.ReplaceAll(buf, []byte{0x0d}, []byte{})
 			lines := bytes.Split(buf, []byte("\n"))
 			lines = lines[1:]
+
 			for len(lines) > 0 {
-				ln := 100
+				ln := 1000
 				if len(lines) < ln {
 					ln = len(lines)
 				}
