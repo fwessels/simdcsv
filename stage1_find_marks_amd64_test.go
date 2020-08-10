@@ -1,34 +1,15 @@
 package simdcsv
 
 import (
-	"encoding/csv"
-	"fmt"
-	"io"
-	"log"
 	"bytes"
-	"math/bits"
-	"reflect"
-	"strings"
+	"encoding/csv"
+	"io"
 	"io/ioutil"
+	"log"
+	"reflect"
 	"testing"
 )
 
-func TestStage1FindMarksUnaligned(t *testing.T) {
-	test := strings.Repeat(
-`1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,NO EVIDENCE OF REG,50,99999,99999
-1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE OF REG",50,99999,99999
-`, 100)
-
-	record := Stage1FindMarks([]byte(test))
-
-	want := []string{"1103341116", "2015-12-21T00:00:00", "1251", "", "", "CA", "200304", "", "HOND", "PA", "GY", "13147 WELBY WAY", "01521", "1", "4000A1", "NO EVIDENCE OF REG", "50", "99999", "99999"}
-
-	for i := 0; i < len(record); i += len(want) {
-		if !reflect.DeepEqual(record[i:i+len(want)], want) {
-			t.Errorf("TestStage1FindMarksUnaligned(%d): got: %v want: %v", i, record, want)
-		}
-	}
-}
 
 func TestStage1LosAngelesParkingCitations(t *testing.T) {
 
