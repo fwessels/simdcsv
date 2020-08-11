@@ -2,7 +2,7 @@
 
 **Experimental: do not use in production.**
 
-A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [simdjson-go](https://github.com/minio/simdjson-go).
+A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [simdjson-go](https://github.com/minio/simdjson-go)).
 
 ## Design goals
 
