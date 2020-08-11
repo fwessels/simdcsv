@@ -103,17 +103,6 @@ func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
 		offset += 0x40
 	}
 
-	//for i := 0; i < index-1; i += 2 {
-	//	if columns[i] == ^uint64(0) || columns[i+1] == ^uint64(0) {
-	//		break
-	//	}
-	//	fmt.Printf("%016x - %016x: %s\n", columns[i], columns[i+1], string(buffer[columns[i]:columns[i+1]]))
-	//}
-	//
-	//for l := 0; l < line; l++ {
-	//	fmt.Println(rows[l])
-	//}
-
 	return columns[:output.index-1], rows[:output.line], input.errorOffset
 }
 
