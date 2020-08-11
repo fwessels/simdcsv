@@ -185,14 +185,19 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 				output.columns[output.index] = (input.base + output.columns[output.index] + uint64(delimiterPos) + offset) - output.columns[output.index-1]
 				output.index++
 
-				// write out slice info for rows
-				output.rows[output.line+0] = output.col_base							// base pointer
-				output.rows[output.line+1] = uint64(output.index) / 2 - output.col_prev // length of element
-				output.rows[output.line+2] = output.col_cap - output.col_prev           // capacity (remaining)
+				if uint64(output.index) / 2 - output.col_prev == 1 && // we just have a line with a single element
+					output.columns[output.index-1] == 0 {			  // and its length is zero (implying empt line)
+					// prevent empty lines from being written
+				} else {
+					// write out slice info for a new row
+					output.rows[output.line+0] = output.col_base							// base pointer
+					output.rows[output.line+1] = uint64(output.index) / 2 - output.col_prev // length of element
+					output.rows[output.line+2] = output.col_cap - output.col_prev           // capacity (remaining)
+					output.line += 3
+				}
 
-				output.col_base += output.rows[output.line+1] * 16	// adjust base for next round
-				output.col_prev = uint64(output.index) / 2			// keep current index for next round
-				output.line += 3
+				output.col_base += (uint64(output.index) / 2 - output.col_prev) * 16 // adjust base for next round
+				output.col_prev = uint64(output.index) / 2							 // keep current index for next round
 
 				output.columns[output.index] = input.base  + output.columns[output.index] + uint64(delimiterPos) + offset + 1 // start of next element
 				output.index++

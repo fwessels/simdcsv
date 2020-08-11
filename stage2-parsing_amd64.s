@@ -152,11 +152,11 @@ label3:
 
 label4:
 	CMPQ  R8, SI
-	JGE   label7
+	JGE   label9
 	CMPQ  R8, R10
-	JGE   label7
+	JGE   label9
 	CMPQ  0x18(DX), $0x0
-	JNE   label6
+	JNE   label7
 	MOVQ  0x28(DX), R11
 	TESTQ R11, R11
 	JBE   label5
@@ -182,7 +182,57 @@ label5:
 	MOVQ  -0x8(R11)(AX*8), R13
 	SUBQ  R13, R12
 	MOVQ  R12, (R11)(AX*8)
+	MOVQ  0x8(R9), AX
+	LEAQ  0x1(AX), R11
+	MOVQ  R11, 0x8(R9)
+	SHRQ  $0x1, R11
+	SUBQ  0x28(R9), R11
+	CMPQ  R11, $0x1
+	JNE   label8
+	MOVQ  (R9), R11
+	TESTB AL, (R11)
+	MOVQ  (R11)(AX*8), R11
+	TESTQ R11, R11
+	JNE   label8
+
+label6:
+	MOVQ  0x8(R9), R11
+	SHRQ  $0x1, R11
+	SUBQ  0x28(R9), R11
+	SHLQ  $0x4, R11
+	ADDQ  R11, 0x20(R9)
+	MOVQ  0x8(R9), R11
+	SHRQ  $0x1, R11
+	MOVQ  R11, 0x28(R9)
+	MOVQ  (R9), R11
+	TESTB AL, (R11)
+	MOVQ  0x38(DX), R12
+	MOVQ  0x8(R9), AX
+	MOVQ  (R11)(AX*8), R13
+	ADDQ  R13, R12
+	ADDQ  R8, R12
+	LEAQ  (DI)(R12*1), R12
+	LEAQ  0x1(R12), R12
+	MOVQ  R12, (R11)(AX*8)
 	INCQ  0x8(R9)
+	LEAQ  (R8)(DI*1), R11
+	MOVQ  R11, 0x20(DX)
+
+label7:
+	MOVQ    0x8(DX), R11
+	CMPQ    R8, $0x40
+	SBBQ    R12, R12
+	MOVQ    R8, CX
+	MOVQ    $-0x2, R13
+	SHLQ    CL, R13
+	ANDQ    R12, R13
+	ANDQ    R11, R13
+	BSFQ    R13, R8
+	MOVQ    R13, 0x8(DX)
+	CMOVQEQ BX, R8
+	JMP     label1
+
+label8:
 	MOVQ  0x10(R9), R11
 	TESTB AL, (R11)
 	MOVQ  0x18(R9), AX
@@ -203,62 +253,26 @@ label5:
 	MOVQ  0x30(R9), R13
 	SUBQ  0x28(R9), R13
 	MOVQ  R13, 0x10(R11)(R12*8)
-	MOVQ  0x10(R9), R11
-	TESTB AL, (R11)
-	MOVQ  0x18(R9), R12
-	LEAQ  0x1(R12), AX
-	MOVQ  0x8(R11)(R12*8), R11
-	SHLQ  $0x4, R11
-	ADDQ  R11, 0x20(R9)
-	MOVQ  0x8(R9), R11
-	SHRQ  $0x1, R11
-	MOVQ  R11, 0x28(R9)
 	ADDQ  $0x3, 0x18(R9)
-	MOVQ  (R9), R11
-	TESTB AL, (R11)
-	MOVQ  0x38(DX), R12
-	MOVQ  0x8(R9), AX
-	MOVQ  (R11)(AX*8), R13
-	ADDQ  R13, R12
-	ADDQ  R8, R12
-	LEAQ  (R12)(DI*1), R12
-	LEAQ  0x1(R12), R12
-	MOVQ  R12, (R11)(AX*8)
-	INCQ  0x8(R9)
-	LEAQ  (R8)(DI*1), R11
-	MOVQ  R11, 0x20(DX)
+	JMP   label6
 
-label6:
-	MOVQ    0x8(DX), R11
-	CMPQ    R8, $0x40
-	SBBQ    R12, R12
-	MOVQ    R8, CX
-	MOVQ    $-0x2, R13
-	SHLQ    CL, R13
-	ANDQ    R13, R12
-	ANDQ    R11, R12
-	BSFQ    R12, R8
-	MOVQ    R12, 0x8(DX)
-	CMOVQEQ BX, R8
-	JMP     label1
-
-label7:
+label9:
 	CMPQ R10, SI
-	JGE  label11
+	JGE  label13
 	CMPQ R10, R8
-	JGE  label11
+	JGE  label13
 	CMPQ 0x18(DX), $0x0
-	JNE  label10
+	JNE  label12
 	MOVQ 0x20(DX), R11
 	INCQ R11
 	LEAQ (R10)(DI*1), R12
 	CMPQ R11, R12
-	JE   label8
+	JE   label10
 	CMPQ 0x30(DX), $0x0
-	JNE  label8
+	JNE  label10
 	MOVQ R12, 0x30(DX)
 
-label8:
+label10:
 	MOVQ  (R9), R11
 	TESTB AL, (R11)
 	MOVQ  0x8(R9), R12
@@ -267,7 +281,7 @@ label8:
 	INCQ  R13
 	MOVQ  R13, -0x8(R11)(R12*8)
 
-label9:
+label11:
 	MOVQ    0x18(DX), R11
 	NOTQ    R11
 	MOVQ    R11, 0x18(DX)
@@ -285,7 +299,7 @@ label9:
 	MOVQ    R11, R10
 	JMP     label1
 
-label10:
+label12:
 	MOVQ  (R9), R11
 	TESTB AL, (R11)
 	MOVQ  0x8(R9), AX
@@ -294,7 +308,7 @@ label10:
 	MOVQ  R12, (R11)(AX*8)
 	LEAQ  (R10)(DI*1), R11
 	MOVQ  R11, 0x28(DX)
-	JMP   label9
+	JMP   label11
 
-label11:
+label13:
 	RET
