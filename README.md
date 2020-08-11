@@ -1,15 +1,16 @@
 # simdcsv
 
-**Experimental**
+**Experimental: do not use in production.**
 
-Investigate whether 2 stage design approach used by [simdjson-go](https://github.com/minio/simdjson-go) can also speed up CSV parsing.
+A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [simdjson-go](https://github.com/minio/simdjson-go).
 
 ## Design goals
 
 - 1 GB/sec parsing performance for a single core
-- linear performance scaling with more cores
+- linear performance scaling across cores
+- support arbitrarily large data sets
 - drop-in replacement for `encoding/csv`
-- zero-copy behaviour
+- zero copy behaviour/memory efficient
 
 ## Benchmarking 
 
