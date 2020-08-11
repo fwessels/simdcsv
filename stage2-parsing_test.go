@@ -316,6 +316,40 @@ func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 	})
 }
 
+func testStage2SkipEmptyLines(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+
+	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
+
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+iiiiiiiiiiiiiiiiiiiiiiiiiiiiiii,jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj,kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk
+lllllllllllllllllllllllllllllll
+`
+	fmt.Println(hex.Dump([]byte(file)))
+	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
+	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x0, 0x81, 0x1e, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
+	expectedRows := []uint64{  0, 4, 128,
+		64, 4, 123,
+		128, 3, 119,
+		176, 1, 116}
+
+	if !reflect.DeepEqual(columns, expectedCols) {
+		t.Errorf("testStage2EmptyLines: got: %v want: %v", columns, expectedCols)
+	}
+
+	if !reflect.DeepEqual(rows, expectedRows) {
+		t.Errorf("testStage2EmptyLines: got: %v want: %v", rows, expectedRows)
+	}
+}
+
+func TestStage2SkipEmptyLines(t *testing.T) {
+	t.Run("go", func(t *testing.T) {
+		testStage2SkipEmptyLines(t, Stage2ParseMasks)
+	})
+	//t.Run("avx2", func(t *testing.T) {
+	//	testStage2EmptyLines(t, stage2_parse_test)
+	//})
+}
+
 func TestParseBlockSecondPass(t *testing.T) {
 
 	const vector = `1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE,OF REG",50,99999,99999
