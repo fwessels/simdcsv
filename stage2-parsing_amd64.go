@@ -1,10 +1,10 @@
 package simdcsv
 
 //go:noescape
-func parse_block_second_pass(buf []byte, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm)
+func stage2_parse_buffer(buf []byte, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm)
 
 //go:noescape
-func parse_second_pass_test(input *Input, offset uint64, output *Output)
+func stage2_parse_test(input *Input, offset uint64, output *Output)
 
 //go:noescape
-func parse_second_pass()
+func stage2_parse()

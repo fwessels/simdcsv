@@ -6,8 +6,8 @@
 	SHLQ      $32, R2 \
 	ORQ       R1, R2
 
-// func parse_block_second_pass()
-TEXT ·parse_block_second_pass(SB), 7, $0
+// func stage2_parse_buffer()
+TEXT ·stage2_parse_buffer(SB), 7, $0
 
 	MOVQ         delimiterChar+24(FP), AX // get character for delimiter
 	MOVQ         AX, X4
@@ -25,11 +25,9 @@ TEXT ·parse_block_second_pass(SB), 7, $0
 	MOVQ output+64(FP), R9
 	MOVQ (R9), R9          // columnns pointer
 	CMPQ (R9), $0
-	JNZ  skip
+	JNZ  loop              // skip setting first element
 	MOVQ buf+0(FP), DI
 	MOVQ DI, (R9)
-
-skip:
 
 loop:
 	MOVQ buf+0(FP), DI
@@ -58,7 +56,7 @@ loop:
 
 	PUSHQ DX
 	MOVQ  input+48(FP), DX
-	CALL  ·parse_second_pass(SB)
+	CALL  ·stage2_parse(SB)
 	POPQ  DX
 
 	ADDQ $0x40, offset+56(FP)
@@ -69,16 +67,16 @@ loop:
 	VZEROUPPER
 	RET
 
-// func parse_second_pass_test(input *Input, offset uint64, output *Output)
-TEXT ·parse_second_pass_test(SB), 7, $0
+// func stage2_parse_test(input *Input, offset uint64, output *Output)
+TEXT ·stage2_parse_test(SB), 7, $0
 	MOVQ input+0(FP), DX
 	MOVQ offset+8(FP), DI
 	MOVQ output+16(FP), R9
-	CALL ·parse_second_pass(SB)
+	CALL ·stage2_parse(SB)
 	RET
 
-// func parse_second_pass()
-TEXT ·parse_second_pass(SB), 7, $0
+// func stage2_parse()
+TEXT ·stage2_parse(SB), 7, $0
 	MOVL    $0x40, BX
 	MOVQ    (DX), SI
 	BSFQ    SI, SI

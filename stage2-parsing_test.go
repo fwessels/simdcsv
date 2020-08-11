@@ -88,52 +88,52 @@ func TestPreprocessCarriageReturns(t *testing.T) {
 	}
 }
 
-func testParseSecondPassUnquoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseUnquoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
+	output, _, _ := Stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
 	expected := []uint64{0, 1, 2, 2, 5, 0, 6, 3, 10, 4, 15, 0, 16, 0, 17, 5, 23, 0, 24, 0, 25, 0, 26, 6, 33, 0, 34, 0, 35, 0, 36, 0, 37, 7, 45, 0, 46, 0, 47, 0, 48, 0, 49, 0, 50, 8, 59, 0, 60, 0, 61, 0, 62, 0, 63, 0}
 	if !reflect.DeepEqual(output, expected) {
-		t.Errorf("testParseSecondPassUnquoted: got: %v want: %v", output, expected)
+		t.Errorf("testStage2ParseUnquoted: got: %v want: %v", output, expected)
 	}
 }
 
-func TestParseSecondPassUnquoted(t *testing.T) {
+func TestStage2ParseUnquoted(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testParseSecondPassUnquoted(t, ParseSecondPassMasks)
+		testStage2ParseUnquoted(t, Stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassUnquoted(t, parse_second_pass_test)
+		testStage2ParseUnquoted(t, stage2_parse_test)
 	})
 }
 
-func testParseSecondPassQuoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseQuoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `A,"A",BB,,"DDD","EEEE","",,HHHHH,,,,JJJJJJ,,,,,OOOOOOO,,,,,,UUU
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _, _ := ParseSecondPass([]byte(file)[:64], '\n', ',', '"', f)
+	output, _, _ := Stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
 	expected := []uint64{0, 1, 3, 1, 6, 2, 9, 0, 11, 3, 17, 4, 24, 0, 26, 0, 27, 5, 33, 0, 34, 0, 35, 0, 36, 6, 43, 0, 44, 0, 45, 0, 46, 0, 47, 7, 55, 0, 56, 0, 57, 0, 58, 0, 59, 0, 60, 3}
 
 	if !reflect.DeepEqual(output, expected) {
-		t.Errorf("testParseSecondPassQuoted: got: %v want: %v", output, expected)
+		t.Errorf("testStage2ParseQuoted: got: %v want: %v", output, expected)
 	}
 }
 
-func TestParseSecondPassQuoted(t *testing.T) {
+func TestStage2ParseQuoted(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testParseSecondPassQuoted(t, ParseSecondPassMasks)
+		testStage2ParseQuoted(t, Stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassQuoted(t, parse_second_pass_test)
+		testStage2ParseQuoted(t, stage2_parse_test)
 	})
 }
 
-func BenchmarkParseSecondPass(b *testing.B) {
+func BenchmarkStage2Parse(b *testing.B) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
 `
@@ -163,34 +163,34 @@ func BenchmarkParseSecondPass(b *testing.B) {
 		output.index = 1
 		output.line = 0
 
-		parse_second_pass_test(&input, offset, &output)
+		stage2_parse_test(&input, offset, &output)
 	}
 }
 
-func testParseSecondPassMultipleMasks(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseMultipleMasks(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
+	output, _, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
 	expected := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f}
 
 	if !reflect.DeepEqual(output, expected) {
-		t.Errorf("TestParseSecondPassMultipleMasks: got: %v want: %v", output, expected)
+		t.Errorf("TestStage2ParseMultipleMasks: got: %v want: %v", output, expected)
 	}
 }
 
-func TestParseSecondPassMultipleMasks(t *testing.T) {
+func TestStage2ParseMultipleMasks(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testParseSecondPassMultipleMasks(t, ParseSecondPassMasks)
+		testStage2ParseMultipleMasks(t, Stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassMultipleMasks(t, parse_second_pass_test)
+		testStage2ParseMultipleMasks(t, stage2_parse_test)
 	})
 }
 
-func testParseSecondPassMultipleRows(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseMultipleRows(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
@@ -199,7 +199,7 @@ lllllllllllllllllllllllllllllll
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	columns, rows, _ := ParseSecondPass([]byte(file), '\n', ',', '"', f)
+	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
 	expectedRows := []uint64{  0, 4, 128,
 		                      64, 4, 124,
@@ -207,24 +207,23 @@ lllllllllllllllllllllllllllllll
 		                     176, 1, 117}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
-		t.Errorf("TestParseSecondPassMultipleRows: got: %v want: %v", columns, expectedCols)
+		t.Errorf("TestStage2ParseMultipleRows: got: %v want: %v", columns, expectedCols)
 	}
 
 	if !reflect.DeepEqual(rows, expectedRows) {
-		t.Errorf("TestParseSecondPassMultipleRows: got: %v want: %v", rows, expectedRows)
+		t.Errorf("TestStage2ParseMultipleRows: got: %v want: %v", rows, expectedRows)
 	}
 }
 
-func TestParseSecondPassMultipleRows(t *testing.T) {
+func TestStage2ParseMultipleRows(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testParseSecondPassMultipleRows(t, ParseSecondPassMasks)
+		testStage2ParseMultipleRows(t, Stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testParseSecondPassMultipleRows(t, parse_second_pass_test)
+		testStage2ParseMultipleRows(t, stage2_parse_test)
 	})
 }
 
-// Opening quote can only start after either , or delimiter
 func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	bareQuoteInNonQuotedFields := []struct {
@@ -250,7 +249,7 @@ func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uin
 
 		in := [64]byte{}
 		copy(in[:], bareQuoteInNonQuotedField.input)
-		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', f)
+		_, _, errorOffset := Stage2Parse(in[:], '\n', ',', '"', f)
 
 		if errorOffset != bareQuoteInNonQuotedField.expected {
 			t.Errorf("testBareQuoteInNonQuotedField: got: %d want: %d", errorOffset, bareQuoteInNonQuotedField.expected)
@@ -261,10 +260,10 @@ func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uin
 // Opening quote can only start after either , or delimiter
 func TestBareQuoteInNonQuotedField(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testBareQuoteInNonQuotedField(t, ParseSecondPassMasks)
+		testBareQuoteInNonQuotedField(t, Stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testBareQuoteInNonQuotedField(t, parse_second_pass_test)
+		testBareQuoteInNonQuotedField(t, stage2_parse_test)
 	})
 }
 
@@ -299,7 +298,7 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input
 			in[len(extraneousOrMissingQuoteInQuotedField.input)] = '\n'
 		}
 
-		_, _, errorOffset := ParseSecondPass(in[:], '\n', ',', '"', f)
+		_, _, errorOffset := Stage2Parse(in[:], '\n', ',', '"', f)
 
 		if errorOffset != extraneousOrMissingQuoteInQuotedField.expected {
 			t.Errorf("TestExtraneousOrMissingQuoteInQuotedField: got: %d want: %d", errorOffset, extraneousOrMissingQuoteInQuotedField.expected)
@@ -307,13 +306,13 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input
 	}
 }
 
-// Closing quote needs to be followed immediate by either a , or delimiter
+// Closing quote needs to be followed immediately by either a , or delimiter
 func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testExtraneousOrMissingQuoteInQuotedField(t, ParseSecondPassMasks)
+		testExtraneousOrMissingQuoteInQuotedField(t, Stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testExtraneousOrMissingQuoteInQuotedField(t, parse_second_pass_test)
+		testExtraneousOrMissingQuoteInQuotedField(t, stage2_parse_test)
 	})
 }
 
@@ -337,7 +336,7 @@ func TestParseBlockSecondPass(t *testing.T) {
 	columns := make([]string, 20 * len(rows))
 	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
-	parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
+	stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
 
 	rows = rows[:output.line/3]
 	simdrecords := rows // make([][]string, 0)
@@ -373,7 +372,7 @@ func BenchmarkParseBlockSecondPass(b *testing.B) {
 
 		output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
-		parse_block_second_pass(buf, '\n', ',', '"', &input, 0, &output)
+		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
 	}
 }
 

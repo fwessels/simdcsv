@@ -74,10 +74,10 @@ func SecondPass(buffer []byte) {
 		delimiter, separator, quote = PreprocessedDelimiter, PreprocessedSeparator, 0x02
 	}
 
-	ParseSecondPass(buf, delimiter, separator, quote, parse_second_pass_test)
+	Stage2Parse(buf, delimiter, separator, quote, stage2_parse_test)
 }
 
-func ParseSecondPass(buffer []byte, delimiter, separator, quote rune,
+func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	f func(input *Input, offset uint64, output *Output)) ([]uint64, []uint64, uint64) {
 
 	separatorMasks := getBitMasks([]byte(buffer), byte(separator))
@@ -138,7 +138,7 @@ type OutputAsm struct {
 	col_cap  uint64
 }
 
-func ParseSecondPassMasks(input *Input, offset uint64, output *Output) {
+func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 
 	const clearMask = 0xfffffffffffffffe
 
