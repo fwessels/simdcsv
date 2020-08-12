@@ -63,6 +63,25 @@ loop:
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
+	JZ   addLastDelimiter // in case we end exactly on a 64-byte boundary,
+	                      // add a 'virtual' delimiter to make sure we've ended
+
+	VZEROUPPER
+	RET
+
+addLastDelimiter:
+    // simulate a last final delimiter
+	MOVQ input+48(FP), SI
+    MOVQ     $1, CX // first char is delimiter
+	MOVQ     CX, 8(SI)
+    MOVQ     $0, CX
+	MOVQ     CX, 0(SI)
+	MOVQ     CX, 16(SI)
+
+	MOVQ  input+48(FP), DX
+	MOVQ offset+56(FP), DI
+	MOVQ output+64(FP), R9
+	CALL  ·stage2_parse(SB)
 
 	VZEROUPPER
 	RET

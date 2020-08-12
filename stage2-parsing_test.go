@@ -354,6 +354,28 @@ func TestStage2SkipEmptyLines(t *testing.T) {
 	})
 }
 
+func TestStage2MissingLastDelimiter(t *testing.T) {
+
+	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh`
+
+	buf := []byte(file)
+
+	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
+	rows := make([][]string, 100)
+	columns := make([]string, len(rows)*10)
+	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
+
+	stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
+	rows = rows[:output.line/3]
+
+	records := EncodingCsv(buf)
+
+	if !reflect.DeepEqual(rows, records) {
+		t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", rows, records)
+	}
+}
+
 func TestParseBlockSecondPass(t *testing.T) {
 
 	const vector = `1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE,OF REG",50,99999,99999
