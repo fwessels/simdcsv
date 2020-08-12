@@ -45,7 +45,7 @@ loop:
 	MOVQ DX, AX
 	ADDQ $0x40, AX
 	CMPQ AX, buf_len+8(FP)
-	JLT  notLastZWord
+	JLE  notLastZWord
 
 	// OR in additional delimiter into last mask
 	MOVQ buf_len+8(FP), CX

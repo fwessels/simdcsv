@@ -357,22 +357,26 @@ func TestStage2SkipEmptyLines(t *testing.T) {
 func TestStage2MissingLastDelimiter(t *testing.T) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhh`
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh`
 
-	buf := []byte(file)
+	for i := 1; i <= len(file); i++ {
+		buf := []byte(file[:i])
 
-	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
-	rows := make([][]string, 100)
-	columns := make([]string, len(rows)*10)
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
+		input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
+		rows := make([][]string, 100)
+		columns := make([]string, len(rows)*10)
+		output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
 
-	stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
-	rows = rows[:output.line/3]
+		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
+		rows = rows[:output.line/3]
 
-	records := EncodingCsv(buf)
+		r := csv.NewReader(bytes.NewReader(buf))
+		r.FieldsPerRecord = -1
+		records, _ := r.ReadAll()
 
-	if !reflect.DeepEqual(rows, records) {
-		t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", rows, records)
+		if !reflect.DeepEqual(rows, records) {
+			t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", rows, records)
+		}
 	}
 }
 
