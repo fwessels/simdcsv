@@ -36,16 +36,34 @@ loop:
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
 
+    // delimiter mask
 	VPCMPEQB Y8, Y4, Y10
 	VPCMPEQB Y9, Y4, Y11
-	CREATE_MASK(Y10, Y11, AX, CX)
-	MOVQ     CX, 8(SI)
+	CREATE_MASK(Y10, Y11, AX, BX)
 
+	// are we processing the last 64-bytes?
+	MOVQ DX, AX
+	ADDQ $0x40, AX
+	CMPQ AX, buf_len+8(FP)
+	JLT  notLastZWord
+
+	// OR in additional delimiter into last mask
+	MOVQ buf_len+8(FP), CX
+	ANDQ $0x3f, CX
+	MOVQ $1, AX
+	SHLQ CX, AX
+	ORQ AX, BX
+
+notLastZWord:
+	MOVQ     BX, 8(SI)
+
+    // separator mask
 	VPCMPEQB Y8, Y5, Y10
 	VPCMPEQB Y9, Y5, Y11
 	CREATE_MASK(Y10, Y11, AX, CX)
 	MOVQ     CX, 0(SI)
 
+    // quote mask
 	VPCMPEQB Y8, Y6, Y10
 	VPCMPEQB Y9, Y6, Y11
 	CREATE_MASK(Y10, Y11, AX, CX)
@@ -63,16 +81,15 @@ loop:
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
-	JZ   addLastDelimiter // in case we end exactly on a 64-byte boundary,
-	                      // add a 'virtual' delimiter to make sure we've ended
-
+	JZ   addTrailingDelimiter // in case we end exactly on a 64-byte boundary,
+	                          // add a 'trailing' delimiter just to be sure
 	VZEROUPPER
 	RET
 
-addLastDelimiter:
-    // simulate a last final delimiter
+addTrailingDelimiter:
+    // simulate a last "trailing" delimiter
 	MOVQ input+48(FP), SI
-    MOVQ     $1, CX // first char is delimiter
+    MOVQ     $1, CX // first bit marks first char is delimiter
 	MOVQ     CX, 8(SI)
     MOVQ     $0, CX
 	MOVQ     CX, 0(SI)
