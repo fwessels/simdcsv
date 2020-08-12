@@ -94,6 +94,13 @@ func TestLosAngelesParkingCitations(t *testing.T) {
 	})
 }
 
+func TestFilterEmptyLines(t *testing.T) {
+	compareAgainstEncodingCsv(t, []byte("a,b,c\n\nd,e,f\n\n"))
+	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n\nd,e,f\n\n"))
+	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n\n\nd,e,f\n\n"))
+	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n,,\n\n\nd,e,f\n\n"))
+}
+
 func compareAgainstEncodingCsv(t *testing.T, test []byte) {
 
 	simdrecords := ReadAll([]byte(test))
