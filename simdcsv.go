@@ -17,3 +17,12 @@ func ReadAll(buf []byte) (rows [][]string) {
 
 	return
 }
+
+func FilterComments(records *[][]string) {
+
+	for i, record := range *records {
+		if len(record) > 0 && len(record[0]) > 0 && record[0][0] == '#' {
+			*records = append((*records)[:i], (*records)[i+1:len(*records)]...)
+		}
+	}
+}
