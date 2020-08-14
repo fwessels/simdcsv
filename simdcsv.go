@@ -31,11 +31,18 @@ func FilterOutComments(records *[][]string, comment byte) {
 	}
 }
 
-func EnsureFieldsPerRecord(records [][]string, fieldsPerRecord int) error {
+func EnsureFieldsPerRecord(records *[][]string, fieldsPerRecord *int) error {
 
-	if fieldsPerRecord > 0 {
-		for i, record := range records {
-			if len(record) != fieldsPerRecord {
+	if *fieldsPerRecord == 0 {
+		if len(*records) > 0 {
+			*fieldsPerRecord = len((*records)[0])
+		}
+	}
+
+	if *fieldsPerRecord > 0 {
+		for i, record := range *records {
+			if len(record) != *fieldsPerRecord {
+				*records = nil
 				return errors.New(fmt.Sprintf("record on line %d: wrong number of fields", i+1))
 			}
 		}

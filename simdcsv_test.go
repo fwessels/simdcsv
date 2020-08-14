@@ -156,33 +156,46 @@ func TestIgnoreCommentedLines(t *testing.T) {
 	})
 }
 
-func TestFieldsPerRecord(t *testing.T) {
-
-	// FieldsPerRecord is the number of expected fields per record.
-	// If FieldsPerRecord is positive, Read requires each record to
-	// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
-	// the number of fields in the first record, so that future records must
-	// have the same field count. If FieldsPerRecord is negative, no check is
-	// made and records may have a variable number of fields.
-	//FieldsPerRecord int
-
-	const FieldsPerRecord = 4
-	csvData := []byte("a,b,c\nd,e,f\ng,h,i\n")
+func testFieldsPerRecord(t *testing.T, csvData []byte, fieldsPerRecord int) {
 
 	simdrecords := ReadAll(csvData)
-	err := EnsureFieldsPerRecord(simdrecords, FieldsPerRecord)
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
+
+	// create copy of fieldsPerRecord since it may be changed
+	fieldsPerRecordSimd := fieldsPerRecord
+	errSimd := EnsureFieldsPerRecord(&simdrecords, &fieldsPerRecordSimd)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
-	r.FieldsPerRecord = FieldsPerRecord
+	r.FieldsPerRecord = fieldsPerRecord
 	records, err := r.ReadAll()
-	if err != nil {
-		log.Fatalf("%v", err)
+
+	// are both returning errors, then this test is a pass
+	if errSimd != nil && err != nil {
+		fmt.Println(errSimd)
+		fmt.Println(err)
+		return
 	}
 
 	if !reflect.DeepEqual(simdrecords, records) {
 		t.Errorf("TestFieldsPerRecord: got: %v want: %v", simdrecords, records)
 	}
 }
+
+func TestEnsureFieldsPerRecord(t *testing.T) {
+
+	t.Run("match", func(t *testing.T) {
+		testFieldsPerRecord(t, []byte("a,b,c\nd,e,f\ng,h,i\n"), 3)
+	})
+	t.Run("fail", func(t *testing.T) {
+		testFieldsPerRecord(t, []byte("a,b,c\nd,e,f\ng,h,i\n"), 4)
+	})
+	t.Run("variable", func(t *testing.T) {
+		testFieldsPerRecord(t, []byte("a,b,c\nd,e\ng\n"), -1)
+	})
+	t.Run("auto-pass", func(t *testing.T) {
+		testFieldsPerRecord(t, []byte("a,b,c\nd,e,f\ng,h,i\n"), 0)
+	})
+	t.Run("auto-fail", func(t *testing.T) {
+		testFieldsPerRecord(t, []byte("a,b,c\nd,e\ng,h\n"), 0)
+	})
+}
+
