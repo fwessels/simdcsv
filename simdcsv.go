@@ -1,6 +1,8 @@
 package simdcsv
 
 import (
+	"errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -27,4 +29,16 @@ func FilterOutComments(records *[][]string, comment byte) {
 			*records = append((*records)[:i], (*records)[i+1:len(*records)]...)
 		}
 	}
+}
+
+func EnsureFieldsPerRecord(records [][]string, fieldsPerRecord int) error {
+
+	if fieldsPerRecord > 0 {
+		for i, record := range records {
+			if len(record) != fieldsPerRecord {
+				return errors.New(fmt.Sprintf("record on line %d: wrong number of fields", i+1))
+			}
+		}
+	}
+	return nil
 }

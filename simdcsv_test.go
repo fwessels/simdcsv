@@ -155,3 +155,34 @@ func TestIgnoreCommentedLines(t *testing.T) {
 		testIgnoreCommentedLines(t, []byte("a,b,c\n#A,B,C\nd,e,f\n#g,h,i\n"))
 	})
 }
+
+func TestFieldsPerRecord(t *testing.T) {
+
+	// FieldsPerRecord is the number of expected fields per record.
+	// If FieldsPerRecord is positive, Read requires each record to
+	// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
+	// the number of fields in the first record, so that future records must
+	// have the same field count. If FieldsPerRecord is negative, no check is
+	// made and records may have a variable number of fields.
+	//FieldsPerRecord int
+
+	const FieldsPerRecord = 4
+	csvData := []byte("a,b,c\nd,e,f\ng,h,i\n")
+
+	simdrecords := ReadAll(csvData)
+	err := EnsureFieldsPerRecord(simdrecords, FieldsPerRecord)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	r := csv.NewReader(bytes.NewReader(csvData))
+	r.FieldsPerRecord = FieldsPerRecord
+	records, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		t.Errorf("TestFieldsPerRecord: got: %v want: %v", simdrecords, records)
+	}
+}
