@@ -122,15 +122,15 @@ func EncodingCsv(csvData []byte) (records [][]string) {
 }
 
 // filter out commented rows before returning to client
-func TestIgnoreCommentedLines(t *testing.T) {
+func testIgnoreCommentedLines(t *testing.T, csvData []byte) {
 
-	csvData := []byte("a,b,c\n#hallo,good,bye\nd,e,f\n\n")
+	const comment = '#'
 
 	simdrecords := ReadAll(csvData)
-	FilterComments(&simdrecords)
+	FilterOutComments(&simdrecords, comment)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
-	r.Comment ='#'
+	r.Comment = comment
 	records, err := r.ReadAll()
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -139,4 +139,19 @@ func TestIgnoreCommentedLines(t *testing.T) {
 	if !reflect.DeepEqual(simdrecords, records) {
 		t.Errorf("TestIgnoreCommentedLines: got: %v want: %v", simdrecords, records)
 	}
+}
+
+func TestIgnoreCommentedLines(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		testIgnoreCommentedLines(t, []byte("a,b,c\n#hello,good,bye\nd,e,f\n\n"))
+	})
+	t.Run("first", func(t *testing.T) {
+		testIgnoreCommentedLines(t, []byte("#a,b,c\nhello,good,bye\nd,e,f\n\n"))
+	})
+	t.Run("last", func(t *testing.T) {
+		testIgnoreCommentedLines(t, []byte("a,b,c\nd,e,f\n#IGNORED\n"))
+	})
+	t.Run("multiple", func(t *testing.T){
+		testIgnoreCommentedLines(t, []byte("a,b,c\n#A,B,C\nd,e,f\n#g,h,i\n"))
+	})
 }

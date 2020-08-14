@@ -18,10 +18,12 @@ func ReadAll(buf []byte) (rows [][]string) {
 	return
 }
 
-func FilterComments(records *[][]string) {
+func FilterOutComments(records *[][]string, comment byte) {
 
-	for i, record := range *records {
-		if len(record) > 0 && len(record[0]) > 0 && record[0][0] == '#' {
+	// iterate in reverse so as to prevent starting over when removing element
+	for i := len(*records)-1; i >= 0; i-- {
+		record := (*records)[i]
+		if len(record) > 0 && len(record[0]) > 0 && record[0][0] == comment {
 			*records = append((*records)[:i], (*records)[i+1:len(*records)]...)
 		}
 	}
