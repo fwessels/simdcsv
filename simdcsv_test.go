@@ -137,7 +137,7 @@ func testIgnoreCommentedLines(t *testing.T, csvData []byte) {
 	}
 
 	if !reflect.DeepEqual(simdrecords, records) {
-		t.Errorf("TestIgnoreCommentedLines: got: %v want: %v", simdrecords, records)
+		t.Errorf("testIgnoreCommentedLines: got: %v want: %v", simdrecords, records)
 	}
 }
 
