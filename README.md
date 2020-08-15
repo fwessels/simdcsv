@@ -12,6 +12,20 @@ A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [s
 - drop-in replacement for `encoding/csv`
 - zero copy behaviour/memory efficient
 
+## Two Stage Design
+
+Fundamentally the architecture of `simdcsv` has two stages:
+- stage 1: split up CSV
+- stage 2: parse CSV
+
+The first stage allows large CSV objects to be safely broken up into separate chunks that can be processed independently on multiple cores during the second stage. This is done in a deterministic manner whereby the "entry" state of each chunk is known definitively. 
+
+Due to the nature of CSV files this is not trivial by itself as for instance delimiter symbols are allowed in quoted fields. As such it is not possible to determine with certainty where chunks may be broken up at without doing additional processing.
+
+### Stage 1: split up CSV into chunks
+
+### Stage 2: parse CSV
+
 ## Benchmarking 
 
 ### Stage 1
