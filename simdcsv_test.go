@@ -199,9 +199,8 @@ func TestEnsureFieldsPerRecord(t *testing.T) {
 	})
 }
 
-func TestTrimLeadingSpace(t *testing.T) {
+func testTrimLeadingSpace(t *testing.T, csvData []byte) {
 
-	csvData := []byte("a,b,c\n d, e, f\n")
 	simdrecords := ReadAll(csvData)
 	TrimLeadingSpace(&simdrecords)
 
@@ -213,7 +212,19 @@ func TestTrimLeadingSpace(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(simdrecords, records) {
-		t.Errorf("TestTrimLeadingSpace: got: %v want: %v", simdrecords, records)
+		t.Errorf("testTrimLeadingSpace: got: %v want: %v", simdrecords, records)
 	}
+}
+
+func TestTrimLeadingSpace(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		testTrimLeadingSpace(t, []byte("a,b,c\n d, e, f\n"))
+	})
+	t.Run("tabs", func(t *testing.T) {
+		testTrimLeadingSpace(t, []byte("\tg,h,i\n"))
+	})
+	t.Run("unicode", func(t *testing.T) {
+		testTrimLeadingSpace(t, []byte("j,"+string('\u00A0')+"k,l\n"))
+	})
 }
 
