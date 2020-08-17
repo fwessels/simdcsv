@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"unsafe"
+	"strings"
+	"unicode"
 )
 
 func ReadAll(buf []byte) (rows [][]string) {
@@ -48,4 +50,15 @@ func EnsureFieldsPerRecord(records *[][]string, fieldsPerRecord *int) error {
 		}
 	}
 	return nil
+}
+
+func TrimLeadingSpace(records *[][]string) {
+
+	for i := 0; i < len(*records); i++ {
+		for j := range (*records)[i] {
+			(*records)[i][j] = strings.TrimLeftFunc((*records)[i][j], func(r rune) bool {
+				return unicode.IsSpace(r)
+			})
+		}
+	}
 }

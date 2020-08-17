@@ -199,3 +199,21 @@ func TestEnsureFieldsPerRecord(t *testing.T) {
 	})
 }
 
+func TestTrimLeadingSpace(t *testing.T) {
+
+	csvData := []byte("a,b,c\n d, e, f\n")
+	simdrecords := ReadAll(csvData)
+	TrimLeadingSpace(&simdrecords)
+
+	r := csv.NewReader(bytes.NewReader(csvData))
+	r.TrimLeadingSpace =true
+	records, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		t.Errorf("TestTrimLeadingSpace: got: %v want: %v", simdrecords, records)
+	}
+}
+
