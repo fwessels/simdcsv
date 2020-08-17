@@ -83,7 +83,6 @@ notLastZWord:
 	JLT  loop
 	JZ   addTrailingDelimiter // in case we end exactly on a 64-byte boundary,
 
-	// add a 'trailing' delimiter just to be sure
 	VZEROUPPER
 	RET
 
