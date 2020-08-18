@@ -201,10 +201,7 @@ lllllllllllllllllllllllllllllll
 
 	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
-	expectedRows := []uint64{  0, 4, 128,
-		                      64, 4, 124,
-		                     128, 3, 120,
-		                     176, 1, 117}
+	expectedRows := []uint64{4, 4, 3, 1}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
 		t.Errorf("TestStage2ParseMultipleRows: got: %v want: %v", columns, expectedCols)
