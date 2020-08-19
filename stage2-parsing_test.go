@@ -326,12 +326,12 @@ lllllllllllllllllllllllllllllll
 
 	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x0, 0x81, 0x1e, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x0, 0x101, 0x0, 0x102, 0x1d, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
-	expectedRows := []uint64{  0, 4, 128,
+	expectedRows := []uint64{4,
 		// single line skipped
-		80, 4, 123,
+		4,
 		// two lines skipped
-		176, 3, 117,
-		224, 1, 114}
+		3,
+		1}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
 		t.Errorf("testStage2EmptyLines: got: %v want: %v", columns, expectedCols)
