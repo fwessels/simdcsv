@@ -93,7 +93,7 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	offset := uint64(0)
 	input := Input{lastSeparatorOrDelimiter: ^uint64(0), baseLen: uint64(len(buffer))}
 
-	output := Output{&columns, 0, &rows, 0, 0, 0, 0, 0, 128}
+	output := Output{columns: &columns, rows: &rows}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
 		input.separatorMask = separatorMasks[maskIndex]
@@ -120,28 +120,24 @@ type Input struct {
 }
 
 type Output struct {
-	columns  *[128]uint64
-	index    int
-	rows     *[128]uint64
-	line     int
-	strData  uint64
-	strLen   uint64
-	col_base uint64
-	col_prev uint64
-	col_cap  uint64
+	columns   *[128]uint64
+	index     int
+	rows      *[128]uint64
+	line      int
+	strData   uint64
+	strLen    uint64
+	indexPrev uint64
 }
 
 // Equivalent for invoking from Assembly
 type OutputAsm struct {
-	columns  unsafe.Pointer
-	index    int
-	rows     unsafe.Pointer
-	line     int
-	strData  uint64
-	strLen   uint64
-	col_base uint64
-	col_prev uint64
-	col_cap  uint64
+	columns   unsafe.Pointer
+	index     int
+	rows      unsafe.Pointer
+	line      int
+	strData   uint64
+	strLen    uint64
+	indexPrev uint64
 }
 
 func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
@@ -197,16 +193,16 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 				output.strData = uint64(delimiterPos) + offset + 1 // start of next element
 				output.strLen = 0
 
-				if uint64(output.index) / 2 - output.col_prev == 1 && // we just have a line with a single element
+				if uint64(output.index) / 2 - output.indexPrev == 1 && // we just have a line with a single element
 					output.columns[output.index-1] == 0 {			  // and its length is zero (implying empty line)
 					// prevent empty lines from being written
 				} else {
 					// write out length for a new row
-					output.rows[output.line] = uint64(output.index) / 2 - output.col_prev // length of element
+					output.rows[output.line] = uint64(output.index) / 2 - output.indexPrev // length of element
 					output.line++
 				}
 
-				output.col_prev = uint64(output.index) / 2	// keep current index for next round
+				output.indexPrev = uint64(output.index) / 2	// keep current index for next round
 
 				input.lastSeparatorOrDelimiter = uint64(delimiterPos) + offset
 			}

@@ -10,10 +10,10 @@ import (
 
 func ReadAll(buf []byte) (rows [][]string) {
 
-	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
+	input := Input{base: unsafe.Pointer(&buf[0])}
 	rows = make([][]string, 10000 + 100)
 	columns := make([]string, len(rows)*100)
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
+	output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
 
 	stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
 

@@ -147,7 +147,7 @@ func BenchmarkStage2Parse(b *testing.B) {
 	columns[0] = 0
 	offset := uint64(0)
 	input := Input{}
-	output := Output{&columns, 1, &rows, 0, 0, 0, 128}
+	output := Output{columns: &columns, rows: &rows}
 
 	b.SetBytes(int64(len(file)))
 	b.ReportAllocs()
@@ -431,7 +431,7 @@ func BenchmarkParseBlockSecondPass(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 
-		output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
+		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
 
 		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
 	}
