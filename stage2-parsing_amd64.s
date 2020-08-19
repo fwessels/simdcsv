@@ -157,8 +157,8 @@ label2:
 	MOVQ  (R9), R11
 	TESTB AL, (R11)
 	MOVQ  0x8(R9), AX
-	MOVQ  0x20(R9), R12
-	ADDQ  0x38(DX), R12
+	MOVQ  0x38(DX), R12
+	ADDQ  0x20(R9), R12
 	MOVQ  R12, (R11)(AX*8)
 	MOVQ  0x8(R9), AX
 	LEAQ  0x1(AX), R11
@@ -217,8 +217,8 @@ label5:
 	MOVQ  (R9), R11
 	TESTB AL, (R11)
 	MOVQ  0x8(R9), AX
-	MOVQ  0x20(R9), R12
-	ADDQ  0x38(DX), R12
+	MOVQ  0x38(DX), R12
+	ADDQ  0x20(R9), R12
 	MOVQ  R12, (R11)(AX*8)
 	MOVQ  0x8(R9), AX
 	LEAQ  0x1(AX), R11
@@ -241,7 +241,7 @@ label5:
 	MOVQ  $0x0, 0x28(R9)
 	LEAQ  (R8)(DI*1), R12
 	SHRQ  $0x1, R11
-	SUBQ  0x38(R9), R11
+	SUBQ  0x30(R9), R11
 	CMPQ  R11, $0x1
 	JNE   label8
 	MOVQ  (R9), R13
@@ -253,7 +253,7 @@ label5:
 label6:
 	MOVQ 0x8(R9), R11
 	SHRQ $0x1, R11
-	MOVQ R11, 0x38(R9)
+	MOVQ R11, 0x30(R9)
 	MOVQ R12, 0x20(DX)
 
 label7:
