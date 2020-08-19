@@ -6,23 +6,23 @@
 	SHLQ      $32, R2 \
 	ORQ       R1, R2
 
-// func stage2_parse_buffer()
-TEXT ·stage2_parse_buffer(SB), 7, $0
+// func _stage2_parse_buffer()
+TEXT ·_stage2_parse_buffer(SB), 7, $0
 
-	MOVQ         delimiterChar+24(FP), AX // get character for delimiter
+	MOVQ         delimiterChar+32(FP), AX // get character for delimiter
 	MOVQ         AX, X4
 	VPBROADCASTB X4, Y4
-	MOVQ         separatorChar+32(FP), AX // get character for separator
+	MOVQ         separatorChar+40(FP), AX // get character for separator
 	MOVQ         AX, X5
 	VPBROADCASTB X5, Y5
-	MOVQ         quoteChar+40(FP), AX     // get character for quote
+	MOVQ         quoteChar+48(FP), AX     // get character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y6
 
 	XORQ DX, DX
 
 	// Check whether it is necessary to adjust pointer for first string element
-	MOVQ output+64(FP), R9
+	MOVQ output+72(FP), R9
 	MOVQ (R9), R9          // columnns pointer
 	CMPQ (R9), $0
 	JNZ  loop              // skip setting first element
@@ -31,7 +31,7 @@ TEXT ·stage2_parse_buffer(SB), 7, $0
 
 loop:
 	MOVQ buf+0(FP), DI
-	MOVQ input+48(FP), SI
+	MOVQ input+56(FP), SI
 
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
@@ -47,12 +47,16 @@ loop:
 	CMPQ AX, buf_len+8(FP)
 	JLE  notLastZWord
 
-	// OR in additional delimiter into last mask
-	MOVQ buf_len+8(FP), CX
-	ANDQ $0x3f, CX
-	MOVQ $1, AX
-	SHLQ CX, AX
-	ORQ  AX, BX
+	// Check if we need to OR in closing delimiter into last delimiter mask
+	// We only do this the buffer is not already terminated with a delimiter
+	MOVQ  lastCharIsDelimiter+24(FP), CX
+	CMPQ  CX, $1
+	JZ    notLastZWord
+	MOVQ  buf_len+8(FP), CX
+    ANDQ  $0x3f, CX
+    MOVQ  $1, AX
+    SHLQ  CX, AX
+	ORQ   AX, BX
 
 notLastZWord:
 	MOVQ BX, 8(SI)
@@ -69,37 +73,43 @@ notLastZWord:
 	CREATE_MASK(Y10, Y11, AX, CX)
 	MOVQ     CX, 16(SI)
 
-	MOVQ offset+56(FP), DI
-	MOVQ output+64(FP), R9
+	MOVQ offset+64(FP), DI
+	MOVQ output+72(FP), R9
 
 	PUSHQ DX
-	MOVQ  input+48(FP), DX
+	MOVQ  input+56(FP), DX
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
 
-	ADDQ $0x40, offset+56(FP)
+	ADDQ $0x40, offset+64(FP)
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
-	JZ   addTrailingDelimiter // in case we end exactly on a 64-byte boundary,
+	JZ   addTrailingDelimiter // in case we end exactly on a 64-byte boundary, check if we need to add a delimiter
 
 	VZEROUPPER
 	RET
 
 addTrailingDelimiter:
-	// simulate a last "trailing" delimiter
-	MOVQ input+48(FP), SI
+	// simulate a last "trailing" delimiter, but only
+	// if the buffer is not already terminated by a delimiter
+	MOVQ  lastCharIsDelimiter+24(FP), CX
+	CMPQ  CX, $1
+	JZ    done
+
+	MOVQ input+56(FP), SI
 	MOVQ $1, CX           // first bit marks first char is delimiter
 	MOVQ CX, 8(SI)
 	MOVQ $0, CX
 	MOVQ CX, 0(SI)
 	MOVQ CX, 16(SI)
 
-	MOVQ input+48(FP), DX
-	MOVQ offset+56(FP), DI
-	MOVQ output+64(FP), R9
+	MOVQ input+56(FP), DX
+	MOVQ offset+64(FP), DI
+	MOVQ output+72(FP), R9
 	CALL ·stage2_parse(SB)
 
+done:
 	VZEROUPPER
 	RET
 
