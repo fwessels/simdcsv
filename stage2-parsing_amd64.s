@@ -49,14 +49,14 @@ loop:
 
 	// Check if we need to OR in closing delimiter into last delimiter mask
 	// We only do this the buffer is not already terminated with a delimiter
-	MOVQ  lastCharIsDelimiter+24(FP), CX
-	CMPQ  CX, $1
-	JZ    notLastZWord
-	MOVQ  buf_len+8(FP), CX
-    ANDQ  $0x3f, CX
-    MOVQ  $1, AX
-    SHLQ  CX, AX
-	ORQ   AX, BX
+	MOVQ lastCharIsDelimiter+24(FP), CX
+	CMPQ CX, $1
+	JZ   notLastZWord
+	MOVQ buf_len+8(FP), CX
+	ANDQ $0x3f, CX
+	MOVQ $1, AX
+	SHLQ CX, AX
+	ORQ  AX, BX
 
 notLastZWord:
 	MOVQ BX, 8(SI)
@@ -93,9 +93,9 @@ notLastZWord:
 addTrailingDelimiter:
 	// simulate a last "trailing" delimiter, but only
 	// if the buffer is not already terminated by a delimiter
-	MOVQ  lastCharIsDelimiter+24(FP), CX
-	CMPQ  CX, $1
-	JZ    done
+	MOVQ lastCharIsDelimiter+24(FP), CX
+	CMPQ CX, $1
+	JZ   done
 
 	MOVQ input+56(FP), SI
 	MOVQ $1, CX           // first bit marks first char is delimiter
