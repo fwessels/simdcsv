@@ -91,8 +91,9 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	columns, rows := [128]uint64{}, [128]uint64{}
 	columns[0] = 0
 	offset := uint64(0)
-	input := Input{lastSeparatorOrDelimiter: ^uint64(0)}
-	output := Output{&columns, 1, &rows, 0, 0, 0, 128}
+	input := Input{lastSeparatorOrDelimiter: ^uint64(0), baseLen: uint64(len(buffer))}
+
+	output := Output{&columns, 0, &rows, 0, 0, 0, 0, 0, 128}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
 		input.separatorMask = separatorMasks[maskIndex]
@@ -103,7 +104,7 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 		offset += 0x40
 	}
 
-	return columns[:output.index-1], rows[:output.line], input.errorOffset
+	return columns[:output.index], rows[:output.line], input.errorOffset
 }
 
 type Input struct {
@@ -114,7 +115,8 @@ type Input struct {
 	lastSeparatorOrDelimiter uint64
 	lastClosingQuote         uint64
 	errorOffset				 uint64
-	base					 uint64
+	base					 unsafe.Pointer
+	baseLen					 uint64
 }
 
 type Output struct {
@@ -122,6 +124,8 @@ type Output struct {
 	index    int
 	rows     *[128]uint64
 	line     int
+	strData  uint64
+	strLen   uint64
 	col_base uint64
 	col_prev uint64
 	col_cap  uint64
@@ -133,6 +137,8 @@ type OutputAsm struct {
 	index    int
 	rows     unsafe.Pointer
 	line     int
+	strData  uint64
+	strLen   uint64
 	col_base uint64
 	col_prev uint64
 	col_cap  uint64
@@ -159,10 +165,12 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 				}
 				input.lastClosingQuote = 0
 
-				output.columns[output.index] = (input.base + output.columns[output.index] + uint64(separatorPos) + offset) - output.columns[output.index-1] // size of previous element
+				output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
 				output.index++
-				output.columns[output.index] = input.base + output.columns[output.index] + uint64(separatorPos) + offset + 1 // start of next element
+				output.columns[output.index] = (uint64(uintptr(input.base)) - output.strLen + uint64(separatorPos) + offset) - output.columns[output.index-1] // size of element
 				output.index++
+				output.strData = uint64(separatorPos) + offset + 1 // start of next element
+				output.strLen = 0
 
 				input.lastSeparatorOrDelimiter = uint64(separatorPos) + offset
 			}
@@ -182,8 +190,12 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 				}
 				input.lastClosingQuote = 0
 
-				output.columns[output.index] = (input.base + output.columns[output.index] + uint64(delimiterPos) + offset) - output.columns[output.index-1]
+				output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
 				output.index++
+				output.columns[output.index] = (uint64(uintptr(input.base)) - output.strLen + uint64(delimiterPos) + offset) - output.columns[output.index-1] // size of element element
+				output.index++
+				output.strData = uint64(delimiterPos) + offset + 1 // start of next element
+				output.strLen = 0
 
 				if uint64(output.index) / 2 - output.col_prev == 1 && // we just have a line with a single element
 					output.columns[output.index-1] == 0 {			  // and its length is zero (implying empty line)
@@ -195,9 +207,6 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 				}
 
 				output.col_prev = uint64(output.index) / 2	// keep current index for next round
-
-				output.columns[output.index] = input.base  + output.columns[output.index] + uint64(delimiterPos) + offset + 1 // start of next element
-				output.index++
 
 				input.lastSeparatorOrDelimiter = uint64(delimiterPos) + offset
 			}
@@ -214,9 +223,11 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 						input.errorOffset = uint64(quotePos) + offset
 					}
 				}
-				output.columns[output.index-1] += 1
+				// we advance slice pointer by one (effectively skipping over starting quote)
+				output.strData += 1
 			} else {
-				output.columns[output.index] -= 1
+				// we reduce the length by one (effectively making sure closing quote is excluded)
+				output.strLen += 1
 				input.lastClosingQuote = uint64(quotePos) + offset // record position of last closing quote
 			}
 
