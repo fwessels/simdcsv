@@ -377,7 +377,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 	}
 }
 
-func TestParseBlockSecondPass(t *testing.T) {
+func TestStage2ParseBuffer(t *testing.T) {
 
 	const vector = `1103341116,2015-12-21T00:00:00,1251,,,CA,200304,,HOND,PA,GY,13147 WELBY WAY,01521,1,4000A1,"NO EVIDENCE,OF REG",50,99999,99999
 1103700150,2015-12-21T00:00:00,1435,,,CA,201512,,GMC,VN,WH,525 S MAIN ST,1C51,1,4000A1,NO EVIDENCE OF REG,50,99999,99999
@@ -391,26 +391,45 @@ func TestParseBlockSecondPass(t *testing.T) {
 1106506413,2015-12-22T00:00:00,1100,,,CA,201701,,NISS,PA,SI,1159 HUNTLEY DR,2A75,1,8069AA,NO STOP/STAND AM,93,99999,99999
 `
 
-	buf := []byte(strings.Repeat(vector , 1))
-	input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
-	rows := make([][]string, 20)
-	columns := make([]string, 20 * len(rows))
-	output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
+	for count := 1; count < 250; count++ {
 
-	stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
+		buf := []byte(strings.Repeat(vector, count))
 
-	rows = rows[:output.line/3]
-	simdrecords := rows // make([][]string, 0)
+		input := Input{base: unsafe.Pointer(&buf[0])}
+		rows := make([]uint64, 20*count)
+		columns := make([]string, 20 * len(rows))
+		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
 
+		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
 
-	r := csv.NewReader(bytes.NewReader(buf))
-	records, err := r.ReadAll()
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
+		if output.index >= 2 {
+			// Sanity check -- we must not point beyond the end of the buffer
+			if peek(uintptr(unsafe.Pointer(&columns[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
+				peek(uintptr(unsafe.Pointer(&columns[0])), uint64(output.index-1)*8) > uint64(len(buf)) {
+				log.Fatalf("ERORR: Pointing past end of buffer")
+			}
+		}
 
-	if !reflect.DeepEqual(simdrecords, records) {
-		t.Errorf("TestParseBlockSecondPass: got %v, want %v", simdrecords, records)
+		columns = columns[:(output.index)/2]
+		rows = rows[:output.line]
+
+		simdrecords, start := make([][]string, 0, len(rows)), 0
+		for _, row := range rows {
+			simdrecords = append(simdrecords, columns[start:start+int(row)])
+			start += int(row)
+		}
+
+		r := csv.NewReader(bytes.NewReader(buf))
+		records, err := r.ReadAll()
+		if err != nil {
+			log.Fatalf("encoding/csv: %v", err)
+		}
+
+		runtime.GC()
+
+		if !reflect.DeepEqual(simdrecords, records) {
+			t.Errorf("TestParseBlockSecondPass: got %v, want %v", simdrecords, records)
+		}
 	}
 }
 
