@@ -433,16 +433,17 @@ func TestStage2ParseBuffer(t *testing.T) {
 	}
 }
 
-func BenchmarkParseBlockSecondPass(b *testing.B) {
+func BenchmarkStage2ParseBuffer(b *testing.B) {
 
 	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	input := Input{}
-	rows := make([][]string, 10000 + 10)
+	input := Input{base: unsafe.Pointer(&buf[0])}
+	rows := make([]uint64, 10000 + 10)
 	columns := make([]string, len(rows)*20)
+	simdrecords := make([][]string, 0, len(rows))
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
@@ -453,10 +454,20 @@ func BenchmarkParseBlockSecondPass(b *testing.B) {
 		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
 
 		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
+
+		columns = columns[:(output.index)/2]
+		rows = rows[:output.line]
+
+		simdrecords = simdrecords[:0]
+		start := 0
+		for _, row := range rows {
+			simdrecords = append(simdrecords, columns[start:start+int(row)])
+			start += int(row)
+		}
 	}
 }
 
-func BenchmarkParseBlockSecondPass2(b *testing.B) {
+func BenchmarkStage2ParseBufferGolang(b *testing.B) {
 
 	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
 	if err != nil {
