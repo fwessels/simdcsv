@@ -7,11 +7,11 @@
 	ORQ       R1, R2
 
 #define MASK_TRAILING_BYTES(MAX, Y) \
-    LEAQ MASKTABLE<>(SB), AX    \
-    MOVQ $MAX, BX               \
-    SUBQ CX, BX                 \
-    VMOVDQU  (AX)(BX*1), Y10    \ // Load mask
-    VPAND    Y10, Y,   Y        \ // Mask message
+	LEAQ    MASKTABLE<>(SB), AX \
+	MOVQ    $MAX, BX            \
+	SUBQ    CX, BX              \
+	VMOVDQU (AX)(BX*1), Y10     \ // Load mask
+	VPAND   Y10, Y, Y           \ // Mask message
 
 DATA MASKTABLE<>+0x000(SB)/8, $0xffffffffffffffff
 DATA MASKTABLE<>+0x008(SB)/8, $0xffffffffffffffff
@@ -22,7 +22,6 @@ DATA MASKTABLE<>+0x028(SB)/8, $0x0000000000000000
 DATA MASKTABLE<>+0x030(SB)/8, $0x0000000000000000
 DATA MASKTABLE<>+0x038(SB)/8, $0x0000000000000000
 GLOBL MASKTABLE<>(SB), 8, $64
-
 
 // func _stage2_parse_buffer()
 TEXT ·_stage2_parse_buffer(SB), 7, $0
@@ -61,7 +60,6 @@ loop:
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
 
 joinAfterPartialLoad:
-
 	// delimiter mask
 	VPCMPEQB Y8, Y4, Y10
 	VPCMPEQB Y9, Y4, Y11
@@ -140,25 +138,24 @@ done:
 	RET
 
 partialLoad:
-    // do a partial load and mask out bytes after the end of the message with whitespace
-	VMOVDQU (DI)(DX*1), Y8  // always load low 32-bytes
+	// do a partial load and mask out bytes after the end of the message with whitespace
+	VMOVDQU (DI)(DX*1), Y8 // always load low 32-bytes
 
 	MOVQ buf_len+8(FP), CX
 	ANDQ $0x3f, CX
-    CMPQ CX, $0x20
-    JGE  maskingHigh
+	CMPQ CX, $0x20
+	JGE  maskingHigh
 
-    // perform masking on low 32-bytes
-    MASK_TRAILING_BYTES(0x1f, Y8)
-    VPXOR Y9, Y9, Y9 // clear upper 32-bytes
-
-    JMP   joinAfterPartialLoad
+	// perform masking on low 32-bytes
+	MASK_TRAILING_BYTES(0x1f, Y8)
+	VPXOR Y9, Y9, Y9           // clear upper 32-bytes
+	JMP   joinAfterPartialLoad
 
 maskingHigh:
-    // perform masking on high 32-bytes
-	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
-    MASK_TRAILING_BYTES(0x3f, Y9)
-    JMP   joinAfterPartialLoad
+	// perform masking on high 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y9   // load high 32-bytes
+	MASK_TRAILING_BYTES(0x3f, Y9)
+	JMP     joinAfterPartialLoad
 
 // func stage2_parse_test(input *Input, offset uint64, output *Output)
 TEXT ·stage2_parse_test(SB), 7, $0
