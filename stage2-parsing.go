@@ -200,7 +200,9 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 					output.columns[output.index-1] == 0 {			  // and its length is zero (implying empty line)
 					// prevent empty lines from being written
 				} else {
-					// write out length for a new row
+					// write out start and length for a new row
+					output.rows[output.line] = output.indexPrev // start of element
+					output.line++
 					output.rows[output.line] = uint64(output.index) / 2 - output.indexPrev // length of element
 					output.line++
 				}

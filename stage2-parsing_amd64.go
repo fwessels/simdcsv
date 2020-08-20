@@ -62,10 +62,8 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	*rows = (*rows)[:output.line]
 
 	*records = (*records)[:0]
-	start := 0
-	for _, row := range *rows {
-		*records = append(*records, (*columns)[start:start+int(row)])
-		start += int(row)
+	for i := 0; i < len(*rows); i += 2 {
+		*records = append(*records, (*columns)[(*rows)[i]:(*rows)[i]+(*rows)[i+1]])
 	}
 
 	return *records, *rows, *columns

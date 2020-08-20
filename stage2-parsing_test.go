@@ -202,7 +202,7 @@ lllllllllllllllllllllllllllllll
 
 	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
-	expectedRows := []uint64{4, 4, 3, 1}
+	expectedRows := []uint64{0, 4, 4, 4, 8, 3, 11, 1}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
 		t.Errorf("TestStage2ParseMultipleRows: got: %v want: %v", columns, expectedCols)
@@ -327,12 +327,12 @@ lllllllllllllllllllllllllllllll
 
 	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x0, 0x81, 0x1e, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x0, 0x101, 0x0, 0x102, 0x1d, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
-	expectedRows := []uint64{4,
+	expectedRows := []uint64{0, 4,
 		// single line skipped
-		4,
+		5, 4,
 		// two lines skipped
-		3,
-		1}
+		11, 3,
+		14, 1}
 
 	if !reflect.DeepEqual(columns, expectedCols) {
 		t.Errorf("testStage2EmptyLines: got: %v want: %v", columns, expectedCols)

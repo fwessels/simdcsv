@@ -3,22 +3,12 @@ package simdcsv
 import (
 	"errors"
 	"fmt"
-	"unsafe"
 	"strings"
 	"unicode"
 )
 
-func ReadAll(buf []byte) (rows [][]string) {
-
-	input := Input{base: unsafe.Pointer(&buf[0])}
-	rows = make([][]string, 10000 + 100)
-	columns := make([]string, len(rows)*100)
-	output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
-
-	stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
-
-	rows = rows[:output.line/3]
-
+func ReadAll(buf []byte) (records [][]string) {
+	records = Stage2ParseBuffer(buf, '\n', ',', '"', nil)
 	return
 }
 
