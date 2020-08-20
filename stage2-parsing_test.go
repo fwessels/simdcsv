@@ -414,30 +414,8 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < 250; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
+		simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"',  nil)
 
-		input := Input{base: unsafe.Pointer(&buf[0])}
-		rows := make([]uint64, 20*count)
-		columns := make([]string, 20 * len(rows))
-		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
-
-		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
-
-		if output.index >= 2 {
-			// Sanity check -- we must not point beyond the end of the buffer
-			if peek(uintptr(unsafe.Pointer(&columns[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
-				peek(uintptr(unsafe.Pointer(&columns[0])), uint64(output.index-1)*8) > uint64(len(buf)) {
-				log.Fatalf("ERORR: Pointing past end of buffer")
-			}
-		}
-
-		columns = columns[:(output.index)/2]
-		rows = rows[:output.line]
-
-		simdrecords, start := make([][]string, 0, len(rows)), 0
-		for _, row := range rows {
-			simdrecords = append(simdrecords, columns[start:start+int(row)])
-			start += int(row)
-		}
 
 		r := csv.NewReader(bytes.NewReader(buf))
 		records, err := r.ReadAll()
