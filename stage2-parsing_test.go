@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"log"
-	"fmt"
+	"runtime"
 	"reflect"
 	"strings"
 	"testing"
@@ -379,20 +380,14 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 	for i := 1; i <= len(file); i++ {
 		buf := []byte(file[:i])
 
-		input := Input{base: uint64(uintptr(unsafe.Pointer(&buf[0])))}
-		rows := make([][]string, 100)
-		columns := make([]string, len(rows)*10)
-		output := OutputAsm{unsafe.Pointer(&columns[0]), 1, unsafe.Pointer(&rows[0]), 0, uint64(uintptr(unsafe.Pointer(&columns[0]))), 0, uint64(cap(columns))}
-
-		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
-		rows = rows[:output.line/3]
+		simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
 
 		r := csv.NewReader(bytes.NewReader(buf))
 		r.FieldsPerRecord = -1
 		records, _ := r.ReadAll()
 
-		if !reflect.DeepEqual(rows, records) {
-			t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", rows, records)
+		if !reflect.DeepEqual(simdrecords, records) {
+			t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", simdrecords, records)
 		}
 	}
 }
@@ -416,7 +411,6 @@ func TestStage2ParseBuffer(t *testing.T) {
 		buf := []byte(strings.Repeat(vector, count))
 		simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"',  nil)
 
-
 		r := csv.NewReader(bytes.NewReader(buf))
 		records, err := r.ReadAll()
 		if err != nil {
@@ -438,7 +432,6 @@ func BenchmarkStage2ParseBuffer(b *testing.B) {
 		log.Fatalln(err)
 	}
 
-	input := Input{base: unsafe.Pointer(&buf[0])}
 	rows := make([]uint64, 10000 + 10)
 	columns := make([]string, len(rows)*20)
 	simdrecords := make([][]string, 0, len(rows))
@@ -448,20 +441,7 @@ func BenchmarkStage2ParseBuffer(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-
-		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
-
-		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
-
-		columns = columns[:(output.index)/2]
-		rows = rows[:output.line]
-
-		simdrecords = simdrecords[:0]
-		start := 0
-		for _, row := range rows {
-			simdrecords = append(simdrecords, columns[start:start+int(row)])
-			start += int(row)
-		}
+		Stage2ParseBufferEx(buf, '\n', ',', '"', &simdrecords, &rows, &columns)
 	}
 }
 
