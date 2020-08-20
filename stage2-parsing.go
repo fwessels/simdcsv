@@ -94,8 +94,8 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	columns, rows := [128]uint64{}, [128]uint64{}
 	columns[0] = 0
 	offset := uint64(0)
-	input := Input{lastSeparatorOrDelimiter: ^uint64(0), baseLen: uint64(len(buffer))}
 
+	input := Input{lastSeparatorOrDelimiter: ^uint64(0)}
 	output := Output{columns: &columns, rows: &rows}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
@@ -119,7 +119,6 @@ type Input struct {
 	lastClosingQuote         uint64
 	errorOffset				 uint64
 	base					 unsafe.Pointer
-	baseLen					 uint64
 }
 
 type Output struct {
