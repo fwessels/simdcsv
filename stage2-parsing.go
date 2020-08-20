@@ -7,8 +7,11 @@ import (
 	"unsafe"
 )
 
-const PreprocessedDelimiter = 0x0
-const PreprocessedSeparator = 0x1
+// Substitute values when preprocessing a chunk
+// NB 0x0 should be avoided (since trailing bytes
+// beyond the end of the buffer are zeroed out)
+const PreprocessedDelimiter = 0x1
+const PreprocessedSeparator = 0x2
 
 func PreprocessDoubleQuotes(in []byte) (out []byte) {
 
