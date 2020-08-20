@@ -6,6 +6,24 @@
 	SHLQ      $32, R2 \
 	ORQ       R1, R2
 
+#define MASK_TRAILING_BYTES(MAX, Y) \
+    LEAQ MASKTABLE<>(SB), AX    \
+    MOVQ $MAX, BX               \
+    SUBQ CX, BX                 \
+    VMOVDQU  (AX)(BX*1), Y10    \ // Load mask
+    VPAND    Y10, Y,   Y        \ // Mask message
+
+DATA MASKTABLE<>+0x000(SB)/8, $0xffffffffffffffff
+DATA MASKTABLE<>+0x008(SB)/8, $0xffffffffffffffff
+DATA MASKTABLE<>+0x010(SB)/8, $0xffffffffffffffff
+DATA MASKTABLE<>+0x018(SB)/8, $0x00ffffffffffffff
+DATA MASKTABLE<>+0x020(SB)/8, $0x0000000000000000
+DATA MASKTABLE<>+0x028(SB)/8, $0x0000000000000000
+DATA MASKTABLE<>+0x030(SB)/8, $0x0000000000000000
+DATA MASKTABLE<>+0x038(SB)/8, $0x0000000000000000
+GLOBL MASKTABLE<>(SB), 8, $64
+
+
 // func _stage2_parse_buffer()
 TEXT ·_stage2_parse_buffer(SB), 7, $0
 
@@ -33,8 +51,16 @@ loop:
 	MOVQ buf+0(FP), DI
 	MOVQ input+56(FP), SI
 
+	// do we need to do a partial load?
+	MOVQ DX, CX
+	ADDQ $0x40, CX
+	CMPQ CX, buf_len+8(FP)
+	JGT  partialLoad
+
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+
+joinAfterPartialLoad:
 
 	// delimiter mask
 	VPCMPEQB Y8, Y4, Y10
@@ -112,6 +138,27 @@ addTrailingDelimiter:
 done:
 	VZEROUPPER
 	RET
+
+partialLoad:
+    // do a partial load and mask out bytes after the end of the message with whitespace
+	VMOVDQU (DI)(DX*1), Y8  // always load low 32-bytes
+
+	MOVQ buf_len+8(FP), CX
+	ANDQ $0x3f, CX
+    CMPQ CX, $0x20
+    JGE  maskingHigh
+
+    // perform masking on low 32-bytes
+    MASK_TRAILING_BYTES(0x1f, Y8)
+    VPXOR Y9, Y9, Y9 // clear upper 32-bytes
+
+    JMP   joinAfterPartialLoad
+
+maskingHigh:
+    // perform masking on high 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+    MASK_TRAILING_BYTES(0x3f, Y9)
+    JMP   joinAfterPartialLoad
 
 // func stage2_parse_test(input *Input, offset uint64, output *Output)
 TEXT ·stage2_parse_test(SB), 7, $0
