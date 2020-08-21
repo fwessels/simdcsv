@@ -121,11 +121,14 @@ type Input struct {
 	base					 unsafe.Pointer
 }
 
+//
+// Make sure references to struct from assembly stay in sync
+//
 type Output struct {
 	columns   *[128]uint64
-	index     int
+	index     int			// #define INDEX_OFFSET 0x8
 	rows      *[128]uint64
-	line      int
+	line      int			// #define LINE_OFFSET  0x18
 	strData   uint64
 	strLen    uint64
 	indexPrev uint64
@@ -134,9 +137,9 @@ type Output struct {
 // Equivalent for invoking from Assembly
 type OutputAsm struct {
 	columns   unsafe.Pointer
-	index     int
+	index     int			// #define INDEX_OFFSET 0x8
 	rows      unsafe.Pointer
-	line      int
+	line      int			// #define LINE_OFFSET  0x18
 	strData   uint64
 	strLen    uint64
 	indexPrev uint64

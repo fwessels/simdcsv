@@ -1,5 +1,8 @@
 //+build !noasm !appengine
 
+// See Output struct
+#define INDEX_OFFSET 0x8
+#define LINE_OFFSET  0x18
 #define CREATE_MASK(Y1, Y2, R1, R2) \
 	VPMOVMSKB Y1, R1  \
 	VPMOVMSKB Y2, R2  \
@@ -40,15 +43,14 @@ TEXT ·_stage2_parse_buffer(SB), 7, $0
 
 loop:
 	//  Check whether there is still enough reserved space in the rows and columns destination buffer
-	MOVQ output+120(FP), AX
-	MOVQ 0x8(AX), AX            // load output.index
+	MOVQ output+120(FP), BX
+	MOVQ INDEX_OFFSET(BX), AX   // load output.index
 	SHRQ $1, AX                 // divide by 2 to get number of strings (since we write two words per string)
 	ADDQ $64, AX                // absolute maximum of strings to be potentially written per 64 bytes
 	CMPQ AX, columns_len+64(FP)
 	JGE  done                   // exit out and make sure more memory is allocated
 
-	MOVQ output+120(FP), AX
-	MOVQ 0x18(AX), AX        // load output.line
+	MOVQ LINE_OFFSET(BX), AX // load output.line
 	ADDQ $64, AX             // absolute maximum of lines to be potentially written per 64 bytes
 	CMPQ AX, rows_len+40(FP)
 	JGE  done                // exit out and make sure more memory is allocated
