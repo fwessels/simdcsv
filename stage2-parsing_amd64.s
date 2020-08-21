@@ -1,8 +1,14 @@
 //+build !noasm !appengine
 
+// See Input struct
+#define INPUT_BASE   0x38
+
 // See Output struct
+#define COLUMNS_BASE 0x0
 #define INDEX_OFFSET 0x8
+#define ROWS_BASE    0x10
 #define LINE_OFFSET  0x18
+
 #define CREATE_MASK(Y1, Y2, R1, R2) \
 	VPMOVMSKB Y1, R1  \
 	VPMOVMSKB Y2, R2  \
@@ -38,6 +44,16 @@ TEXT ·_stage2_parse_buffer(SB), 7, $0
 	MOVQ         quoteChar+96(FP), AX     // get character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y6
+
+	MOVQ input+104(FP), BX
+	MOVQ buf+0(FP), AX
+	MOVQ AX, INPUT_BASE(BX) // initialize input buffer base pointer
+
+	MOVQ output+120(FP), BX
+	MOVQ rows_base+32(FP), AX
+	MOVQ AX, ROWS_BASE(BX)       // initialize rows base pointer
+	MOVQ columns_base+56(FP), AX
+	MOVQ AX, COLUMNS_BASE(BX)    // initialize columns base pointer
 
 	MOVQ offset+112(FP), DX
 

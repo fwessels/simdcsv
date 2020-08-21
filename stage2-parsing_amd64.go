@@ -46,14 +46,11 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	*rows = (*rows)[:cap(*rows)]
 	*columns = (*columns)[:cap(*columns)]
 
-	input := Input{base: unsafe.Pointer(&buf[0])}
-	output := OutputAsm{columns: unsafe.Pointer(&(*columns)[0]), rows: unsafe.Pointer(&(*rows)[0])}
+	input := Input{}
+	output := OutputAsm{}
 
 	offset := uint64(0)
 	for {
-		output.columns = unsafe.Pointer(&(*columns)[0])
-		output.rows = unsafe.Pointer(&(*rows)[0])
-
 		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, offset, &output)
 		if int(processed) >= len(buf) {
 			break
@@ -84,7 +81,7 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 		// Sanity check -- we must not point beyond the end of the buffer
 		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
 			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-1)*8) > uint64(len(buf)) {
-			log.Fatalf("ERORR: Pointing past end of buffer")
+			log.Fatalf("ERROR: Pointing past end of buffer")
 		}
 	}
 

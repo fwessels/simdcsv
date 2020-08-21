@@ -110,6 +110,9 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	return columns[:output.index], rows[:output.line], input.errorOffset
 }
 
+//
+// Make sure references to struct from assembly stay in sync
+//
 type Input struct {
 	separatorMask            uint64
 	delimiterMask            uint64
@@ -118,16 +121,16 @@ type Input struct {
 	lastSeparatorOrDelimiter uint64
 	lastClosingQuote         uint64
 	errorOffset				 uint64
-	base					 unsafe.Pointer
+	base					 unsafe.Pointer	// #define INPUT_BASE 0x38
 }
 
 //
 // Make sure references to struct from assembly stay in sync
 //
 type Output struct {
-	columns   *[128]uint64
+	columns   *[128]uint64  // #define COLUMNS_BASE 0x0
 	index     int			// #define INDEX_OFFSET 0x8
-	rows      *[128]uint64
+	rows      *[128]uint64  // #define ROWS_BASE    0x10
 	line      int			// #define LINE_OFFSET  0x18
 	strData   uint64
 	strLen    uint64
@@ -136,10 +139,10 @@ type Output struct {
 
 // Equivalent for invoking from Assembly
 type OutputAsm struct {
-	columns   unsafe.Pointer
-	index     int			// #define INDEX_OFFSET 0x8
-	rows      unsafe.Pointer
-	line      int			// #define LINE_OFFSET  0x18
+	columns   unsafe.Pointer // #define COLUMNS_BASE 0x0
+	index     int			 // #define INDEX_OFFSET 0x8
+	rows      unsafe.Pointer // #define ROWS_BASE    0x10
+	line      int			 // #define LINE_OFFSET  0x18
 	strData   uint64
 	strLen    uint64
 	indexPrev uint64
