@@ -6,16 +6,17 @@ import (
 )
 
 //go:noescape
-func _stage2_parse_buffer(buf []byte, lastCharIsDelimiter, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm)
+func _stage2_parse_buffer(buf []byte, lastCharIsDelimiter uint64, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64)
 
-func stage2_parse_buffer(buf []byte, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) {
+func stage2_parse_buffer(buf []byte, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
 
 	lastCharIsDelimiter := uint64(0)
 	if len(buf) > 0 && buf[len(buf)-1] == byte(delimiterChar) {
 		lastCharIsDelimiter = 1
 	}
 
-	_stage2_parse_buffer(buf, lastCharIsDelimiter, delimiterChar, separatorChar, quoteChar, input, offset, output)
+	processed = _stage2_parse_buffer(buf, lastCharIsDelimiter, rows, columns, delimiterChar, separatorChar, quoteChar, input, offset, output)
+	return
 }
 
 // Perform CSV parsing on a buffer
@@ -47,8 +48,7 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	input := Input{base: unsafe.Pointer(&buf[0])}
 	output := OutputAsm{columns: unsafe.Pointer(&(*columns)[0]), rows: unsafe.Pointer(&(*rows)[0])}
 
-	// TODO: pass in columns and rows as slices -- have assembly put pointer  in output struct
-	stage2_parse_buffer(buf, delimiterChar, separatorChar, quoteChar, &input, 0, &output)
+	processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, 0, &output)
 
 	if output.index >= 2 {
 		// Sanity check -- we must not point beyond the end of the buffer
