@@ -26,29 +26,43 @@ GLOBL MASKTABLE<>(SB), 8, $64
 // func _stage2_parse_buffer()
 TEXT ·_stage2_parse_buffer(SB), 7, $0
 
-	MOVQ         delimiterChar+32(FP), AX // get character for delimiter
+	MOVQ         delimiterChar+80(FP), AX // get character for delimiter
 	MOVQ         AX, X4
 	VPBROADCASTB X4, Y4
-	MOVQ         separatorChar+40(FP), AX // get character for separator
+	MOVQ         separatorChar+88(FP), AX // get character for separator
 	MOVQ         AX, X5
 	VPBROADCASTB X5, Y5
-	MOVQ         quoteChar+48(FP), AX     // get character for quote
+	MOVQ         quoteChar+96(FP), AX     // get character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y6
 
-	XORQ DX, DX
+	MOVQ offset+112(FP), DX
 
 	// Check whether it is necessary to adjust pointer for first string element
-	MOVQ output+72(FP), R9
-	MOVQ (R9), R9          // columnns pointer
+	MOVQ output+120(FP), R9
+	MOVQ (R9), R9           // columnns pointer
 	CMPQ (R9), $0
-	JNZ  loop              // skip setting first element
+	JNZ  loop               // skip setting first element
 	MOVQ buf+0(FP), DI
 	MOVQ DI, (R9)
 
 loop:
+	//  Check whether there is still enough reserved space in the rows and columns destination buffer
+	MOVQ output+120(FP), AX
+	MOVQ 0x8(AX), AX            // load output.index
+	SHRQ $1, AX                 // divide by 2 to get number of strings (since we write two words per string)
+	ADDQ $64, AX                // absolute maximum of strings to be potentially written per 64 bytes
+	CMPQ AX, columns_len+64(FP)
+	JGE  done                   // exit out and make sure more memory is allocated
+
+	MOVQ output+120(FP), AX
+	MOVQ 0x18(AX), AX        // load output.line
+	ADDQ $64, AX             // absolute maximum of lines to be potentially written per 64 bytes
+	CMPQ AX, rows_len+40(FP)
+	JGE  done                // exit out and make sure more memory is allocated
+
 	MOVQ buf+0(FP), DI
-	MOVQ input+56(FP), SI
+	MOVQ input+104(FP), SI
 
 	// do we need to do a partial load?
 	MOVQ DX, CX
@@ -97,22 +111,19 @@ notLastZWord:
 	CREATE_MASK(Y10, Y11, AX, CX)
 	MOVQ     CX, 16(SI)
 
-	MOVQ offset+64(FP), DI
-	MOVQ output+72(FP), R9
+	MOVQ offset+112(FP), DI
+	MOVQ output+120(FP), R9
 
 	PUSHQ DX
-	MOVQ  input+56(FP), DX
+	MOVQ  input+104(FP), DX
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
 
-	ADDQ $0x40, offset+64(FP)
+	ADDQ $0x40, offset+112(FP)
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
-	JZ   addTrailingDelimiter // in case we end exactly on a 64-byte boundary, check if we need to add a delimiter
-
-	VZEROUPPER
-	RET
+	JNZ  done                  // in case we end exactly on a 64-byte boundary, check if we need to add a delimiter
 
 addTrailingDelimiter:
 	// simulate a last "trailing" delimiter, but only
@@ -121,20 +132,21 @@ addTrailingDelimiter:
 	CMPQ CX, $1
 	JZ   done
 
-	MOVQ input+56(FP), SI
-	MOVQ $1, CX           // first bit marks first char is delimiter
+	MOVQ input+104(FP), SI
+	MOVQ $1, CX            // first bit marks first char is delimiter
 	MOVQ CX, 8(SI)
 	MOVQ $0, CX
 	MOVQ CX, 0(SI)
 	MOVQ CX, 16(SI)
 
-	MOVQ input+56(FP), DX
-	MOVQ offset+64(FP), DI
-	MOVQ output+72(FP), R9
+	MOVQ input+104(FP), DX
+	MOVQ offset+112(FP), DI
+	MOVQ output+120(FP), R9
 	CALL ·stage2_parse(SB)
 
 done:
 	VZEROUPPER
+	MOVQ DX, processed+128(FP)
 	RET
 
 partialLoad:
