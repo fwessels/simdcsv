@@ -38,14 +38,6 @@ TEXT ·_stage2_parse_buffer(SB), 7, $0
 
 	MOVQ offset+112(FP), DX
 
-	// Check whether it is necessary to adjust pointer for first string element
-	MOVQ output+120(FP), R9
-	MOVQ (R9), R9           // columnns pointer
-	CMPQ (R9), $0
-	JNZ  loop               // skip setting first element
-	MOVQ buf+0(FP), DI
-	MOVQ DI, (R9)
-
 loop:
 	//  Check whether there is still enough reserved space in the rows and columns destination buffer
 	MOVQ output+120(FP), AX
