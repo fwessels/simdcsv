@@ -364,7 +364,7 @@ func TestStage2PartialLoad(t *testing.T) {
 		columns := make([]string, len(rows)*10)
 		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
 
-		stage2_parse_buffer(buf, '\n', ',', '"', &input, 0, &output)
+		stage2_parse_buffer(buf, rows, columns, '\n', ',', '"', &input, 0, &output)
 
 		if output.index/2 - 1 != i {
 			t.Errorf("TestStage2TestPartialLoad: got: %d want: %d", output.index/2 - 1, i)
@@ -423,6 +423,45 @@ func TestStage2ParseBuffer(t *testing.T) {
 			t.Errorf("TestParseBlockSecondPass: got %v, want %v", simdrecords, records)
 		}
 	}
+}
+
+func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
+
+	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	rows := make([]uint64, init[0])
+	columns := make([]string, init[1])
+	records := make([][]string, 0, init[2])
+
+	records, rows, columns = Stage2ParseBufferEx(buf, '\n', ',', '"', &records, &rows, &columns)
+
+	if cap(rows) != expected[0] {
+		t.Errorf("testStage2DynamicAllocation: got %d, want %d", cap(rows), expected[0])
+	}
+	if cap(columns) != expected[1] {
+		t.Errorf("testStage2DynamicAllocation: got %d, want %d", cap(columns), expected[1])
+	}
+
+	// we rely on append() for growing the records slice, so use len() instead of cap()
+	if len(records) != expected[2] {
+		t.Errorf("testStage2DynamicAllocation: got %d, want %d", len(records), expected[2])
+	}
+}
+
+// Check that the buffers are increased dynamically
+func TestStage2DynamicAllocation(t *testing.T) {
+	t.Run("grow-rows", func(t *testing.T) {
+		testStage2DynamicAllocation(t, [3]int{128, 10000*20*2, 10000}, [3]int{32768, 10000*20*2, 10000})
+	})
+	t.Run("grow-columns", func(t *testing.T) {
+		testStage2DynamicAllocation(t, [3]int{10000*4, 1024, 10000}, [3]int{10000*4, 262144, 10000})
+	})
+	t.Run("grow-records", func(t *testing.T) {
+		testStage2DynamicAllocation(t, [3]int{10000*4, 10000*20*2, 100}, [3]int{10000*4, 10000*20*2, 10000})
+	})
 }
 
 func BenchmarkStage2ParseBuffer(b *testing.B) {
