@@ -1,6 +1,7 @@
 package simdcsv
 
 import (
+	_ "fmt"
 	"unsafe"
 	"log"
 )
@@ -32,23 +33,52 @@ func Stage2ParseBuffer(buf []byte, delimiterChar, separatorChar, quoteChar uint6
 // Same as above, but allow reuse of `rows` and `columns` slices as well
 func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string) {
 
-	if records == nil {
-		_records := make([][]string, 0, 1024)
-		records = &_records
-	}
 	if rows == nil {
-		_rows := make([]uint64, 15024)
+		_rows := make([]uint64, 1024) // do not reserve less than 128
 		rows = &_rows
 	}
 	if columns == nil {
-		_columns := make([]string, len(*rows)*10)
+		_columns := make([]string, 10240)
 		columns = &_columns
 	}
+
+	// for repeat calls the actual lengths may have been reduced, so set arrays to maximum size
+	*rows = (*rows)[:cap(*rows)]
+	*columns = (*columns)[:cap(*columns)]
 
 	input := Input{base: unsafe.Pointer(&buf[0])}
 	output := OutputAsm{columns: unsafe.Pointer(&(*columns)[0]), rows: unsafe.Pointer(&(*rows)[0])}
 
-	processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, 0, &output)
+	offset := uint64(0)
+	for {
+		output.columns = unsafe.Pointer(&(*columns)[0])
+		output.rows = unsafe.Pointer(&(*rows)[0])
+
+		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, offset, &output)
+		if int(processed) >= len(buf) {
+			break
+		}
+
+		// Sanity check
+		if offset == processed {
+			log.Fatalf("failed to process anything")
+		}
+		offset = processed
+
+		// Check whether we need to double columns slice capacity
+		if output.index / 2 >= cap(*columns) / 2 {
+			_columns := make([]string, cap(*columns)*2)
+			copy(_columns, (*columns)[:output.index/2])
+			columns = &_columns
+		}
+
+		// Check whether we need to double rows slice capacity
+		if output.line >= cap(*rows) / 2 {
+			_rows := make([]uint64, cap(*rows)*2)
+			copy(_rows, (*rows)[:output.line])
+			rows = &_rows
+		}
+	}
 
 	if output.index >= 2 {
 		// Sanity check -- we must not point beyond the end of the buffer
@@ -60,6 +90,11 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 
 	*columns = (*columns)[:(output.index)/2]
 	*rows = (*rows)[:output.line]
+
+	if records == nil {
+		_records := make([][]string, 0, 1024)
+		records = &_records
+	}
 
 	*records = (*records)[:0]
 	for i := 0; i < len(*rows); i += 2 {
