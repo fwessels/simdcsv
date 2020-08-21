@@ -171,7 +171,7 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 
 				output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
 				output.index++
-				output.columns[output.index] = (uint64(uintptr(input.base)) - output.strLen + uint64(separatorPos) + offset) - output.columns[output.index-1] // size of element
+				output.columns[output.index] = (-output.strLen + uint64(separatorPos) + offset) - output.strData // size of element
 				output.index++
 				output.strData = uint64(separatorPos) + offset + 1 // start of next element
 				output.strLen = 0
@@ -196,7 +196,7 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 
 				output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
 				output.index++
-				output.columns[output.index] = (uint64(uintptr(input.base)) - output.strLen + uint64(delimiterPos) + offset) - output.columns[output.index-1] // size of element element
+				output.columns[output.index] = (-output.strLen + uint64(delimiterPos) + offset) - output.strData // size of element element
 				output.index++
 				output.strData = uint64(delimiterPos) + offset + 1 // start of next element
 				output.strLen = 0
