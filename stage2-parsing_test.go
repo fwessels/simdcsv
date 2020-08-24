@@ -133,40 +133,6 @@ func TestStage2ParseQuoted(t *testing.T) {
 	})
 }
 
-func BenchmarkStage2Parse(b *testing.B) {
-
-	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
-`
-	//fmt.Println(hex.Dump([]byte(file)))
-
-	separatorMasks := getBitMasks([]byte(file), byte(','))
-	delimiterMasks := getBitMasks([]byte(file), byte('\n'))
-	quoteMasks := getBitMasks([]byte(file), byte('"'))
-
-	columns, rows := [128]uint64{}, [128]uint64{}
-	columns[0] = 0
-	offset := uint64(0)
-	input := Input{}
-	output := Output{columns: &columns, rows: &rows}
-
-	b.SetBytes(int64(len(file)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-
-		columns[0] = 0
-		input.separatorMask = separatorMasks[0]
-		input.delimiterMask = delimiterMasks[0]
-		input.quoteMask = quoteMasks[0]
-		input.quoted = uint64(0)
-		output.index = 1
-		output.line = 0
-
-		stage2_parse_test(&input, offset, &output)
-	}
-}
-
 func testStage2ParseMultipleMasks(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
