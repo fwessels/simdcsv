@@ -3,7 +3,7 @@
 **Experimental: do not use in production.**
 
 A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [simdjson-go](https://github.com/minio/simdjson-go)).
-
+    
 ## Design goals
 
 - 1 GB/sec parsing performance for a single core
@@ -40,6 +40,12 @@ BenchmarkFirstPass     760.36       4495.12      5.91x
 ```
 benchmark                        old MB/s     new MB/s     speedup
 BenchmarkStage2ParseBuffer-8     205.81       1448.64      7.04x
+```
+
+Strongly reduced memory allocations:
+```
+benchmark                        old allocs     new allocs     delta
+BenchmarkStage2ParseBuffer-8     20034          0              -100.00%
 ```
 
 ### Scaling across cores
