@@ -326,7 +326,7 @@ func TestStage2PartialLoad(t *testing.T) {
 		buf := []byte(data[:i])
 		rows := make([]uint64, 100)
 		columns := make([]string, len(rows)*10)
-		input, output := Input{}, OutputAsm{}
+		input, output := NewInput(), OutputAsm{}
 
 		stage2_parse_buffer(buf, rows, columns, '\n', ',', '"', &input, 0, &output)
 

@@ -46,8 +46,7 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	*rows = (*rows)[:cap(*rows)]
 	*columns = (*columns)[:cap(*columns)]
 
-	input := Input{}
-	output := OutputAsm{}
+	input, output := NewInput(), OutputAsm{}
 
 	offset := uint64(0)
 	for {
