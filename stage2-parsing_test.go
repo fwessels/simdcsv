@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"runtime"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
-	"unsafe"
 )
 
 func TestPreprocessDoubleQuotes(t *testing.T) {
@@ -359,10 +358,9 @@ func TestStage2PartialLoad(t *testing.T) {
 
 	for i := 1; i <= 128; i++ {
 		buf := []byte(data[:i])
-		input := Input{base: unsafe.Pointer(&buf[0])}
 		rows := make([]uint64, 100)
 		columns := make([]string, len(rows)*10)
-		output := OutputAsm{columns: unsafe.Pointer(&columns[0]), rows: unsafe.Pointer(&rows[0])}
+		input, output := Input{}, OutputAsm{}
 
 		stage2_parse_buffer(buf, rows, columns, '\n', ',', '"', &input, 0, &output)
 
