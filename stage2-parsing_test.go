@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"unsafe"
+	_ "unsafe"
 )
 
 func TestPreprocessDoubleQuotes(t *testing.T) {
@@ -471,40 +471,5 @@ func BenchmarkStage2ParseBufferGolang(b *testing.B) {
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-	}
-}
-
-func TestStage2SweepIncreasedAllocationCount(t *testing.T) {
-
-	file := `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh`
-
-	buf := []byte(file[:32])
-
-	input := NewInput()
-	rows := make([]uint64, 100)
-	columns := make([]string, len(rows)*10)
-	output := OutputAsm{}
-
-	stage2_parse_buffer(buf, rows, columns, '\n', ',', '"', &input, 0, &output)
-
-	fmt.Printf("%x\n", peek(uintptr(unsafe.Pointer(&(columns)[0])), 0))
-	fmt.Println(peek(uintptr(unsafe.Pointer(&(columns)[0])), 8))
-	fmt.Printf("%x\n", peek(uintptr(unsafe.Pointer(&(columns)[0])), 16))
-	fmt.Println(peek(uintptr(unsafe.Pointer(&(columns)[0])), 24))
-
-	columns = columns[:output.index/2]
-	fmt.Println("      columns[0] :", columns[0])
-	fmt.Println("      columns[1] :", columns[1])
-	fmt.Println("  len(columns[1]):", len(columns[1]))
-	fmt.Println(`"" == columns[1]):`, columns[1] == "")
-
-	rows = rows[:output.line]
-	fmt.Println("rows:", rows)
-
-	if peek(uintptr(unsafe.Pointer(&(columns)[0])), uint64(output.index-2)*8) != 0 &&
-		peek(uintptr(unsafe.Pointer(&(columns)[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
-			peek(uintptr(unsafe.Pointer(&(columns)[0])), uint64(output.index-1)*8) >= /*>*/ uint64(len(buf)) {
-		log.Fatalf("ERROR: Pointing past end of buffer")
 	}
 }
