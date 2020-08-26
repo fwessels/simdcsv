@@ -342,17 +342,21 @@ func TestStage2MissingLastDelimiter(t *testing.T) {
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh`
 
-	for i := 1; i <= len(file); i++ {
-		buf := []byte(file[:i])
+	for j := 0; j < 1000; j++ {
+		for i := 1; i <= len(file); i++ {
+			buf := []byte(file[:i])
 
-		simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
+			simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
 
-		r := csv.NewReader(bytes.NewReader(buf))
-		r.FieldsPerRecord = -1
-		records, _ := r.ReadAll()
+			r := csv.NewReader(bytes.NewReader(buf))
+			r.FieldsPerRecord = -1
+			records, _ := r.ReadAll()
 
-		if !reflect.DeepEqual(simdrecords, records) {
-			t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", simdrecords, records)
+			runtime.GC()
+
+			if !reflect.DeepEqual(simdrecords, records) {
+				t.Errorf("TestStage2MissingLastDelimiter: got: %v want: %v", simdrecords, records)
+			}
 		}
 	}
 }
