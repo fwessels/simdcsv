@@ -483,10 +483,6 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 
 	stage2_parse_buffer(buf, rows, columns, '\n', ',', '"', &input, 0, &output)
 
-	if peek(uintptr(unsafe.Pointer(&(columns)[0])), 24) == 0 {
-		poke(uintptr(unsafe.Pointer(&(columns)[0])), 16, 0)
-	}
-
 	fmt.Printf("%x\n", peek(uintptr(unsafe.Pointer(&(columns)[0])), 0))
 	fmt.Println(peek(uintptr(unsafe.Pointer(&(columns)[0])), 8))
 	fmt.Printf("%x\n", peek(uintptr(unsafe.Pointer(&(columns)[0])), 16))
