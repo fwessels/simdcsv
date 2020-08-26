@@ -149,10 +149,13 @@ addTrailingDelimiter:
 	MOVQ CX, 0(SI)
 	MOVQ CX, 16(SI)
 
-	MOVQ input+104(FP), DX
 	MOVQ offset+112(FP), DI
 	MOVQ output+120(FP), R9
-	CALL ·stage2_parse(SB)
+
+	PUSHQ DX
+	MOVQ  input+104(FP), DX
+	CALL  ·stage2_parse(SB)
+	POPQ  DX
 
 done:
 	VZEROUPPER
