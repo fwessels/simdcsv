@@ -200,7 +200,14 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 				}
 				input.lastClosingQuote = 0
 
-				output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
+				// for delimiters, we may end exactly on a separator (without a delimiter following),
+				// this leads to a length of zero for the string, so we nil out the pointer value
+				// (to avoid potentially pointing exactly at the first available byte after the buffer)
+				if (-output.strLen + uint64(delimiterPos) + offset) - output.strData == 0 {
+					output.columns[output.index] = 0 // pointer to start of element
+				} else {
+					output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
+				}
 				output.index++
 				output.columns[output.index] = (-output.strLen + uint64(delimiterPos) + offset) - output.strData // size of element element
 				output.index++
