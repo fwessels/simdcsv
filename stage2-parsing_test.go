@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"unsafe"
 )
 
 func TestPreprocessDoubleQuotes(t *testing.T) {
