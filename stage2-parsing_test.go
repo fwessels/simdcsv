@@ -96,7 +96,7 @@ func testStage2ParseUnquoted(t *testing.T, f func(input *Input, offset uint64, o
 	//fmt.Println(hex.Dump([]byte(file)))
 
 	output, _, _ := Stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
-	expected := []uint64{0, 1, 2, 2, 5, 0, 6, 3, 10, 4, 15, 0, 16, 0, 17, 5, 23, 0, 24, 0, 25, 0, 26, 6, 33, 0, 34, 0, 35, 0, 36, 0, 37, 7, 45, 0, 46, 0, 47, 0, 48, 0, 49, 0, 50, 8, 59, 0, 60, 0, 61, 0, 62, 0, 63, 0}
+	expected := []uint64{0, 1, 2, 2, 5, 0, 6, 3, 10, 4, 15, 0, 16, 0, 17, 5, 23, 0, 24, 0, 25, 0, 26, 6, 33, 0, 34, 0, 35, 0, 36, 0, 37, 7, 45, 0, 46, 0, 47, 0, 48, 0, 49, 0, 50, 8, 59, 0, 60, 0, 61, 0, 62, 0, 0, 0}
 	if !reflect.DeepEqual(output, expected) {
 		t.Errorf("testStage2ParseUnquoted: got: %v want: %v", output, expected)
 	}
@@ -292,7 +292,7 @@ lllllllllllllllllllllllllllllll
 `
 
 	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
-	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x0, 0x81, 0x1e, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x0, 0x101, 0x0, 0x102, 0x1d, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
+	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x0, 0x0, 0x81, 0x1e, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x0, 0x0, 0x0, 0x0, 0x102, 0x1d, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
 	expectedRows := []uint64{0, 4,
 		// single line skipped
 		5, 4,
@@ -342,7 +342,12 @@ func TestStage2MissingLastDelimiter(t *testing.T) {
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh`
 
-	for j := 0; j < 1000; j++ {
+	max := 1000
+	if testing.Short() {
+		max = 1
+	}
+
+	for j := 0; j <= max; j++ {
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 

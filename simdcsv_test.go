@@ -3,10 +3,12 @@ package simdcsv
 import (
 	"bytes"
 	"encoding/csv"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"reflect"
 	"testing"
+	"runtime"
 )
 
 func TestLosAngelesParkingCitations(t *testing.T) {
@@ -84,11 +86,12 @@ func TestLosAngelesParkingCitations(t *testing.T) {
 				}
 
 				test := bytes.Join(lines[:ln], []byte{0x0a})
-				test = append(test, []byte{0x0a}...)
 
 				compareAgainstEncodingCsv(t, test)
 
 				lines = lines[ln:]
+
+				runtime.GC()
 			}
 		}
 	})

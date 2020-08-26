@@ -1,7 +1,6 @@
 package simdcsv
 
 import (
-	_ "fmt"
 	"unsafe"
 	"log"
 )
@@ -78,7 +77,8 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 
 	if output.index >= 2 {
 		// Sanity check -- we must not point beyond the end of the buffer
-		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
+		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-2)*8) != 0 &&
+			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
 			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-1)*8) > uint64(len(buf)) {
 			log.Fatalf("ERROR: Pointing past end of buffer")
 		}
