@@ -106,8 +106,12 @@ func TestFilterEmptyLines(t *testing.T) {
 
 func compareAgainstEncodingCsv(t *testing.T, test []byte) {
 
-	simdrecords := ReadAll([]byte(test))
-	records := EncodingCsv([]byte(test))
+	r := NewReader(bytes.NewReader(test))
+	simdrecords, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	records := EncodingCsv(test)
 
 	if !reflect.DeepEqual(simdrecords, records) {
 		t.Errorf("compareAgainstEncodingCsv: got: %v want: %v", simdrecords, records)
@@ -129,7 +133,11 @@ func testIgnoreCommentedLines(t *testing.T, csvData []byte) {
 
 	const comment = '#'
 
-	simdrecords := ReadAll(csvData)
+	simdr := NewReader(bytes.NewReader(csvData))
+	simdrecords, err := simdr.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 	FilterOutComments(&simdrecords, comment)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
@@ -161,7 +169,11 @@ func TestIgnoreCommentedLines(t *testing.T) {
 
 func testFieldsPerRecord(t *testing.T, csvData []byte, fieldsPerRecord int) {
 
-	simdrecords := ReadAll(csvData)
+	simdr := NewReader(bytes.NewReader(csvData))
+	simdrecords, err := simdr.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	// create copy of fieldsPerRecord since it may be changed
 	fieldsPerRecordSimd := fieldsPerRecord
@@ -204,7 +216,11 @@ func TestEnsureFieldsPerRecord(t *testing.T) {
 
 func testTrimLeadingSpace(t *testing.T, csvData []byte) {
 
-	simdrecords := ReadAll(csvData)
+	simdr := NewReader(bytes.NewReader(csvData))
+	simdrecords, err := simdr.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 	TrimLeadingSpace(&simdrecords)
 
 	r := csv.NewReader(bytes.NewReader(csvData))

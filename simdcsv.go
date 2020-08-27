@@ -5,11 +5,80 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"bufio"
+	"io"
 )
 
-func ReadAll(buf []byte) (records [][]string) {
-	records = Stage2ParseBuffer(buf, '\n', ',', '"', nil)
-	return
+// Below is the same interface definition from encoding/csv
+
+// A Reader reads records from a CSV-encoded file.
+//
+// As returned by NewReader, a Reader expects input conforming to RFC 4180.
+// The exported fields can be changed to customize the details before the
+// first call to Read or ReadAll.
+//
+// The Reader converts all \r\n sequences in its input to plain \n,
+// including in multiline field values, so that the returned data does
+// not depend on which line-ending convention an input file uses.
+type Reader struct {
+	// Comma is the field delimiter.
+	// It is set to comma (',') by NewReader.
+	// Comma must be a valid rune and must not be \r, \n,
+	// or the Unicode replacement character (0xFFFD).
+	Comma rune
+
+	// Comment, if not 0, is the comment character. Lines beginning with the
+	// Comment character without preceding whitespace are ignored.
+	// With leading whitespace the Comment character becomes part of the
+	// field, even if TrimLeadingSpace is true.
+	// Comment must be a valid rune and must not be \r, \n,
+	// or the Unicode replacement character (0xFFFD).
+	// It must also not be equal to Comma.
+	Comment rune
+
+	// FieldsPerRecord is the number of expected fields per record.
+	// If FieldsPerRecord is positive, Read requires each record to
+	// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
+	// the number of fields in the first record, so that future records must
+	// have the same field count. If FieldsPerRecord is negative, no check is
+	// made and records may have a variable number of fields.
+	FieldsPerRecord int
+
+	// If LazyQuotes is true, a quote may appear in an unquoted field and a
+	// non-doubled quote may appear in a quoted field.
+	LazyQuotes bool
+
+	// If TrimLeadingSpace is true, leading white space in a field is ignored.
+	// This is done even if the field delimiter, Comma, is white space.
+	TrimLeadingSpace bool
+
+	ReuseRecord bool // Unused by simdcsv
+	TrailingComma bool // Deprecated: No longer used.
+
+	r *bufio.Reader
+}
+
+// NewReader returns a new Reader that reads from r.
+func NewReader(r io.Reader) *Reader {
+	return &Reader{
+		Comma: ',',
+		r:     bufio.NewReader(r),
+	}
+}
+
+// ReadAll reads all the remaining records from r.
+// Each record is a slice of fields.
+// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+// defined to read until EOF, it does not treat end of file as an error to be
+// reported.
+func (r *Reader) ReadAll() ([][]string, error) {
+
+	buf, err := r.r.ReadBytes(0)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	records := Stage2ParseBuffer(buf, '\n', uint64(r.Comma), '"', nil)
+	return records, nil
 }
 
 func FilterOutComments(records *[][]string, comment byte) {
