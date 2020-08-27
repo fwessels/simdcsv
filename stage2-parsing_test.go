@@ -437,6 +437,41 @@ func TestStage2DynamicAllocation(t *testing.T) {
 	})
 }
 
+func TestStage2SupportCarriageReturns(t *testing.T) {
+
+	t.Run("end-with-delimiter", func(t *testing.T) {
+		buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+		if err != nil {
+			log.Fatalln(err)
+		}
+		testStage2SupportCarriageReturns(t, buf)
+	})
+	t.Run("end-without-delimiter", func(t *testing.T) {
+		buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+		if err != nil {
+			log.Fatalln(err)
+		}
+		b := buf[:len(buf)-2]
+		testStage2SupportCarriageReturns(t, b)
+	})
+}
+
+func testStage2SupportCarriageReturns(t *testing.T, buf []byte) {
+
+	buf = PreprocessCarriageReturns(buf)
+	simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
+
+	r := csv.NewReader(bytes.NewReader(buf))
+	records, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		t.Errorf("testStage2SupportCarriageReturns: got %v, want %v", len(simdrecords), len(records))
+	}
+}
+
 func BenchmarkStage2ParseBuffer(b *testing.B) {
 
 	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
