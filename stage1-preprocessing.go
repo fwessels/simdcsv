@@ -7,8 +7,9 @@ import (
 // Substitute values when preprocessing a chunk
 // NB 0x0 should be avoided (since trailing bytes
 // beyond the end of the buffer are zeroed out)
-const PreprocessedDelimiter = 0x1
-const PreprocessedSeparator = 0x2
+const preprocessedDelimiter = 0x1
+const preprocessedSeparator = 0x2
+const preprocessedQuote = 0x3
 
 func preprocessDoubleQuotes(in []byte) (out []byte) {
 
@@ -38,15 +39,15 @@ func preprocessDoubleQuotes(in []byte) (out []byte) {
 				quoted = true
 			} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
 				// replace delimiter with '\1'
-				out = append(out, PreprocessedDelimiter)
+				out = append(out, preprocessedDelimiter)
 				// and skip next char
 				i += 1
 			} else if b == '\n' {
 				// replace delimiter with '\1'
-				out = append(out, PreprocessedDelimiter)
+				out = append(out, preprocessedDelimiter)
 			} else if b == ',' {
-				// replace separator with '\0'
-				out = append(out, PreprocessedSeparator)
+				// replace separator with '\2'
+				out = append(out, preprocessedSeparator)
 			} else {
 				out = append(out, b)
 			}
