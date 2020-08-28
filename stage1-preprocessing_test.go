@@ -41,27 +41,30 @@ func testStage1PreprocessDoubleQuotes(t *testing.T, data []byte) {
 
 func TestStage1PreprocessDoubleQuotes(t *testing.T) {
 
-	t.Run("double-quotes", func(t *testing.T) {
-
-		const data = `first_name,last_name,username
+	const first = `first_name,last_name,username
 "Robert","Pike",rob
 Kenny,Thompson,kenny
 "Robert","Griesemer","gr""i"
-Donald,"Du""ck",don
+Donald,"Du""c`
+
+	const second = `k",don
 Dagobert,Duck,dago
 `
+	t.Run("double-quotes", func(t *testing.T) {
+
+		const data = first + second
 		testStage1PreprocessDoubleQuotes(t, []byte(data))
 	})
 
 	t.Run("newline-in-quoted-field", func(t *testing.T) {
 
-		const data = `first_name,last_name,username
-"Robert","Pike",rob
-Kenny,Thompson,kenny
-"Robert","Griesemer","gr""i"
-Donald,"Du""c` + "\n" + `k",don
-Dagobert,Duck,dago
-`
+		const data = first + "\n" + second
+		testStage1PreprocessDoubleQuotes(t, []byte(data))
+	})
+
+	t.Run("carriage-return-in-quoted-field", func(t *testing.T) {
+
+		const data = first + "\r\n" + second
 		testStage1PreprocessDoubleQuotes(t, []byte(data))
 	})
 }

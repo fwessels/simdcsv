@@ -31,6 +31,9 @@ func preprocessDoubleQuotes(in []byte) (out []byte) {
 				i += 1
 			} else if b == '"' {
 				quoted = false
+			} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
+				out = append(out, '\n') // replace \r\n in quoted fields with single \n (conform to encoding/csv behavior)
+				i += 1
 			} else {
 				out = append(out, b)
 			}
