@@ -9,6 +9,9 @@ import (
 // beyond the end of the buffer are zeroed out)
 const preprocessedDelimiter = 0x1
 const preprocessedSeparator = 0x2
+
+// This value needs to be unique and is not actually used in the preprocessing phase
+// (since opening and closing quotes are eliminated)
 const preprocessedQuote = 0x3
 
 func preprocessDoubleQuotes(in []byte) (out []byte) {
