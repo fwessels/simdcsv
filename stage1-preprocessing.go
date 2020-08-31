@@ -17,6 +17,8 @@ const preprocessedSeparator = 0x2
 // (since opening and closing quotes are eliminated)
 const preprocessedQuote = 0x3
 
+const preprocessedDoubleQuote = 0x4
+
 func preprocessDoubleQuotes(in []byte) (out []byte) {
 
 	// Replace delimiter and separators
@@ -91,21 +93,46 @@ func preprocessStage1(data []byte) {
 	positions := [64]uint64{}
 	index := uint64(0)
 
-	stage1Masking(quotesDoubleMask, crnlMask, &positions, &index)
+	stage1Masking(quotesDoubleMask, crnlMask, quotesMask[0], &positions, &index)
 
 	fmt.Println(positions[:index])
 
 	preprocessed := make([]byte, 0, len(data))
 	if index > 0 {
 		preprocessed = append(preprocessed, data[:positions[0]]...)
-	}
-	for i := range positions[:index-1] {
-		preprocessed = append(preprocessed, data[positions[i]+1:positions[i+1]]...)
-	}
-	if index - 1 > 0 {
-		preprocessed = append(preprocessed, data[positions[index-1]+1:len(data)]...)
+		for i := range positions[:index-1] {
+			if data[positions[i]+1] == byte(quote) {
+				preprocessed = append(preprocessed, preprocessedDoubleQuote)
+				preprocessed = append(preprocessed, data[positions[i]+2:positions[i+1]]...)
+			} else {
+				preprocessed = append(preprocessed, data[positions[i]+1:positions[i+1]]...)
+			}
+		}
+		if index - 1 > 0 {
+			if data[positions[index-1]+1] == byte(quote) {
+				preprocessed = append(preprocessed, preprocessedDoubleQuote)
+				preprocessed = append(preprocessed, data[positions[index-1]+2:len(data)]...)
+			} else {
+				preprocessed = append(preprocessed, data[positions[index-1]+1:len(data)]...)
+			}
+		}
 	}
 
+	fmt.Print(hex.Dump(preprocessed))
+
+	preprocessed = bytes.ReplaceAll(preprocessed, []byte{byte(quote)}, []byte{preprocessedQuote})
+	preprocessed = bytes.ReplaceAll(preprocessed, []byte{preprocessedDoubleQuote}, []byte{byte(quote)})
+	// Carriage returns
+	//
+	// Try and only filter out in quoted fields
+	//
+	// If we can do \r\n --> \n\n second step will filter them out
+	//
+	// 1. consider replacing \r\n in quoted fields with 0xa: DONE (automatically)
+	// 2. replace 0xd with 0xa                             : DONE
+	preprocessed = bytes.ReplaceAll(preprocessed, []byte{'\r'}, []byte{'\n'})
+
+	fmt.Println()
 	fmt.Print(hex.Dump(preprocessed))
 }
 
