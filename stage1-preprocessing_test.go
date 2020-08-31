@@ -3,29 +3,10 @@ package simdcsv
 import (
 	"testing"
 	"bytes"
-	"fmt"
-	"log"
 	"reflect"
-	"io/ioutil"
+	"fmt"
 	"encoding/hex"
-	"encoding/csv"
 )
-
-func TestStage1Preprocessing(t *testing.T) {
-
-	var buffer []byte
-	containsDoubleQuotes := true
-
-	delimiter, separator, quote := '\n', ',', '"'
-	buf := buffer
-	if containsDoubleQuotes {
-		buf = preprocessDoubleQuotes(buffer)
-
-		delimiter, separator, quote = preprocessedDelimiter, preprocessedSeparator, preprocessedQuote
-	}
-
-	Stage2Parse(buf, delimiter, separator, quote, stage2_parse_test)
-}
 
 func testStage1PreprocessDoubleQuotes(t *testing.T, data []byte) {
 
