@@ -109,29 +109,47 @@ func preprocessStage1(data []byte) {
 	fmt.Print(hex.Dump(preprocessed))
 }
 
-func stage1Masking(quotesDoubleMask, crnlMask uint64, positions *[64]uint64, index *uint64) {
+func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64]uint64, index *uint64) {
 
 	const clearMask = 0xfffffffffffffffe
 
 	quotesDoublePos := bits.TrailingZeros64(quotesDoubleMask)
 	crnlPos := bits.TrailingZeros64(crnlMask)
+	quotesPos := bits.TrailingZeros64(quotesMask)
+
+	quoted := uint64(0)
 
 	for {
-		if quotesDoublePos < crnlPos {
+		if quotesDoublePos < crnlPos && quotesDoublePos <= quotesPos {
 
-			(*positions)[*index] = uint64(quotesDoublePos)
-			*index++
+			if quoted != 0 {
+				(*positions)[*index] = uint64(quotesDoublePos)
+				*index++
+			}
 
 			quotesDoubleMask &= clearMask << quotesDoublePos
 			quotesDoublePos = bits.TrailingZeros64(quotesDoubleMask)
 
-		} else if crnlPos < quotesDoublePos {
+			// TODO:
+			// 1. Clear corresponding two bits in quotesMask as well (easy)
+			// 2. Handle case where double quote is split over two masks (HARD)
 
-			(*positions)[*index] = uint64(crnlPos)
-			*index++
+		} else if crnlPos < quotesDoublePos && crnlPos < quotesPos {
+
+			if quoted != 0 {
+				(*positions)[*index] = uint64(crnlPos)
+				*index++
+			}
 
 			crnlMask &= clearMask << crnlPos
 			crnlPos = bits.TrailingZeros64(crnlMask)
+
+		} else if quotesPos < quotesDoublePos && quotesPos < crnlPos {
+
+			quoted = ^quoted
+
+			quotesMask &= clearMask << quotesPos
+			quotesPos = bits.TrailingZeros64(quotesMask)
 
 		} else {
 			// we must be done
