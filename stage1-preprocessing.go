@@ -219,3 +219,47 @@ func preprocessInPlace(in []byte) {
 
 	return
 }
+
+func alternativeStage1(data []byte) {
+
+	// preprocess
+	//   outside quoted fields
+	//     1. replace ',' with preprocessedSeparator: DONE
+	//     2. replace '"' with preprocessedQuote    : DONE
+	//     3. replace \r\n with \n\n                : DONE
+
+	buf := make([]byte, len(data))
+	copy(buf, data)
+
+	preprocessInPlace(buf)
+
+	fmt.Println(hex.Dump(buf))
+
+	simdrecords := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+
+	//
+	// postprocess
+	//   replace "" to " in specific columns
+	//   replace \r\n to \n in specific columns
+	fmt.Printf("double quotes: `%s`\n", simdrecords[3][2])
+	simdrecords[3][2] = strings.ReplaceAll(simdrecords[3][2], "\"\"", "\"")
+	fmt.Printf(" carriage ret: `%s`\n", simdrecords[2][1])
+	simdrecords[2][1] = strings.ReplaceAll(simdrecords[2][1], "\r\n", "\n")
+
+	fmt.Println()
+
+	fmt.Println("[0]:", simdrecords[0])
+	fmt.Println("[1]:", simdrecords[1])
+	fmt.Println("[2]:", simdrecords[2])
+	fmt.Println("[3]:", simdrecords[3])
+
+	r := csv.NewReader(bytes.NewReader(data))
+	records, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("encoding/csv: %v", err)
+	}
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		log.Fatalf("alternativeStage1: got %v, want %v", simdrecords, records)
+	}
+}
