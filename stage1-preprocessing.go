@@ -263,3 +263,34 @@ func alternativeStage1(data []byte) {
 		log.Fatalf("alternativeStage1: got %v, want %v", simdrecords, records)
 	}
 }
+
+func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
+
+	for i := 0; i < 64 && i < len(in); i++ {
+		b := in[i]
+
+		if *quoted {
+			if b == '"' && i+1 < len(in) && in[i+1] == '"' {
+				i += 1
+			} else if b == '"' {
+				quoteMask |= 1 << i // in[i] = preprocessedQuote
+				*quoted = false
+				//} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
+				//	i += 1
+				//} else {
+			}
+		} else {
+			if b == '"' {
+				quoteMask |= 1 << i // in[i] = preprocessedQuote
+				*quoted = true
+			} else if b == '\r' { // && i+1 < len(in) && in[i+1] == '\n' {
+				carriageReturnMask |= 1 << i // in[i] = '\n'
+			} else if b == ',' {
+				// replace separator with '\2'
+				separatorMask |= 1 << i // in[i] = preprocessedSeparator
+			}
+		}
+	}
+
+	return
+}
