@@ -184,3 +184,38 @@ func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64
 		}
 	}
 }
+
+func preprocessInPlace(in []byte) {
+
+	// TODO: Return indexes of columns where we need to post-process
+
+	quoted := false
+
+	for i := 0; i < len(in); i++ {
+		b := in[i]
+
+		if quoted {
+			if b == '"' && i+1 < len(in) && in[i+1] == '"' {
+				i += 1
+			} else if b == '"' {
+				in[i] = preprocessedQuote
+				quoted = false
+			//} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
+			//	i += 1
+			//} else {
+			}
+		} else {
+			if b == '"' {
+				in[i] = preprocessedQuote
+				quoted = true
+			} else if b == '\r' { // && i+1 < len(in) && in[i+1] == '\n' {
+				in[i] = '\n'
+			} else if b == ',' {
+				// replace separator with '\2'
+				in[i] = preprocessedSeparator
+			}
+		}
+	}
+
+	return
+}
