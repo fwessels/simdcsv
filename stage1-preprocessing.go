@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"bytes"
 	"math/bits"
+	"strings"
 	"encoding/hex"
+	"encoding/csv"
+	"log"
+	"reflect"
 )
 
 // Substitute values when preprocessing a chunk
@@ -123,7 +127,7 @@ func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64
 	}
 }
 
-func preprocessMasksToMasks(quoteMaskIn, separatorMaskIn, carriageReturnMaskIn uint64, quoteMaskInNext *uint64, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
+func preprocessMasksToMasks(quoteMaskIn, separatorMaskIn, carriageReturnMaskIn uint64, quoteMaskInNext *uint64, quoted *bool) (quoteMaskOut, separatorMaskOut, carriageReturnMaskOut uint64) {
 
 	const clearMask = 0xfffffffffffffffe
 
@@ -134,21 +138,27 @@ func preprocessMasksToMasks(quoteMaskIn, separatorMaskIn, carriageReturnMaskIn u
 	for {
 		if quotePos < separatorPos && quotePos < carriageReturnPos {
 
-			if *quoted && false { // if b == '"' && i+1 < len(in) && in[i+1] == '"'
-				// we have a double quote, ignore and skip past
-				// i += 1
+			if *quoted && quotePos == 63 && *quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
+				// clear out both active bit and ...
+				quoteMaskIn &= clearMask << quotePos
+				// first bit of next quote mask
+				*quoteMaskInNext &= ^uint64(1)
+			} else if *quoted && quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
+					// clear out both active bit and subsequent bit
+					quoteMaskIn &= clearMask << (quotePos + 1)
 			} else {
-				quoteMask |= 1 << quotePos
+				quoteMaskOut |= 1 << quotePos
 				*quoted = !*quoted
 
 				quoteMaskIn &= clearMask << quotePos
-				quotePos = bits.TrailingZeros64(quoteMaskIn)
 			}
+
+			quotePos = bits.TrailingZeros64(quoteMaskIn)
 
 		} else if separatorPos < quotePos && separatorPos < carriageReturnPos {
 
 			if !*quoted {
-				separatorMask |= 1 << separatorPos
+				separatorMaskOut |= 1 << separatorPos
 			}
 
 			separatorMaskIn &= clearMask << separatorPos
@@ -157,7 +167,7 @@ func preprocessMasksToMasks(quoteMaskIn, separatorMaskIn, carriageReturnMaskIn u
 		} else if carriageReturnPos < quotePos && carriageReturnPos < separatorPos {
 
 			if !*quoted {
-				carriageReturnMask |= 1 << carriageReturnPos
+				carriageReturnMaskOut |= 1 << carriageReturnPos
 			}
 
 			carriageReturnMaskIn &= clearMask << carriageReturnPos

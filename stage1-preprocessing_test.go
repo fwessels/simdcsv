@@ -50,6 +50,64 @@ Dagobert,Duck,dago
 	})
 }
 
+func TestStage1PreprocessMasksToMasks(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+
+		const data = `first_name,last_name,username
+RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
+"Robert","Griesemer","gr""i"                            `
+
+		testStage1PreprocessMasksToMasks(t, []byte(data))
+	})
+
+	t.Run("double-quotes-at-end-of-mask", func(t *testing.T) {
+
+		const data = `Robe,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
+"Robert","Griesemer","gr""i"                            
+first_name,last_name,username1234`
+
+		testStage1PreprocessMasksToMasks(t, []byte(data))
+	})
+
+	t.Run("double-quotes-split-over-masks", func(t *testing.T) {
+
+		const data = `Rober,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
+"Robert","Griesemer","gr""i"                            
+first_name,last_name,username123`
+
+		testStage1PreprocessMasksToMasks(t, []byte(data))
+	})
+}
+
+func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) {
+
+	fmt.Println(hex.Dump(data))
+	separatorMasksIn := getBitMasks(data, byte(','))
+	quoteMasksIn := getBitMasks(data, byte('"'))
+	carriageReturnMasksIn := getBitMasks(data, byte('\r'))
+
+	quoteMaskNew := quoteMasksIn[1]
+	quoted := false
+	quoteMaskOut0, separatorMaskOut0, carriageReturnMaskOut0 := preprocessMasksToMasks(quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], &quoteMaskNew, &quoted)
+
+	quoteMasksIn1 := quoteMaskNew
+	quoteMaskNew = 0
+	quoteMaskOut1, separatorMaskOut1, carriageReturnMaskOut1 := preprocessMasksToMasks(quoteMasksIn1, separatorMasksIn[1], carriageReturnMasksIn[1], &quoteMaskNew, &quoted)
+
+	fmt.Println()
+	fmt.Printf("            %s", string(bytes.ReplaceAll(bytes.ReplaceAll(data[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Printf("·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(data[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+
+	fmt.Printf("     quote: %064b·%064b\n", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1]))
+	fmt.Printf("     quote: %064b·%064b\n", bits.Reverse64(quoteMaskOut0), bits.Reverse64(quoteMaskOut1))
+	fmt.Println()
+	fmt.Printf(" separator: %064b·%064b\n", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1]))
+	fmt.Printf(" separator: %064b·%064b\n", bits.Reverse64(separatorMaskOut0), bits.Reverse64(separatorMaskOut1))
+	fmt.Println()
+	fmt.Printf("        \\r: %064b·%064b\n", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1]))
+	fmt.Printf("        \\r: %064b·%064b\n", bits.Reverse64(carriageReturnMaskOut0), bits.Reverse64(carriageReturnMaskOut1))
+}
+
 func TestStage1AlternativeMasks(t *testing.T) {
 
 	const data = `first_name,last_name,username
