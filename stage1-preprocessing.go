@@ -123,86 +123,9 @@ func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64
 	}
 }
 
-func preprocessInPlace(in []byte) {
+func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
 
 	// TODO: Return indexes of columns where we need to post-process
-
-	quoted := false
-
-	for i := 0; i < len(in); i++ {
-		b := in[i]
-
-		if quoted {
-			if b == '"' && i+1 < len(in) && in[i+1] == '"' {
-				i += 1
-			} else if b == '"' {
-				in[i] = preprocessedQuote
-				quoted = false
-			//} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
-			//	i += 1
-			//} else {
-			}
-		} else {
-			if b == '"' {
-				in[i] = preprocessedQuote
-				quoted = true
-			} else if b == '\r' { // && i+1 < len(in) && in[i+1] == '\n' {
-				in[i] = '\n'
-			} else if b == ',' {
-				// replace separator with '\2'
-				in[i] = preprocessedSeparator
-			}
-		}
-	}
-
-	return
-}
-
-func alternativeStage1(data []byte) {
-
-	// preprocess
-	//   outside quoted fields
-	//     1. replace ',' with preprocessedSeparator: DONE
-	//     2. replace '"' with preprocessedQuote    : DONE
-	//     3. replace \r\n with \n\n                : DONE
-
-	buf := make([]byte, len(data))
-	copy(buf, data)
-
-	preprocessInPlace(buf)
-
-	fmt.Println(hex.Dump(buf))
-
-	simdrecords := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
-
-	//
-	// postprocess
-	//   replace "" to " in specific columns
-	//   replace \r\n to \n in specific columns
-	fmt.Printf("double quotes: `%s`\n", simdrecords[3][2])
-	simdrecords[3][2] = strings.ReplaceAll(simdrecords[3][2], "\"\"", "\"")
-	fmt.Printf(" carriage ret: `%s`\n", simdrecords[2][1])
-	simdrecords[2][1] = strings.ReplaceAll(simdrecords[2][1], "\r\n", "\n")
-
-	fmt.Println()
-
-	fmt.Println("[0]:", simdrecords[0])
-	fmt.Println("[1]:", simdrecords[1])
-	fmt.Println("[2]:", simdrecords[2])
-	fmt.Println("[3]:", simdrecords[3])
-
-	r := csv.NewReader(bytes.NewReader(data))
-	records, err := r.ReadAll()
-	if err != nil {
-		log.Fatalf("encoding/csv: %v", err)
-	}
-
-	if !reflect.DeepEqual(simdrecords, records) {
-		log.Fatalf("alternativeStage1: got %v, want %v", simdrecords, records)
-	}
-}
-
-func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
 
 	for i := 0; i < 64 && i < len(in); i++ {
 		b := in[i]
