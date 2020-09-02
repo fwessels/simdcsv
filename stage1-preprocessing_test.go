@@ -50,16 +50,6 @@ Dagobert,Duck,dago
 	})
 }
 
-func TestStage1Preprocessing(t *testing.T) {
-
-	const data = `first_name,last_name,username
-RRobertt,"Pike",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
-"Robert","Griesemer","gr""i"`
-
-	fmt.Print(hex.Dump([]byte(data)))
-	preprocessStage1([]byte(data))
-}
-
 func TestStage1Alternative(t *testing.T) {
 
 	const data = `first_name,last_name,username
