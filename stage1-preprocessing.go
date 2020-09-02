@@ -123,6 +123,55 @@ func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64
 	}
 }
 
+func preprocessMasksToMasks(quoteMaskIn, separatorMaskIn, carriageReturnMaskIn uint64, quoteMaskInNext *uint64, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
+
+	const clearMask = 0xfffffffffffffffe
+
+	separatorPos := bits.TrailingZeros64(separatorMaskIn)
+	carriageReturnPos := bits.TrailingZeros64(carriageReturnMaskIn)
+	quotePos := bits.TrailingZeros64(quoteMaskIn)
+
+	for {
+		if quotePos < separatorPos && quotePos < carriageReturnPos {
+
+			if *quoted && false { // if b == '"' && i+1 < len(in) && in[i+1] == '"'
+				// we have a double quote, ignore and skip past
+				// i += 1
+			} else {
+				quoteMask |= 1 << quotePos
+				*quoted = !*quoted
+
+				quoteMaskIn &= clearMask << quotePos
+				quotePos = bits.TrailingZeros64(quoteMaskIn)
+			}
+
+		} else if separatorPos < quotePos && separatorPos < carriageReturnPos {
+
+			if !*quoted {
+				separatorMask |= 1 << separatorPos
+			}
+
+			separatorMaskIn &= clearMask << separatorPos
+			separatorPos = bits.TrailingZeros64(separatorMaskIn)
+
+		} else if carriageReturnPos < quotePos && carriageReturnPos < separatorPos {
+
+			if !*quoted {
+				carriageReturnMask |= 1 << carriageReturnPos
+			}
+
+			carriageReturnMaskIn &= clearMask << carriageReturnPos
+			carriageReturnPos = bits.TrailingZeros64(carriageReturnMaskIn)
+
+		} else {
+			// we must be done
+			break
+		}
+	}
+
+	return
+}
+
 func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
 
 	// TODO: Return indexes of columns where we need to post-process
