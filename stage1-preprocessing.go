@@ -93,11 +93,13 @@ func preprocessStage1(data []byte) {
 	positions := [64]uint64{}
 	index := uint64(0)
 
+	fmt.Printf("          %s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(data, []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 	stage1Masking(quotesDoubleMask, crnlMask, quotesMask[0], &positions, &index)
 
 	fmt.Println(positions[:index])
 
 	preprocessed := make([]byte, 0, len(data))
+	// TODO: Use copy() instead of append()
 	if index > 0 {
 		preprocessed = append(preprocessed, data[:positions[0]]...)
 		for i := range positions[:index-1] {
@@ -122,6 +124,31 @@ func preprocessStage1(data []byte) {
 
 	preprocessed = bytes.ReplaceAll(preprocessed, []byte{byte(quote)}, []byte{preprocessedQuote})
 	preprocessed = bytes.ReplaceAll(preprocessed, []byte{preprocessedDoubleQuote}, []byte{byte(quote)})
+
+	fmt.Println()
+	fmt.Print(hex.Dump(preprocessed))
+
+	//00000000  65 72 74 22 2c 22 50 69  6b 65 22 2c 72 6f 62 0a  |ert","Pike",rob.|
+	//00000010  4b 65 6e 6e 79 2c 54 68  6f 6d 70 73 6f 6e 2c 6b  |Kenny,Thompson,k|
+	//00000020  65 6e 6e 79 0a 22 52 6f  62 65 72 74 22 2c 22 47  |enny."Robert","G|
+	//00000030  72 69 65 73 65 6d 65 72  22 2c 22 67 72 22 69 22  |riesemer","gr"i"|
+	//                                                                       ^  ^ ^
+
+	// TODO: Still need to replace 0xa --> 0x1 and 0x2c --> 0x2 (but NOT within quotes)  <-- NASTY
+	//       Consider replacing IN QUOTED FIELDS ONLY double quotes + \r\n data during preprocesing ?
+	//       Fix strings in columns array as post-procesing step ???
+	//       double quotes and \r\n do not occur so often
+
+	//Stage2ParseBuffer()
+
+	// Double Quotes
+	// 1. consider replacing double quotes with 0x4: DONE
+	// 3. replace 0x22 with 0x3 (preprocessed quote) DONE
+	// 4. replace 0x5 with 0x22                      DONE
+	//
+
+	// TODO: Make sure empty fields are ok: ,"",
+
 	// Carriage returns
 	//
 	// Try and only filter out in quoted fields
