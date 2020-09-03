@@ -2,6 +2,7 @@ package simdcsv
 
 import (
 	"encoding/hex"
+	"log"
 	"math/bits"
 	"fmt"
 	"bytes"
@@ -64,12 +65,13 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
             first_name,last_name,username RRobertt,"Pi,e",rob  Kenny,"ho  so·",kenny "Robert","Griesemer","gr""i"                            
      quote: 0000000000000000000000000000000000000001000010000000000001000000·1000000010000001010000000001010011010000000000000000000000000000
      quote: 0000000000000000000000000000000000000001000010000000000001000000·1000000010000001010000000001010000010000000000000000000000000000
-
+                                                                                                             ^^                              
  separator: 0000000000100000000010000000000000000010001001000000000010000000·0100000000000000100000000000100000000000000000000000000000000000
  separator: 0000000000100000000010000000000000000010000001000000000010000000·0100000000000000100000000000100000000000000000000000000000000000
-
+                                                      ^                                                                                      
         \r: 0000000000000000000000000000000000000000000000000100000000001000·0000000000000000000000000000000000000000000000000000000000000000
         \r: 0000000000000000000000000000000000000000000000000100000000000000·0000000000000000000000000000000000000000000000000000000000000000
+                                                                        ^                                                                    
 `
 
 		if result != expected {
@@ -89,12 +91,13 @@ first_name,last_name,username1234`
             Robe,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr""·i"                             first_name,last_name,username1234
      quote: 0000010000100000000000010000001000000010000001010000000001010011·0100000000000000000000000000000000000000000000000000000000000000
      quote: 0000010000100000000000010000001000000010000001010000000001010000·0100000000000000000000000000000000000000000000000000000000000000
-
+                                                                          ^^                                                                 
  separator: 0000100010010000000000100000000100000000000000100000000000100000·0000000000000000000000000000000000000000010000000001000000000000
  separator: 0000100000010000000000100000000100000000000000100000000000100000·0000000000000000000000000000000000000000010000000001000000000000
-
+                    ^                                                                                                                        
         \r: 0000000000000001000000000010000000000000000000000000000000000000·0000000000000000000000000000000000000000000000000000000000000000
         \r: 0000000000000001000000000000000000000000000000000000000000000000·0000000000000000000000000000000000000000000000000000000000000000
+                                      ^                                                                                                      
 `
 
 		if result != expected {
@@ -114,18 +117,36 @@ first_name,last_name,username123`
             Rober,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr"·"i"                             first_name,last_name,username123
      quote: 0000001000010000000000001000000100000001000000101000000000101001·1010000000000000000000000000000000000000000000000000000000000000
      quote: 0000001000010000000000001000000100000001000000101000000000101000·0010000000000000000000000000000000000000000000000000000000000000
-
+                                                                           ^ ^                                                               
  separator: 0000010001001000000000010000000010000000000000010000000000010000·0000000000000000000000000000000000000000001000000000100000000000
  separator: 0000010000001000000000010000000010000000000000010000000000010000·0000000000000000000000000000000000000000001000000000100000000000
-
+                     ^                                                                                                                       
         \r: 0000000000000000100000000001000000000000000000000000000000000000·0000000000000000000000000000000000000000000000000000000000000000
         \r: 0000000000000000100000000000000000000000000000000000000000000000·0000000000000000000000000000000000000000000000000000000000000000
+                                       ^                                                                                                     
 `
 
 		if result != expected {
 			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
 		}
 	})
+}
+
+func diffBitmask(diff1, diff2 string) (diff string) {
+	if len(diff1) != len(diff2) {
+		log.Fatalf("sizes don't match")
+	}
+
+
+	for i := range diff1 {
+		if diff1[i] != diff2[i] {
+			diff += "^"
+		} else {
+			diff += " "
+		}
+	}
+
+	return diff1 + "\n" + diff2 + "\n" + diff + "\n"
 }
 
 func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
@@ -149,14 +170,17 @@ func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
 	fmt.Fprintf(out,"            %s", string(bytes.ReplaceAll(bytes.ReplaceAll(data[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(data[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
-	fmt.Fprintf(out,"     quote: %064b·%064b\n", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1]))
-	fmt.Fprintf(out,"     quote: %064b·%064b\n", bits.Reverse64(output0.quoteMaskOut), bits.Reverse64(output1.quoteMaskOut))
-	fmt.Fprintln(out)
-	fmt.Fprintf(out," separator: %064b·%064b\n", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1]))
-	fmt.Fprintf(out," separator: %064b·%064b\n", bits.Reverse64(output0.separatorMaskOut), bits.Reverse64(output1.separatorMaskOut))
-	fmt.Fprintln(out)
-	fmt.Fprintf(out,"        \\r: %064b·%064b\n", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1]))
-	fmt.Fprintf(out,"        \\r: %064b·%064b\n", bits.Reverse64(output0.carriageReturnMaskOut), bits.Reverse64(output1.carriageReturnMaskOut))
+	fmt.Fprintf(out, diffBitmask(
+		fmt.Sprintf("     quote: %064b·%064b", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1])),
+		fmt.Sprintf("     quote: %064b·%064b", bits.Reverse64(output0.quoteMaskOut), bits.Reverse64(output1.quoteMaskOut))))
+
+	fmt.Fprintf(out, diffBitmask(
+		fmt.Sprintf(" separator: %064b·%064b", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1])),
+		fmt.Sprintf(" separator: %064b·%064b", bits.Reverse64(output0.separatorMaskOut), bits.Reverse64(output1.separatorMaskOut))))
+
+	fmt.Fprintf(out, diffBitmask(
+		fmt.Sprintf("        \\r: %064b·%064b", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1])),
+		fmt.Sprintf("        \\r: %064b·%064b", bits.Reverse64(output0.carriageReturnMaskOut), bits.Reverse64(output1.carriageReturnMaskOut))))
 
 	return out.String()
 }
