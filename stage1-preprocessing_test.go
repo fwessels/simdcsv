@@ -135,13 +135,13 @@ func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
 	quoteMasksIn := getBitMasks(data, byte('"'))
 	carriageReturnMasksIn := getBitMasks(data, byte('\r'))
 
-	quoteMaskNew := quoteMasksIn[1]
-	quoted := false
-	quoteMaskOut0, separatorMaskOut0, carriageReturnMaskOut0 := preprocessMasksToMasks(quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], &quoteMaskNew, &quoted)
+	input0 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], false}
+	output0 := stage1Output{}
+	preprocessMasksToMasks(&input0, &output0)
 
-	quoteMasksIn1 := quoteMaskNew
-	quoteMaskNew = 0
-	quoteMaskOut1, separatorMaskOut1, carriageReturnMaskOut1 := preprocessMasksToMasks(quoteMasksIn1, separatorMasksIn[1], carriageReturnMasksIn[1], &quoteMaskNew, &quoted)
+	input1 := stage1Input{input0.quoteMaskInNext, separatorMasksIn[1], carriageReturnMasksIn[1], 0, input0.quoted}
+	output1 := stage1Output{}
+	preprocessMasksToMasks(&input1, &output1)
 
 	out := bytes.NewBufferString("")
 
@@ -150,13 +150,13 @@ func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
 	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(data[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
 	fmt.Fprintf(out,"     quote: %064b·%064b\n", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1]))
-	fmt.Fprintf(out,"     quote: %064b·%064b\n", bits.Reverse64(quoteMaskOut0), bits.Reverse64(quoteMaskOut1))
+	fmt.Fprintf(out,"     quote: %064b·%064b\n", bits.Reverse64(output0.quoteMaskOut), bits.Reverse64(output1.quoteMaskOut))
 	fmt.Fprintln(out)
 	fmt.Fprintf(out," separator: %064b·%064b\n", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1]))
-	fmt.Fprintf(out," separator: %064b·%064b\n", bits.Reverse64(separatorMaskOut0), bits.Reverse64(separatorMaskOut1))
+	fmt.Fprintf(out," separator: %064b·%064b\n", bits.Reverse64(output0.separatorMaskOut), bits.Reverse64(output1.separatorMaskOut))
 	fmt.Fprintln(out)
 	fmt.Fprintf(out,"        \\r: %064b·%064b\n", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1]))
-	fmt.Fprintf(out,"        \\r: %064b·%064b\n", bits.Reverse64(carriageReturnMaskOut0), bits.Reverse64(carriageReturnMaskOut1))
+	fmt.Fprintf(out,"        \\r: %064b·%064b\n", bits.Reverse64(output0.carriageReturnMaskOut), bits.Reverse64(output1.carriageReturnMaskOut))
 
 	return out.String()
 }

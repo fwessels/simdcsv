@@ -127,51 +127,65 @@ func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64
 	}
 }
 
-func preprocessMasksToMasks(quoteMaskIn, separatorMaskIn, carriageReturnMaskIn uint64, quoteMaskInNext *uint64, quoted *bool) (quoteMaskOut, separatorMaskOut, carriageReturnMaskOut uint64) {
+type stage1Input struct {
+	quoteMaskIn			 uint64
+	separatorMaskIn 	 uint64
+	carriageReturnMaskIn uint64
+	quoteMaskInNext 	 uint64
+	quoted				 bool
+}
+
+type stage1Output struct {
+	quoteMaskOut 		  uint64
+	separatorMaskOut 	  uint64
+	carriageReturnMaskOut uint64
+}
+
+func preprocessMasksToMasks(input *stage1Input, output *stage1Output) {
 
 	const clearMask = 0xfffffffffffffffe
 
-	separatorPos := bits.TrailingZeros64(separatorMaskIn)
-	carriageReturnPos := bits.TrailingZeros64(carriageReturnMaskIn)
-	quotePos := bits.TrailingZeros64(quoteMaskIn)
+	separatorPos := bits.TrailingZeros64(input.separatorMaskIn)
+	carriageReturnPos := bits.TrailingZeros64(input.carriageReturnMaskIn)
+	quotePos := bits.TrailingZeros64(input.quoteMaskIn)
 
 	for {
 		if quotePos < separatorPos && quotePos < carriageReturnPos {
 
-			if *quoted && quotePos == 63 && *quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
+			if input.quoted && quotePos == 63 && input.quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
 				// clear out both active bit and ...
-				quoteMaskIn &= clearMask << quotePos
+				input.quoteMaskIn &= clearMask << quotePos
 				// first bit of next quote mask
-				*quoteMaskInNext &= ^uint64(1)
-			} else if *quoted && quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
-					// clear out both active bit and subsequent bit
-					quoteMaskIn &= clearMask << (quotePos + 1)
+				input.quoteMaskInNext &= ^uint64(1)
+			} else if input.quoted && input.quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
+				// clear out both active bit and subsequent bit
+				input.quoteMaskIn &= clearMask << (quotePos + 1)
 			} else {
-				quoteMaskOut |= 1 << quotePos
-				*quoted = !*quoted
+				output.quoteMaskOut |= 1 << quotePos
+				input.quoted = !input.quoted
 
-				quoteMaskIn &= clearMask << quotePos
+				input.quoteMaskIn &= clearMask << quotePos
 			}
 
-			quotePos = bits.TrailingZeros64(quoteMaskIn)
+			quotePos = bits.TrailingZeros64(input.quoteMaskIn)
 
 		} else if separatorPos < quotePos && separatorPos < carriageReturnPos {
 
-			if !*quoted {
-				separatorMaskOut |= 1 << separatorPos
+			if !input.quoted {
+				output.separatorMaskOut |= 1 << separatorPos
 			}
 
-			separatorMaskIn &= clearMask << separatorPos
-			separatorPos = bits.TrailingZeros64(separatorMaskIn)
+			input.separatorMaskIn &= clearMask << separatorPos
+			separatorPos = bits.TrailingZeros64(input.separatorMaskIn)
 
 		} else if carriageReturnPos < quotePos && carriageReturnPos < separatorPos {
 
-			if !*quoted {
-				carriageReturnMaskOut |= 1 << carriageReturnPos
+			if !input.quoted {
+				output.carriageReturnMaskOut |= 1 << carriageReturnPos
 			}
 
-			carriageReturnMaskIn &= clearMask << carriageReturnPos
-			carriageReturnPos = bits.TrailingZeros64(carriageReturnMaskIn)
+			input.carriageReturnMaskIn &= clearMask << carriageReturnPos
+			carriageReturnPos = bits.TrailingZeros64(input.carriageReturnMaskIn)
 
 		} else {
 			// we must be done
