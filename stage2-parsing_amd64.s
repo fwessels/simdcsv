@@ -9,11 +9,11 @@
 #define ROWS_BASE    0x10
 #define LINE_OFFSET  0x18
 
-#define CREATE_MASK(Y1, Y2, R1, R2) \
-	VPMOVMSKB Y1, R1  \
-	VPMOVMSKB Y2, R2  \
-	SHLQ      $32, R2 \
-	ORQ       R1, R2
+#define CREATE_MASK(_Y1, _Y2, _R1, _R2) \
+	VPMOVMSKB _Y1, _R1  \
+	VPMOVMSKB _Y2, _R2  \
+	SHLQ      $32, _R2 \
+	ORQ       _R1, _R2
 
 #define MASK_TRAILING_BYTES(MAX, Y) \
 	LEAQ    MASKTABLE<>(SB), AX \
