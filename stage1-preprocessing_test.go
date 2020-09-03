@@ -53,13 +53,24 @@ Dagobert,Duck,dago
 }
 
 func TestStage1PreprocessMasksToMasks(t *testing.T) {
+
+	t.Run("go", func(t *testing.T) {
+		testStage1PreprocessMasksToMasksFunc(t, preprocessMasksToMasks)
+	})
+	t.Run("avx2", func(t *testing.T) {
+		testStage1PreprocessMasksToMasksFunc(t, stage1_preprocess_test)
+	})
+}
+
+func testStage1PreprocessMasksToMasksFunc(t *testing.T, f func(input *stage1Input, output *stage1Output)) {
+
 	t.Run("simple", func(t *testing.T) {
 
 		const data = `first_name,last_name,username
 RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Griesemer","gr""i"                            `
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data))
+		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
 
 		const expected = `
             first_name,last_name,username RRobertt,"Pi,e",rob  Kenny,"ho  so·",kenny "Robert","Griesemer","gr""i"                            
@@ -85,7 +96,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Griesemer","gr""i"                            
 first_name,last_name,username1234`
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data))
+		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
 
 		const expected = `
             Robe,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr""·i"                             first_name,last_name,username1234
@@ -111,7 +122,7 @@ first_name,last_name,username1234`
 "Robert","Griesemer","gr""i"                            
 first_name,last_name,username123`
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data))
+		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
 
 		const expected = `
             Rober,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr"·"i"                             first_name,last_name,username123
@@ -137,7 +148,6 @@ func diffBitmask(diff1, diff2 string) (diff string) {
 		log.Fatalf("sizes don't match")
 	}
 
-
 	for i := range diff1 {
 		if diff1[i] != diff2[i] {
 			diff += "^"
@@ -149,7 +159,7 @@ func diffBitmask(diff1, diff2 string) (diff string) {
 	return diff1 + "\n" + diff2 + "\n" + diff + "\n"
 }
 
-func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
+func testStage1PreprocessMasksToMasks(t *testing.T, data []byte, f func(input *stage1Input, output *stage1Output)) string {
 
 	//fmt.Println(hex.Dump(data))
 	separatorMasksIn := getBitMasks(data, byte(','))
@@ -158,11 +168,11 @@ func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
 
 	input0 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], 0}
 	output0 := stage1Output{}
-	preprocessMasksToMasks(&input0, &output0)
+	f(&input0, &output0)
 
 	input1 := stage1Input{input0.quoteMaskInNext, separatorMasksIn[1], carriageReturnMasksIn[1], 0, input0.quoted}
 	output1 := stage1Output{}
-	preprocessMasksToMasks(&input1, &output1)
+	f(&input1, &output1)
 
 	out := bytes.NewBufferString("")
 
