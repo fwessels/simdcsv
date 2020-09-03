@@ -132,7 +132,7 @@ type stage1Input struct {
 	separatorMaskIn 	 uint64
 	carriageReturnMaskIn uint64
 	quoteMaskInNext 	 uint64
-	quoted				 bool
+	quoted				 uint64
 }
 
 type stage1Output struct {
@@ -152,17 +152,17 @@ func preprocessMasksToMasks(input *stage1Input, output *stage1Output) {
 	for {
 		if quotePos < separatorPos && quotePos < carriageReturnPos {
 
-			if input.quoted && quotePos == 63 && input.quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
+			if input.quoted != 0 && quotePos == 63 && input.quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
 				// clear out both active bit and ...
 				input.quoteMaskIn &= clearMask << quotePos
 				// first bit of next quote mask
 				input.quoteMaskInNext &= ^uint64(1)
-			} else if input.quoted && input.quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
+			} else if input.quoted != 0 && input.quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
 				// clear out both active bit and subsequent bit
 				input.quoteMaskIn &= clearMask << (quotePos + 1)
 			} else {
 				output.quoteMaskOut |= 1 << quotePos
-				input.quoted = !input.quoted
+				input.quoted = ^input.quoted
 
 				input.quoteMaskIn &= clearMask << quotePos
 			}
@@ -171,7 +171,7 @@ func preprocessMasksToMasks(input *stage1Input, output *stage1Output) {
 
 		} else if separatorPos < quotePos && separatorPos < carriageReturnPos {
 
-			if !input.quoted {
+			if input.quoted == 0 {
 				output.separatorMaskOut |= 1 << separatorPos
 			}
 
@@ -180,7 +180,7 @@ func preprocessMasksToMasks(input *stage1Input, output *stage1Output) {
 
 		} else if carriageReturnPos < quotePos && carriageReturnPos < separatorPos {
 
-			if !input.quoted {
+			if input.quoted == 0 {
 				output.carriageReturnMaskOut |= 1 << carriageReturnPos
 			}
 

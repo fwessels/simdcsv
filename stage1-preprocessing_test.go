@@ -156,7 +156,7 @@ func testStage1PreprocessMasksToMasks(t *testing.T, data []byte) string {
 	quoteMasksIn := getBitMasks(data, byte('"'))
 	carriageReturnMasksIn := getBitMasks(data, byte('\r'))
 
-	input0 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], false}
+	input0 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], 0}
 	output0 := stage1Output{}
 	preprocessMasksToMasks(&input0, &output0)
 
