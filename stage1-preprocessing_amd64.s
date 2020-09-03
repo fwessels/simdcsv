@@ -33,8 +33,8 @@ label2:
 	JGE  label8
 	CMPQ R9, DI
 	JGE  label8
-	MOVB 0x20(AX), R8
-	CMPB R8, $0x0
+	MOVQ 0x20(AX), R8
+	CMPQ R8, $0x0
 	JE   label5
 	CMPQ R9, $0x3f
 	JNE  label7
@@ -84,9 +84,9 @@ label6:
 	SHLQ  CL, R10
 	ANDQ  R8, R10
 	ORQ   R10, (SI)
-	MOVB  0x20(AX), R10
+	MOVQ  0x20(AX), R10
 	NOTQ  R10
-	MOVB  R10, 0x20(AX)
+	MOVQ  R10, 0x20(AX)
 	MOVQ  $-0x2, R10
 	SHLQ  CL, R10
 	ANDQ  R10, R8
@@ -102,7 +102,7 @@ label8:
 	JGE   label12
 	CMPQ  BX, DI
 	JGE   label12
-	CMPB  0x20(AX), $0x0
+	CMPQ  0x20(AX), $0x0
 	JNE   label11
 	TESTB AL, (SI)
 	CMPQ  BX, $0x40
@@ -138,7 +138,7 @@ label12:
 	JGE   label15
 	CMPQ  DI, BX
 	JGE   label15
-	CMPB  0x20(AX), $0x0
+	CMPQ  0x20(AX), $0x0
 	JNE   label14
 	TESTB AL, (SI)
 	CMPQ  DI, $0x40
