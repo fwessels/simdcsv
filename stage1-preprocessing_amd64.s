@@ -1,5 +1,72 @@
 //+build !noasm !appengine
 
+#define UNPACK_BITMASK(_R1, _XR1, _YR1) \
+	\ // source: https://stackoverflow.com/a/24242696
+	VMOVQ        _R1, _XR1       \
+	VPBROADCASTD _XR1, _YR1      \
+	VPSHUFB      Y14, _YR1, _YR1 \
+	VPANDN       Y15, _YR1, _YR1 \
+	VPCMPEQB     Y13, _YR1, _YR1 \
+
+// func stage1_preprocess_buffer(buf []byte, input *stage1Input, output *stage1Output)
+TEXT ·stage1_preprocess_buffer(SB), 7, $0
+
+	XORQ DX, DX
+
+loop:
+	PUSHQ DX
+	MOVQ  input+24(FP), AX
+	MOVQ  output+32(FP), R10
+	CALL  ·stage1_preprocess(SB)
+	POPQ  DX
+
+	LEAQ    ANDMASK<>(SB), AX
+	VMOVDQU (AX), Y15
+	LEAQ    SHUFMASK<>(SB), AX
+	VMOVDQU (AX), Y14
+	VPXOR   Y13, Y13, Y13
+	MOVQ         $0x2, AX // preprocessedSeparator
+	MOVQ         AX, X12
+	VPBROADCASTB X12, Y12
+
+	MOVQ    buf+0(FP), DI
+	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+
+    // Replace separators
+	MOVQ output+32(FP), R10
+	MOVQ 0x8(R10), AX
+    UNPACK_BITMASK(AX, X0, Y0)
+    SHRQ $32, AX
+    UNPACK_BITMASK(AX, X1, Y1)
+	VPBLENDVB Y0, Y12, Y8, Y8
+	VPBLENDVB Y1, Y12, Y9, Y9
+
+MOVQ debug+40(FP), AX
+VMOVDQU Y0, (AX)
+
+	VMOVDQU Y8, (DI)(DX*1)
+	VMOVDQU Y9, 0x20(DI)(DX*1)
+
+//	ADDQ $0x40, DX
+//	CMPQ DX, $0x40*10
+//	JLT  loop
+
+	RET
+
+DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
+DATA SHUFMASK<>+0x008(SB)/8, $0x0101010101010101
+DATA SHUFMASK<>+0x010(SB)/8, $0x0202020202020202
+DATA SHUFMASK<>+0x018(SB)/8, $0x0303030303030303
+GLOBL SHUFMASK<>(SB), 8, $32
+
+DATA ANDMASK<>+0x000(SB)/8, $0x8040201008040201
+DATA ANDMASK<>+0x008(SB)/8, $0x8040201008040201
+DATA ANDMASK<>+0x010(SB)/8, $0x8040201008040201
+DATA ANDMASK<>+0x018(SB)/8, $0x8040201008040201
+GLOBL ANDMASK<>(SB), 8, $32
+
+
 // func stage1_preprocess_test(input *stage1Input, output *stage1Output)
 TEXT ·stage1_preprocess_test(SB), 7, $0
 	MOVQ input+0(FP), AX
