@@ -1,5 +1,7 @@
 //+build !noasm !appengine
 
+#include "common.h"
+
 #define UNPACK_BITMASK(_R1, _XR1, _YR1) \
 	\ // source: https://stackoverflow.com/a/24242696
 	VMOVQ        _R1, _XR1       \
@@ -8,23 +10,20 @@
 	VPANDN       Y15, _YR1, _YR1 \
 	VPCMPEQB     Y13, _YR1, _YR1 \
 
+#define QUOTE_MASK_IN           0
+#define SEPARATOR_MASK_IN       8
+#define CARRIAGE_RETURN_MASK_IN 16
+#define QUOTE_MASK_IN_NEXT      24
+#define QUOTED                  32
+
 // func stage1_preprocess_buffer(buf []byte, input *stage1Input, output *stage1Output)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
 
-	XORQ DX, DX
-
-loop:
-	PUSHQ DX
-	MOVQ  input+24(FP), AX
-	MOVQ  output+32(FP), R10
-	CALL  ·stage1_preprocess(SB)
-	POPQ  DX
-
-	LEAQ    ANDMASK<>(SB), AX
-	VMOVDQU (AX), Y15
-	LEAQ    SHUFMASK<>(SB), AX
-	VMOVDQU (AX), Y14
-	VPXOR   Y13, Y13, Y13
+	LEAQ         ANDMASK<>(SB), AX
+	VMOVDQU      (AX), Y15
+	LEAQ         SHUFMASK<>(SB), AX
+	VMOVDQU      (AX), Y14
+	VPXOR        Y13, Y13, Y13
 	MOVQ         $0x2, AX // preprocessedSeparator
 	MOVQ         AX, X12
 	VPBROADCASTB X12, Y12
@@ -35,12 +34,74 @@ loop:
 	MOVQ         AX, X10
 	VPBROADCASTB X10, Y10
 
+	MOVQ         $0x0d, AX  // get character for carriage return
+	MOVQ         AX, X4
+	VPBROADCASTB X4, Y4
+	MOVQ         $0x02c, AX // separatorChar+88(FP), AX // get character for separator
+	MOVQ         AX, X5
+	VPBROADCASTB X5, Y5
+	MOVQ         $0x22, AX  // quoteChar+96(FP), AX     // get character for quote
+	MOVQ         AX, X6
+	VPBROADCASTB X6, Y6
+
+	XORQ DX, DX
+
 	MOVQ    buf+0(FP), DI
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
 
+	MOVQ input+24(FP), SI
+
+	// quote mask
+	VPCMPEQB Y8, Y6, Y0
+	VPCMPEQB Y9, Y6, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
+	MOVQ CX, QUOTE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
+
+loop:
+	MOVQ    buf+0(FP), DI
+	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+
+	MOVQ input+24(FP), SI
+
+	// quote mask
+	MOVQ QUOTE_MASK_IN_NEXT(SI), CX
+	MOVQ CX, QUOTE_MASK_IN(SI)
+
+	// separator mask
+	VPCMPEQB Y8, Y5, Y0
+	VPCMPEQB Y9, Y5, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
+	MOVQ CX, SEPARATOR_MASK_IN(SI)
+
+	// carriage return
+	VPCMPEQB Y8, Y4, Y0
+	VPCMPEQB Y9, Y4, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
+	MOVQ CX, CARRIAGE_RETURN_MASK_IN(SI)
+
+    // TODO: Check not reading beyond end of array
+	// quote mask next for next YMM word
+	VMOVDQU 0x40(DI)(DX*1), Y0 // load low 32-bytes
+	VMOVDQU 0x60(DI)(DX*1), Y1 // load high 32-bytes
+	VPCMPEQB Y0, Y6, Y0
+	VPCMPEQB Y1, Y6, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
+	MOVQ CX, QUOTE_MASK_IN_NEXT(SI)
+
+	PUSHQ DX
+	MOVQ  input+24(FP), AX
+	MOVQ  output+32(FP), R10
+	MOVQ  $0, 0(R10)
+	MOVQ  $0, 8(R10)
+	MOVQ  $0, 16(R10)
+	CALL  ·stage1_preprocess(SB)
+	POPQ  DX
+
     // Replace quotes
 	MOVQ output+32(FP), R10
+
 	MOVQ 0x0(R10), AX
     UNPACK_BITMASK(AX, X0, Y0)
     SHRQ $32, AX
@@ -69,14 +130,15 @@ loop:
 MOVQ debug+40(FP), AX
 VMOVDQU Y0, (AX)
 
+	MOVQ    buf+0(FP), DI
 	VMOVDQU Y8, (DI)(DX*1)
 	VMOVDQU Y9, 0x20(DI)(DX*1)
 
-//	ADDQ $0x40, DX
-//	CMPQ DX, $0x40*10
-//	JLT  loop
+	ADDQ $0x40, DX
+	CMPQ DX, buf_len+8(FP)
+	JLT  loop
 
-	RET
+    RET
 
 DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
 DATA SHUFMASK<>+0x008(SB)/8, $0x0101010101010101
