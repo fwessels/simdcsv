@@ -1,11 +1,13 @@
 package simdcsv
 
 import (
+	"encoding/csv"
 	"encoding/hex"
 	"log"
 	"math/bits"
 	"fmt"
 	"bytes"
+	"strings"
 	"reflect"
 	"testing"
 )
@@ -193,6 +195,68 @@ func testStage1PreprocessMasksToMasks(t *testing.T, data []byte, f func(input *s
 		fmt.Sprintf("        \\r: %064b·%064b", bits.Reverse64(output0.carriageReturnMaskOut), bits.Reverse64(output1.carriageReturnMaskOut))))
 
 	return out.String()
+}
+
+func TestStage1MaskingOut(t *testing.T) {
+
+	const data = `first_name,last_name,username
+RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
+"Robert","Grie                            semer","gr""i"`
+
+	separatorMasksIn := getBitMasks([]byte(data), byte(','))
+	quoteMasksIn := getBitMasks([]byte(data), byte('"'))
+	carriageReturnMasksIn := getBitMasks([]byte(data), byte('\r'))
+
+	input0 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], 0}
+	output0 := stage1Output{}
+
+	debug := [32]byte{}
+
+	buf := []byte(data)
+	stage1_preprocess_buffer(buf, &input0, &output0, &debug)
+
+	input1 := stage1Input{input0.quoteMaskInNext, separatorMasksIn[1], carriageReturnMasksIn[1], 0, input0.quoted}
+	output1 := stage1Output{}
+	stage1_preprocess_buffer(buf[64:], &input1, &output1, &debug)
+
+	//fmt.Printf("%x\n", debug)
+
+	out := bytes.NewBufferString("")
+	fmt.Fprintf(out, hex.Dump(buf))
+
+	const expected =
+`00000000  66 69 72 73 74 5f 6e 61  6d 65 02 6c 61 73 74 5f  |first_name.last_|
+00000010  6e 61 6d 65 02 75 73 65  72 6e 61 6d 65 0a 52 52  |name.username.RR|
+00000020  6f 62 65 72 74 74 02 03  50 69 2c 65 03 02 72 6f  |obertt..Pi,e..ro|
+00000030  62 0a 0a 4b 65 6e 6e 79  02 03 68 6f 0d 0a 73 6f  |b..Kenny..ho..so|
+00000040  03 02 6b 65 6e 6e 79 0a  03 52 6f 62 65 72 74 03  |..kenny..Robert.|
+00000050  02 03 47 72 69 65 20 20  20 20 20 20 20 20 20 20  |..Grie          |
+00000060  20 20 20 20 20 20 20 20  20 20 20 20 20 20 20 20  |                |
+00000070  20 20 73 65 6d 65 72 03  02 03 67 72 22 22 69 03  |  semer...gr""i.|
+`
+
+	if out.String() != expected {
+		t.Errorf("TestStage1MaskingOut: got %v, want %v", out.String(), expected)
+	}
+
+	simdrecords := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+
+	//
+	// postprocess
+	//   replace "" to " in specific columns
+	//   replace \r\n to \n in specific columns
+	simdrecords[3][2] = strings.ReplaceAll(simdrecords[3][2], "\"\"", "\"")
+	simdrecords[2][1] = strings.ReplaceAll(simdrecords[2][1], "\r\n", "\n")
+
+	r := csv.NewReader(bytes.NewReader([]byte(data)))
+	records, err := r.ReadAll()
+	if err != nil {
+		log.Fatalf("encoding/csv: %v", err)
+	}
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		log.Fatalf("TestStage1MaskingOut: got %v, want %v", simdrecords, records)
+	}
 }
 
 func TestStage1AlternativeMasks(t *testing.T) {

@@ -28,10 +28,25 @@ loop:
 	MOVQ         $0x2, AX // preprocessedSeparator
 	MOVQ         AX, X12
 	VPBROADCASTB X12, Y12
+	MOVQ         $0x3, AX // preprocessedQuote
+	MOVQ         AX, X11
+	VPBROADCASTB X11, Y11
+	MOVQ         $0x0a, AX // new line
+	MOVQ         AX, X10
+	VPBROADCASTB X10, Y10
 
 	MOVQ    buf+0(FP), DI
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+
+    // Replace quotes
+	MOVQ output+32(FP), R10
+	MOVQ 0x0(R10), AX
+    UNPACK_BITMASK(AX, X0, Y0)
+    SHRQ $32, AX
+    UNPACK_BITMASK(AX, X1, Y1)
+	VPBLENDVB Y0, Y11, Y8, Y8
+	VPBLENDVB Y1, Y11, Y9, Y9
 
     // Replace separators
 	MOVQ output+32(FP), R10
@@ -41,6 +56,15 @@ loop:
     UNPACK_BITMASK(AX, X1, Y1)
 	VPBLENDVB Y0, Y12, Y8, Y8
 	VPBLENDVB Y1, Y12, Y9, Y9
+
+    // Replace carriage returns
+	MOVQ output+32(FP), R10
+	MOVQ 0x10(R10), AX
+    UNPACK_BITMASK(AX, X0, Y0)
+    SHRQ $32, AX
+    UNPACK_BITMASK(AX, X1, Y1)
+	VPBLENDVB Y0, Y10, Y8, Y8
+	VPBLENDVB Y1, Y10, Y9, Y9
 
 MOVQ debug+40(FP), AX
 VMOVDQU Y0, (AX)
