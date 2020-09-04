@@ -21,8 +21,6 @@ const preprocessedSeparator = 0x2
 // (since opening and closing quotes are eliminated)
 const preprocessedQuote = 0x3
 
-const preprocessedDoubleQuote = 0x4
-
 func preprocessDoubleQuotes(in []byte) (out []byte) {
 
 	// Replace delimiter and separators
