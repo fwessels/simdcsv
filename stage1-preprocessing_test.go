@@ -203,23 +203,11 @@ func TestStage1MaskingOut(t *testing.T) {
 RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Grie                            semer","gr""i"`
 
-	separatorMasksIn := getBitMasks([]byte(data), byte(','))
-	quoteMasksIn := getBitMasks([]byte(data), byte('"'))
-	carriageReturnMasksIn := getBitMasks([]byte(data), byte('\r'))
-
-	input0 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], 0}
-	output0 := stage1Output{}
-
+	input, output := stage1Input{} ,stage1Output{}
 	debug := [32]byte{}
 
 	buf := []byte(data)
-	stage1_preprocess_buffer(buf, &input0, &output0, &debug)
-
-	input1 := stage1Input{input0.quoteMaskInNext, separatorMasksIn[1], carriageReturnMasksIn[1], 0, input0.quoted}
-	output1 := stage1Output{}
-	stage1_preprocess_buffer(buf[64:], &input1, &output1, &debug)
-
-	//fmt.Printf("%x\n", debug)
+	stage1_preprocess_buffer(buf, &input, &output, &debug)
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, hex.Dump(buf))
