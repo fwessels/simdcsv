@@ -204,10 +204,9 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Grie                            semer","gr""i"`
 
 	input, output := stage1Input{} ,stage1Output{}
-	debug := [32]byte{}
 
 	buf := []byte(data)
-	stage1_preprocess_buffer(buf, &input, &output, &debug)
+	stage1_preprocess_buffer(buf, &input, &output)
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, hex.Dump(buf))
@@ -276,9 +275,8 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	for i := 0; i < b.N; i++ {
 
 		input, output := stage1Input{} ,stage1Output{}
-		debug := [32]byte{}
 
 		copy(buf, dataN)
-		stage1_preprocess_buffer(buf, &input, &output, &debug)
+		stage1_preprocess_buffer(buf, &input, &output)
 	}
 }

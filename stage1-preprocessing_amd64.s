@@ -10,11 +10,17 @@
 	VPANDN       Y_ANDMASK, _YR1, _YR1                \
 	VPCMPEQB     Y_ZERO, _YR1, _YR1                   \
 
+// See stage1Input struct
 #define QUOTE_MASK_IN           0
 #define SEPARATOR_MASK_IN       8
 #define CARRIAGE_RETURN_MASK_IN 16
 #define QUOTE_MASK_IN_NEXT      24
 #define QUOTED                  32
+
+// See stage1Output struct
+#define QUOTE_MASK_OUT           0
+#define SEPARATOR_MASK_OUT       8
+#define CARRIAGE_RETURN_MASK_OUT 16
 
 #define Y_ANDMASK     Y15
 #define Y_SHUFMASK    Y14
@@ -101,16 +107,16 @@ loop:
 	PUSHQ DX
 	MOVQ  input+24(FP), AX
 	MOVQ  output+32(FP), R10
-	MOVQ  $0, 0(R10)
-	MOVQ  $0, 8(R10)
-	MOVQ  $0, 16(R10)
+	MOVQ  $0, QUOTE_MASK_OUT(R10)
+	MOVQ  $0, SEPARATOR_MASK_OUT(R10)
+	MOVQ  $0, CARRIAGE_RETURN_MASK_OUT(R10)
 	CALL  ·stage1_preprocess(SB)
 	POPQ  DX
 
 	// Replace quotes
 	MOVQ output+32(FP), R10
 
-	MOVQ      0x0(R10), AX
+	MOVQ      QUOTE_MASK_OUT(R10), AX
 	UNPACK_BITMASK(AX, X0, Y0)
 	SHRQ      $32, AX
 	UNPACK_BITMASK(AX, X1, Y1)
@@ -118,8 +124,7 @@ loop:
 	VPBLENDVB Y1, Y_PREPROC_QUO, Y9, Y9
 
 	// Replace separators
-	MOVQ      output+32(FP), R10
-	MOVQ      0x8(R10), AX
+	MOVQ      SEPARATOR_MASK_OUT(R10), AX
 	UNPACK_BITMASK(AX, X0, Y0)
 	SHRQ      $32, AX
 	UNPACK_BITMASK(AX, X1, Y1)
@@ -127,16 +132,12 @@ loop:
 	VPBLENDVB Y1, Y_PREPROC_SEP, Y9, Y9
 
 	// Replace carriage returns
-	MOVQ      output+32(FP), R10
-	MOVQ      0x10(R10), AX
+	MOVQ      CARRIAGE_RETURN_MASK_OUT(R10), AX
 	UNPACK_BITMASK(AX, X0, Y0)
 	SHRQ      $32, AX
 	UNPACK_BITMASK(AX, X1, Y1)
 	VPBLENDVB Y0, Y_PREPROC_NWL, Y8, Y8
 	VPBLENDVB Y1, Y_PREPROC_NWL, Y9, Y9
-
-	MOVQ    debug+40(FP), AX
-	VMOVDQU Y0, (AX)
 
 	MOVQ    buf+0(FP), DI
 	VMOVDQU Y8, (DI)(DX*1)
