@@ -194,6 +194,64 @@ func preprocessMasksToMasks(input *stage1Input, output *stage1Output) {
 	return
 }
 
+func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
+
+	const clearMask = 0xfffffffffffffffe
+
+	separatorPos := bits.TrailingZeros64(input.separatorMaskIn)
+	carriageReturnPos := bits.TrailingZeros64(input.carriageReturnMaskIn)
+	quotePos := bits.TrailingZeros64(input.quoteMaskIn)
+
+	output.separatorMaskOut = input.separatorMaskIn			   // copy separator mask to output
+	output.carriageReturnMaskOut = input.carriageReturnMaskIn  // copy carriage return mask to output
+
+	for {
+		if quotePos < separatorPos && quotePos < carriageReturnPos {
+
+			if input.quoted != 0 && quotePos == 63 && input.quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
+				// clear out both active bit and ...
+				input.quoteMaskIn &= clearMask << quotePos
+				// first bit of next quote mask
+				input.quoteMaskInNext &= ^uint64(1)
+			} else if input.quoted != 0 && input.quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
+				// clear out both active bit and subsequent bit
+				input.quoteMaskIn &= clearMask << (quotePos + 1)
+			} else {
+				output.quoteMaskOut |= 1 << quotePos
+				input.quoted = ^input.quoted
+
+				input.quoteMaskIn &= clearMask << quotePos
+			}
+
+			quotePos = bits.TrailingZeros64(input.quoteMaskIn)
+
+		} else if separatorPos < quotePos && separatorPos < carriageReturnPos {
+
+			if input.quoted != 0 {
+				output.separatorMaskOut &= ^(uint64(1) << separatorPos) // mask out separator bit in quoted field
+			}
+
+			input.separatorMaskIn &= clearMask << separatorPos
+			separatorPos = bits.TrailingZeros64(input.separatorMaskIn)
+
+		} else if carriageReturnPos < quotePos && carriageReturnPos < separatorPos {
+
+			if input.quoted != 0 {
+				output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage return bit in quoted field
+			}
+
+			input.carriageReturnMaskIn &= clearMask << carriageReturnPos
+			carriageReturnPos = bits.TrailingZeros64(input.carriageReturnMaskIn)
+
+		} else {
+			// we must be done
+			break
+		}
+	}
+
+	return
+}
+
 func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
 
 	// TODO: Return indexes of columns where we need to post-process
