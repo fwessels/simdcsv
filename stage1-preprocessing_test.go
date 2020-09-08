@@ -256,3 +256,29 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	fmt.Print(hex.Dump([]byte(data)))
 	alternativeStage1Masks([]byte(data))
 }
+
+func BenchmarkStage1PreprocessingMasks( b *testing.B) {
+
+	const data = `first_name,last_name,username
+RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
+"Robert","Grie                           semer","gr""i"
+`
+
+	const repeat = 50
+	dataN := make([]byte, 128*repeat)
+	dataN = bytes.Repeat([]byte(data), repeat)
+
+	b.SetBytes(int64(len(dataN)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	buf := make([]byte, len(dataN))
+	for i := 0; i < b.N; i++ {
+
+		input, output := stage1Input{} ,stage1Output{}
+		debug := [32]byte{}
+
+		copy(buf, dataN)
+		stage1_preprocess_buffer(buf, &input, &output, &debug)
+	}
+}
