@@ -57,9 +57,6 @@ Dagobert,Duck,dago
 func TestStage1PreprocessMasksToMasks(t *testing.T) {
 
 	t.Run("go", func(t *testing.T) {
-		testStage1PreprocessMasksToMasksFunc(t, preprocessMasksToMasks)
-	})
-	t.Run("go-inverted", func(t *testing.T) {
 		testStage1PreprocessMasksToMasksFunc(t, preprocessMasksToMasksInverted)
 	})
 	t.Run("avx2", func(t *testing.T) {
