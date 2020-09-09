@@ -35,6 +35,11 @@ benchmark              old MB/s     new MB/s     speedup
 BenchmarkFirstPass     760.36       4495.12      5.91x
 ```
 
+```
+go test -v -run=X -bench=Stage1PreprocessingMasks
+BenchmarkStage1PreprocessingMasks-8       282062              4038 ns/op        1584.78 MB/s
+```
+
 ### Stage 2
 
 ```
