@@ -296,33 +296,33 @@ label11:
 	JMP  label9
 
 label12:
-	CMPQ  DI, R9
-	JGE   label15
-	CMPQ  DI, BX
-	JGE   label15
-	CMPQ  0x20(AX), $0x0
-	JNE   label14
-	TESTB AL, (SI)
-	CMPQ  DI, $0x40
-	SBBQ  R8, R8
-	MOVQ  DI, CX
-	MOVL  $0x1, R10
-	SHLQ  CL, R10
-	ANDQ  R8, R10
-	ORQ   R10, 0x10(SI)
+	CMPQ DI, R9
+	JGE  label15
+	CMPQ DI, BX
+	JGE  label15
+	CMPQ 0x20(AX), $0x0
+	JE   label14
+	CMPQ DI, $0x40
+	SBBQ SI, SI
+	MOVQ DI, CX
+	MOVL $0x1, R8
+	SHLQ CL, R8
+	ANDQ SI, R8
+	NOTQ R8
+	ANDQ R8, 0x10(R10)
 
 label13:
-	MOVQ    0x10(AX), R8
+	MOVQ    0x10(AX), SI
 	CMPQ    CX, $0x40
-	SBBQ    R10, R10
+	SBBQ    R8, R8
 	MOVQ    $-0x2, R11
 	SHLQ    CL, R11
-	ANDQ    R10, R11
 	ANDQ    R8, R11
-	BSFQ    R11, R8
+	ANDQ    SI, R11
+	BSFQ    R11, SI
 	MOVQ    R11, 0x10(AX)
-	CMOVQEQ DX, R8
-	MOVQ    R8, DI
+	CMOVQEQ DX, SI
+	MOVQ    SI, DI
 	JMP     label10
 
 label14:
