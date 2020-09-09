@@ -107,9 +107,6 @@ loop:
 	PUSHQ DX
 	MOVQ  input+24(FP), AX
 	MOVQ  output+32(FP), R10
-	MOVQ  $0, QUOTE_MASK_OUT(R10)
-	MOVQ  $0, SEPARATOR_MASK_OUT(R10)
-	MOVQ  $0, CARRIAGE_RETURN_MASK_OUT(R10)
 	CALL  ·stage1_preprocess(SB)
 	POPQ  DX
 
@@ -176,7 +173,9 @@ TEXT ·stage1_preprocess(SB), 7, $0
 	BSFQ    SI, DI
 	MOVQ    (AX), R8
 	BSFQ    R8, R9
-	MOVQ    DX, 0x8(R10)
+	MOVQ    R8, (R10)
+	MOVQ    0x8(AX), R11
+	MOVQ    R11, 0x8(R10)
 	MOVQ    0x10(AX), R11
 	MOVQ    R11, 0x10(R10)
 	BSFQ    DX, DX
@@ -192,24 +191,25 @@ label1:
 	MOVQ SI, R9
 
 label2:
-	CMPQ R9, BX
-	JGE  label8
-	CMPQ R9, DI
-	JGE  label8
-	MOVQ 0x20(AX), SI
-	CMPQ SI, $0x0
-	JE   label5
-	CMPQ R9, $0x3f
-	JNE  label7
-	MOVQ 0x18(AX), R8
-	ANDQ $0x1, R8
-	CMPQ R8, $0x1
-	JNE  label4
-	MOVQ R9, CX
-	MOVQ $-0x2, SI
-	SHLQ CL, SI
-	ANDQ SI, (AX)
-	ANDQ $-0x2, 0x18(AX)
+	CMPQ  R9, BX
+	JGE   label8
+	CMPQ  R9, DI
+	JGE   label8
+	MOVQ  0x20(AX), SI
+	TESTQ SI, SI
+	JE    label5
+	CMPQ  R9, $0x3f
+	JNE   label7
+	MOVQ  0x18(AX), R8
+	ANDQ  $0x1, R8
+	CMPQ  R8, $0x1
+	JNE   label4
+	MOVQ  R9, CX
+	MOVQ  $-0x2, SI
+	SHLQ  CL, SI
+	ANDQ  SI, (AX)
+	BTRQ  CX, (R10)
+	ANDQ  $-0x2, 0x18(AX)
 
 label3:
 	MOVQ    (AX), SI
@@ -218,37 +218,40 @@ label3:
 	JMP     label1
 
 label4:
-	CMPQ SI, $0x0
+	TESTQ SI, SI
 
 label5:
 	JE    label6
-	MOVQ  (AX), SI
+	MOVQ  (AX), R8
 	LEAQ  0x1(R9), CX
 	CMPQ  CX, $0x40
-	SBBQ  R8, R8
-	MOVL  $0x1, R11
-	SHLQ  CL, R11
-	ANDQ  R8, R11
-	TESTQ SI, R11
+	SBBQ  R11, R11
+	MOVL  $0x1, R12
+	SHLQ  CL, R12
+	ANDQ  R11, R12
+	TESTQ R8, R12
 	JE    label6
-	MOVQ  $-0x2, R9
-	SHLQ  CL, R9
-	ANDQ  R8, R9
-	ANDQ  SI, R9
-	MOVQ  R9, (AX)
+	MOVQ  $-0x2, SI
+	SHLQ  CL, SI
+	ANDQ  R11, SI
+	ANDQ  R8, SI
+	MOVQ  SI, (AX)
+	CMPQ  R9, $0x40
+	SBBQ  SI, SI
+	MOVQ  R9, CX
+	MOVL  $0x3, R8
+	SHLQ  CL, R8
+	ANDQ  SI, R8
+	NOTQ  R8
+	ANDQ  R8, (R10)
 	JMP   label3
 
 label6:
+	NOTQ SI
+	MOVQ SI, 0x20(AX)
 	CMPQ R9, $0x40
 	SBBQ SI, SI
 	MOVQ R9, CX
-	MOVL $0x1, R8
-	SHLQ CL, R8
-	ANDQ SI, R8
-	ORQ  R8, (R10)
-	MOVQ 0x20(AX), R8
-	NOTQ R8
-	MOVQ R8, 0x20(AX)
 	MOVQ $-0x2, R8
 	SHLQ CL, R8
 	ANDQ R8, SI
@@ -256,8 +259,8 @@ label6:
 	JMP  label3
 
 label7:
-	CMPQ SI, $0x0
-	JMP  label5
+	TESTQ SI, SI
+	JMP   label5
 
 label8:
 	CMPQ BX, R9
