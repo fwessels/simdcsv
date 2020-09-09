@@ -147,6 +147,7 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 	carriageReturnPos := bits.TrailingZeros64(input.carriageReturnMaskIn)
 	quotePos := bits.TrailingZeros64(input.quoteMaskIn)
 
+	output.quoteMaskOut     = input.quoteMaskIn			       // copy quote mask to output
 	output.separatorMaskOut = input.separatorMaskIn			   // copy separator mask to output
 	output.carriageReturnMaskOut = input.carriageReturnMaskIn  // copy carriage return mask to output
 
@@ -156,13 +157,14 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 			if input.quoted != 0 && quotePos == 63 && input.quoteMaskInNext&1 == 1 { // last bit of quote mask and first bit of next quote mask set?
 				// clear out both active bit and ...
 				input.quoteMaskIn &= clearMask << quotePos
+				output.quoteMaskOut &= ^(uint64(1) << quotePos) // mask out quote
 				// first bit of next quote mask
 				input.quoteMaskInNext &= ^uint64(1)
 			} else if input.quoted != 0 && input.quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
 				// clear out both active bit and subsequent bit
 				input.quoteMaskIn &= clearMask << (quotePos + 1)
+				output.quoteMaskOut &= ^(uint64(3) << quotePos) // mask out two quotes
 			} else {
-				output.quoteMaskOut |= 1 << quotePos
 				input.quoted = ^input.quoted
 
 				input.quoteMaskIn &= clearMask << quotePos
