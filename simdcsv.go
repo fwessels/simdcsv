@@ -1,6 +1,7 @@
 package simdcsv
 
 import (
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"strings"
@@ -52,7 +53,7 @@ type Reader struct {
 	// This is done even if the field delimiter, Comma, is white space.
 	TrimLeadingSpace bool
 
-	ReuseRecord bool // Unused by simdcsv
+	ReuseRecord bool   // Deprecated: Unused by simdcsv.
 	TrailingComma bool // Deprecated: No longer used.
 
 	r *bufio.Reader
@@ -73,11 +74,49 @@ func NewReader(r io.Reader) *Reader {
 // reported.
 func (r *Reader) ReadAll() ([][]string, error) {
 
+	if r.LazyQuotes {
+		rCsv := csv.NewReader(r.r)
+		rCsv.LazyQuotes = r.LazyQuotes
+		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
+		rCsv.Comment = r.Comment
+		rCsv.Comma = r.Comma
+		rCsv.FieldsPerRecord = r.FieldsPerRecord
+		rCsv.ReuseRecord = r.ReuseRecord
+		return rCsv.ReadAll()
+	}
+
 	buf, err := r.r.ReadBytes(0)
 	if err != nil && err != io.EOF {
 		return nil, err
 	}
-	records := Stage2ParseBuffer(buf, '\n', uint64(r.Comma), '"', nil)
+
+	// TODO: Remove alignment code
+	bufWithPadding := make([]byte, (len(buf) + 128)&^127)
+	//fmt.Println(len(buf))
+	//fmt.Println(len(bufWithPadding))
+	copy(bufWithPadding, buf)
+
+	input, output := stage1Input{} ,stage1Output{}
+
+	stage1_preprocess_buffer(bufWithPadding[:len(buf)], uint64(r.Comma), &input, &output)
+
+	records := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
+
+	// TODO: Do this more optimally
+	for _, r := range records {
+		for i  := range r {
+			r[i] = strings.ReplaceAll(r[i], "\"\"", "\"")
+			r[i] = strings.ReplaceAll(r[i], "\r\n", "\n")
+		}
+	}
+
+	if r.Comment != 0 {
+		FilterOutComments(&records, byte(r.Comment))
+	}
+	if r.TrimLeadingSpace {
+		TrimLeadingSpace(&records)
+	}
+
 	return records, nil
 }
 
