@@ -176,6 +176,7 @@ TEXT ·stage1_preprocess(SB), 7, $0
 	MOVQ    R8, (R10)
 	MOVQ    DX, 0x8(R10)
 	MOVQ    SI, 0x10(R10)
+	MOVQ    $0x0, 0x18(R10)
 	BSFQ    DX, R11
 	MOVL    $0x40, R11
 	CMOVQEQ R11, BX
@@ -183,43 +184,39 @@ TEXT ·stage1_preprocess(SB), 7, $0
 	CMOVQEQ R11, DI
 	BSFQ    R8, R12
 	CMOVQEQ R11, R9
-	JMP     label2
 
 label1:
-	MOVQ R8, R9
-	MOVQ R12, R8
-
-label2:
 	CMPQ  R9, BX
-	JGE   label9
+	JGE   label7
 	CMPQ  R9, DI
-	JGE   label9
+	JGE   label7
 	MOVQ  0x20(AX), R12
 	TESTQ R12, R12
-	JE    label5
+	JE    label4
 	CMPQ  R9, $0x3f
-	JNE   label8
+	JNE   label6
 	MOVQ  0x18(AX), R13
 	ANDQ  $0x1, R13
 	CMPQ  R13, $0x1
-	JNE   label4
+	JNE   label3
 	BTRQ  R9, (R10)
+	MOVQ  $0x1, 0x18(R10)
 	ANDQ  $-0x2, 0x18(AX)
 	MOVQ  R9, CX
 	MOVQ  $-0x2, R12
 	SHLQ  CL, R12
-	ANDQ  R8, R12
+	ANDQ  R12, R8
 
-label3:
-	BSFQ    R12, R8
-	CMOVQEQ R11, R8
+label2:
+	BSFQ    R8, R9
+	CMOVQEQ R11, R9
 	JMP     label1
 
-label4:
+label3:
 	TESTQ R12, R12
 
-label5:
-	JE    label7
+label4:
+	JE    label5
 	LEAQ  0x1(R9), CX
 	CMPQ  CX, $0x40
 	SBBQ  R13, R13
@@ -227,7 +224,7 @@ label5:
 	SHLQ  CL, R14
 	ANDQ  R13, R14
 	TESTQ R8, R14
-	JE    label7
+	JE    label5
 	MOVQ  $-0x2, R12
 	SHLQ  CL, R12
 	ANDQ  R13, R12
@@ -240,12 +237,10 @@ label5:
 	ANDQ  R12, R13
 	NOTQ  R13
 	ANDQ  R13, (R10)
+	MOVQ  $0x1, 0x18(R10)
+	JMP   label2
 
-label6:
-	MOVQ R8, R12
-	JMP  label3
-
-label7:
+label5:
 	NOTQ R12
 	MOVQ R12, 0x20(AX)
 	CMPQ R9, $0x40
@@ -253,31 +248,32 @@ label7:
 	MOVQ R9, CX
 	MOVQ $-0x2, R13
 	SHLQ CL, R13
-	ANDQ R13, R12
-	ANDQ R12, R8
-	JMP  label6
+	ANDQ R12, R13
+	ANDQ R13, R8
+	JMP  label2
+
+label6:
+	TESTQ R12, R12
+	JMP   label4
+
+label7:
+	CMPQ BX, R9
+	JGE  label10
+	CMPQ BX, DI
+	JGE  label10
+	CMPQ 0x20(AX), $0x0
+	JE   label9
+	CMPQ BX, $0x40
+	SBBQ R12, R12
+	MOVQ BX, CX
+	MOVL $0x1, R13
+	SHLQ CL, R13
+	ANDQ R12, R13
+	NOTQ R13
+	ANDQ R13, 0x8(R10)
+	MOVQ $0x1, 0x18(R10)
 
 label8:
-	TESTQ R12, R12
-	JMP   label5
-
-label9:
-	CMPQ    BX, R9
-	JGE     label13
-	CMPQ    BX, DI
-	JGE     label13
-	CMPQ    0x20(AX), $0x0
-	JE      label12
-	CMPQ    BX, $0x40
-	SBBQ    R12, R12
-	MOVQ    BX, CX
-	MOVL    $0x1, R13
-	SHLQ    CL, R13
-	ANDQ    R12, R13
-	NOTQ    R13
-	ANDQ    R13, 0x8(R10)
-
-label10:
 	CMPQ    CX, $0x40
 	SBBQ    R12, R12
 	MOVQ    $-0x2, R13
@@ -286,33 +282,30 @@ label10:
 	ANDQ    R13, DX
 	BSFQ    DX, BX
 	CMOVQEQ R11, BX
+	JMP     label1
+
+label9:
+	MOVQ BX, CX
+	JMP  label8
+
+label10:
+	CMPQ DI, R9
+	JGE  label13
+	CMPQ DI, BX
+	JGE  label13
+	CMPQ 0x20(AX), $0x0
+	JE   label12
+	CMPQ DI, $0x40
+	SBBQ R12, R12
+	MOVQ DI, CX
+	MOVL $0x1, R13
+	SHLQ CL, R13
+	ANDQ R12, R13
+	NOTQ R13
+	ANDQ R13, 0x10(R10)
+	MOVQ $0x1, 0x18(R10)
 
 label11:
-	MOVQ R8, R12
-	MOVQ R9, R8
-	JMP  label1
-
-label12:
-	MOVQ BX, CX
-	JMP  label10
-
-label13:
-	CMPQ    DI, R9
-	JGE     label16
-	CMPQ    DI, BX
-	JGE     label16
-	CMPQ    0x20(AX), $0x0
-	JE      label15
-	CMPQ    DI, $0x40
-	SBBQ    R12, R12
-	MOVQ    DI, CX
-	MOVL    $0x1, R13
-	SHLQ    CL, R13
-	ANDQ    R12, R13
-	NOTQ    R13
-	ANDQ    R13, 0x10(R10)
-
-label14:
 	CMPQ    CX, $0x40
 	SBBQ    R12, R12
 	MOVQ    $-0x2, R13
@@ -322,11 +315,11 @@ label14:
 	BSFQ    SI, R12
 	CMOVQEQ R11, R12
 	MOVQ    R12, DI
-	JMP     label11
+	JMP     label1
 
-label15:
+label12:
 	MOVQ DI, CX
-	JMP  label14
+	JMP  label11
 
-label16:
+label13:
 	RET

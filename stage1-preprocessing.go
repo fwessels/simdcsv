@@ -134,6 +134,7 @@ type stage1Output struct {
 	quoteMaskOut 		  uint64
 	separatorMaskOut 	  uint64
 	carriageReturnMaskOut uint64
+	modified 			  uint64
 }
 
 func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
@@ -148,9 +149,10 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 	carriageReturnPos := bits.TrailingZeros64(carriageReturnMaskIn)
 	quotePos := bits.TrailingZeros64(quoteMaskIn)
 
-	output.quoteMaskOut     = quoteMaskIn			       // copy quote mask to output
-	output.separatorMaskOut = separatorMaskIn			   // copy separator mask to output
+	output.quoteMaskOut     = quoteMaskIn			     // copy quote mask to output
+	output.separatorMaskOut = separatorMaskIn			 // copy separator mask to output
 	output.carriageReturnMaskOut = carriageReturnMaskIn  // copy carriage return mask to output
+	output.modified = 0
 
 	for {
 		if quotePos < separatorPos && quotePos < carriageReturnPos {
@@ -159,12 +161,14 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 				// clear out both active bit and ...
 				quoteMaskIn &= clearMask << quotePos
 				output.quoteMaskOut &= ^(uint64(1) << quotePos) // mask out quote
+				output.modified = 1
 				// first bit of next quote mask
 				input.quoteMaskInNext &= ^uint64(1)
 			} else if input.quoted != 0 && quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
 				// clear out both active bit and subsequent bit
 				quoteMaskIn &= clearMask << (quotePos + 1)
 				output.quoteMaskOut &= ^(uint64(3) << quotePos) // mask out two quotes
+				output.modified = 1
 			} else {
 				input.quoted = ^input.quoted
 
@@ -177,6 +181,7 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 
 			if input.quoted != 0 {
 				output.separatorMaskOut &= ^(uint64(1) << separatorPos) // mask out separator bit in quoted field
+				output.modified = 1
 			}
 
 			separatorMaskIn &= clearMask << separatorPos
@@ -186,6 +191,7 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 
 			if input.quoted != 0 {
 				output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage return bit in quoted field
+				output.modified = 1
 			}
 
 			carriageReturnMaskIn &= clearMask << carriageReturnPos
