@@ -30,7 +30,7 @@
 #define Y_PREPROC_NWL Y10
 #define Y_QUOTE_CHAR  Y6
 
-// func stage1_preprocess_buffer(buf []byte, input *stage1Input, output *stage1Output)
+// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input *stage1Input, output *stage1Output)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
 
 	LEAQ         ANDMASK<>(SB), AX
@@ -48,13 +48,13 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ         AX, X10
 	VPBROADCASTB X10, Y_PREPROC_NWL
 
-	MOVQ         $0x0d, AX        // get character for carriage return
+	MOVQ         $0x0d, AX        // character for carriage return
 	MOVQ         AX, X4
 	VPBROADCASTB X4, Y4
-	MOVQ         $0x02c, AX       // separatorChar+88(FP), AX // get character for separator
+	MOVQ         separatorChar+24(FP), AX // get character for separator
 	MOVQ         AX, X5
 	VPBROADCASTB X5, Y5
-	MOVQ         $0x22, AX        // quoteChar+96(FP), AX     // get character for quote
+	MOVQ         $0x22, AX        // character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y_QUOTE_CHAR
 
@@ -64,7 +64,7 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
 
-	MOVQ input+24(FP), SI
+	MOVQ input+32(FP), SI
 
 	// quote mask
 	VPCMPEQB Y8, Y_QUOTE_CHAR, Y0
@@ -77,7 +77,7 @@ loop:
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
 
-	MOVQ input+24(FP), SI
+	MOVQ input+32(FP), SI
 
 	// quote mask
 	MOVQ QUOTE_MASK_IN_NEXT(SI), CX
@@ -105,13 +105,13 @@ loop:
 	MOVQ     CX, QUOTE_MASK_IN_NEXT(SI)
 
 	PUSHQ DX
-	MOVQ  input+24(FP), AX
-	MOVQ  output+32(FP), R10
+	MOVQ  input+32(FP), AX
+	MOVQ  output+40(FP), R10
 	CALL  ·stage1_preprocess(SB)
 	POPQ  DX
 
 	// Replace quotes
-	MOVQ output+32(FP), R10
+	MOVQ output+40(FP), R10
 
 	MOVQ      QUOTE_MASK_OUT(R10), AX
 	UNPACK_BITMASK(AX, X0, Y0)

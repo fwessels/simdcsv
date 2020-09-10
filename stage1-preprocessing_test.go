@@ -206,7 +206,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	input, output := stage1Input{} ,stage1Output{}
 
 	buf := []byte(data)
-	stage1_preprocess_buffer(buf, &input, &output)
+	stage1_preprocess_buffer(buf, uint64(','), &input, &output)
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, hex.Dump(buf))
@@ -277,6 +277,6 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 		input, output := stage1Input{} ,stage1Output{}
 
 		copy(buf, dataN)
-		stage1_preprocess_buffer(buf, &input, &output)
+		stage1_preprocess_buffer(buf, uint64(','), &input, &output)
 	}
 }
