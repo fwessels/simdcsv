@@ -271,7 +271,6 @@ label7:
 	ANDQ R12, R13
 	NOTQ R13
 	ANDQ R13, 0x8(R10)
-	MOVQ $0x1, 0x18(R10)
 
 label8:
 	CMPQ    CX, $0x40

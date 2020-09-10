@@ -1,14 +1,14 @@
 package simdcsv
 
 import (
-	"fmt"
 	"bytes"
-	"math/bits"
-	"strings"
-	"encoding/hex"
 	"encoding/csv"
+	"encoding/hex"
+	"fmt"
 	"log"
+	"math/bits"
 	"reflect"
+	"strings"
 )
 
 // Substitute values when preprocessing a chunk
@@ -123,18 +123,18 @@ func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64
 }
 
 type stage1Input struct {
-	quoteMaskIn			 uint64
-	separatorMaskIn 	 uint64
+	quoteMaskIn          uint64
+	separatorMaskIn      uint64
 	carriageReturnMaskIn uint64
-	quoteMaskInNext 	 uint64
-	quoted				 uint64
+	quoteMaskInNext      uint64
+	quoted               uint64
 }
 
 type stage1Output struct {
-	quoteMaskOut 		  uint64
-	separatorMaskOut 	  uint64
+	quoteMaskOut          uint64
+	separatorMaskOut      uint64
 	carriageReturnMaskOut uint64
-	modified 			  uint64
+	needsPostProcessing   uint64
 }
 
 func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
@@ -149,10 +149,10 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 	carriageReturnPos := bits.TrailingZeros64(carriageReturnMaskIn)
 	quotePos := bits.TrailingZeros64(quoteMaskIn)
 
-	output.quoteMaskOut     = quoteMaskIn			     // copy quote mask to output
-	output.separatorMaskOut = separatorMaskIn			 // copy separator mask to output
-	output.carriageReturnMaskOut = carriageReturnMaskIn  // copy carriage return mask to output
-	output.modified = 0
+	output.quoteMaskOut = quoteMaskIn                   // copy quote mask to output
+	output.separatorMaskOut = separatorMaskIn           // copy separator mask to output
+	output.carriageReturnMaskOut = carriageReturnMaskIn // copy carriage return mask to output
+	output.needsPostProcessing = 0                      // flag to indicate whether post-processing is need for these masks
 
 	for {
 		if quotePos < separatorPos && quotePos < carriageReturnPos {
@@ -161,14 +161,14 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 				// clear out both active bit and ...
 				quoteMaskIn &= clearMask << quotePos
 				output.quoteMaskOut &= ^(uint64(1) << quotePos) // mask out quote
-				output.modified = 1
+				output.needsPostProcessing = 1                  // post-processing is required for double quotes
 				// first bit of next quote mask
 				input.quoteMaskInNext &= ^uint64(1)
 			} else if input.quoted != 0 && quoteMaskIn&(1<<(quotePos+1)) != 0 { // next quote bit is also set (so two adjacent bits) ?
 				// clear out both active bit and subsequent bit
 				quoteMaskIn &= clearMask << (quotePos + 1)
 				output.quoteMaskOut &= ^(uint64(3) << quotePos) // mask out two quotes
-				output.modified = 1
+				output.needsPostProcessing = 1                  // post-processing is required for double quotes
 			} else {
 				input.quoted = ^input.quoted
 
@@ -181,7 +181,6 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 
 			if input.quoted != 0 {
 				output.separatorMaskOut &= ^(uint64(1) << separatorPos) // mask out separator bit in quoted field
-				output.modified = 1
 			}
 
 			separatorMaskIn &= clearMask << separatorPos
@@ -191,7 +190,7 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 
 			if input.quoted != 0 {
 				output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage return bit in quoted field
-				output.modified = 1
+				output.needsPostProcessing = 1                                    // post-processing is required for carriage returns
 			}
 
 			carriageReturnMaskIn &= clearMask << carriageReturnPos
@@ -242,7 +241,7 @@ func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, 
 func clearAndMerge(data []byte, mask, replacement uint64) {
 
 	for i := 0; i < 64 && i < len(data); i++ {
-		if mask & (1 << i) == (1 << i) {
+		if mask&(1<<i) == (1 << i) {
 			data[i] = byte(replacement)
 		}
 	}
