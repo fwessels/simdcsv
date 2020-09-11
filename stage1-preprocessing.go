@@ -194,9 +194,10 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 				output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage return bit in quoted field
 				output.needsPostProcessing = 1                                    // post-processing is required for carriage returns in quoted fields
 			} else {
-				if (carriageReturnPos == 63 && input.newlineMaskInNext&1 == 0) ||
-					(carriageReturnPos < 63 && input.newlineMaskIn&(1<<(carriageReturnPos+1)) == 0) {
-					output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage returns not followed by a newline
+				if carriageReturnPos == 63 && input.newlineMaskInNext&1 == 0 {
+					output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage return for replacement without following newline
+				} else if input.newlineMaskIn&(uint64(1)<<(carriageReturnPos+1)) == 0 {
+					output.carriageReturnMaskOut &= ^(uint64(1) << carriageReturnPos) // mask out carriage return bit in quoted field
 				}
 			}
 

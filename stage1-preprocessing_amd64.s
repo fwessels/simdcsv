@@ -137,7 +137,7 @@ loop:
 	VPBLENDVB Y0, Y_PREPROC_NWL, Y8, Y8
 	VPBLENDVB Y1, Y_PREPROC_NWL, Y9, Y9
 
-    // Store updated result
+	// Store updated result
 	MOVQ    buf+0(FP), DI
 	VMOVDQU Y8, (DI)(DX*1)
 	VMOVDQU Y9, 0x20(DI)(DX*1)
@@ -302,9 +302,9 @@ label9:
 
 label10:
 	CMPQ DI, R9
-	JGE  label13
+	JGE  label16
 	CMPQ DI, BX
-	JGE  label13
+	JGE  label16
 	CMPQ 0x20(AX), $0x0
 	JE   label12
 	CMPQ DI, $0x40
@@ -330,8 +330,40 @@ label11:
 	JMP     label1
 
 label12:
+	CMPQ DI, $0x3f
+	JNE  label14
+	MOVQ 0x30(AX), R12
+	BTL  $0x0, R12
+	JB   label14
+	BTRQ DI, 0x10(R10)
+
+label13:
 	MOVQ DI, CX
 	JMP  label11
 
-label13:
+label14:
+	MOVQ  0x28(AX), R12
+	LEAQ  0x1(DI), CX
+	CMPQ  CX, $0x40
+	SBBQ  R13, R13
+	MOVL  $0x1, R14
+	SHLQ  CL, R14
+	ANDQ  R13, R14
+	TESTQ R12, R14
+	JNE   label15
+	CMPQ  DI, $0x40
+	SBBQ  R12, R12
+	MOVQ  DI, CX
+	MOVL  $0x1, R13
+	SHLQ  CL, R13
+	ANDQ  R12, R13
+	NOTQ  R13
+	ANDQ  R13, 0x10(R10)
+	JMP   label13
+
+label15:
+	MOVQ DI, CX
+	JMP  label13
+
+label16:
 	RET
