@@ -97,8 +97,9 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	copy(bufWithPadding, buf)
 
 	input, output := stage1Input{} ,stage1Output{}
+	postProc := make([]uint64, 0, len(buf)>>6)
 
-	stage1_preprocess_buffer(bufWithPadding[:len(buf)], uint64(r.Comma), &input, &output)
+	stage1_preprocess_buffer(bufWithPadding[:len(buf)], uint64(r.Comma), &input, &output, &postProc)
 
 	records := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
 

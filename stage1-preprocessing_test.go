@@ -204,9 +204,10 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Grie                            semer","gr""i"`
 
 	input, output := stage1Input{} ,stage1Output{}
-
 	buf := []byte(data)
-	stage1_preprocess_buffer(buf, uint64(','), &input, &output)
+	postProc := make([]uint64, 0, len(buf)>>6)
+
+	stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc)
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, hex.Dump(buf))
@@ -271,12 +272,14 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	input, output := stage1Input{} ,stage1Output{}
 	buf := make([]byte, len(dataN))
+	postProc := make([]uint64, 0, len(buf)>>6)
+
 	for i := 0; i < b.N; i++ {
 
-		input, output := stage1Input{} ,stage1Output{}
-
 		copy(buf, dataN)
-		stage1_preprocess_buffer(buf, uint64(','), &input, &output)
+		postProc = postProc[:0]
+		stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc)
 	}
 }

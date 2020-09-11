@@ -18,9 +18,10 @@
 #define QUOTED                  32
 
 // See stage1Output struct
-#define QUOTE_MASK_OUT           0
-#define SEPARATOR_MASK_OUT       8
-#define CARRIAGE_RETURN_MASK_OUT 16
+#define QUOTE_MASK_OUT            0
+#define SEPARATOR_MASK_OUT        8
+#define CARRIAGE_RETURN_MASK_OUT  16
+#define NEEDS_POST_PROCESSING_OUT 24
 
 #define Y_ANDMASK     Y15
 #define Y_SHUFMASK    Y14
@@ -48,13 +49,13 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ         AX, X10
 	VPBROADCASTB X10, Y_PREPROC_NWL
 
-	MOVQ         $0x0d, AX        // character for carriage return
+	MOVQ         $0x0d, AX                // character for carriage return
 	MOVQ         AX, X4
 	VPBROADCASTB X4, Y4
 	MOVQ         separatorChar+24(FP), AX // get character for separator
 	MOVQ         AX, X5
 	VPBROADCASTB X5, Y5
-	MOVQ         $0x22, AX        // character for quote
+	MOVQ         $0x22, AX                // character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y_QUOTE_CHAR
 
@@ -110,9 +111,9 @@ loop:
 	CALL  ·stage1_preprocess(SB)
 	POPQ  DX
 
-	// Replace quotes
 	MOVQ output+40(FP), R10
 
+	// Replace quotes
 	MOVQ      QUOTE_MASK_OUT(R10), AX
 	UNPACK_BITMASK(AX, X0, Y0)
 	SHRQ      $32, AX
@@ -136,10 +137,22 @@ loop:
 	VPBLENDVB Y0, Y_PREPROC_NWL, Y8, Y8
 	VPBLENDVB Y1, Y_PREPROC_NWL, Y9, Y9
 
+    // Store updated result
 	MOVQ    buf+0(FP), DI
 	VMOVDQU Y8, (DI)(DX*1)
 	VMOVDQU Y9, 0x20(DI)(DX*1)
 
+	MOVQ output+40(FP), R10
+	CMPQ NEEDS_POST_PROCESSING_OUT(R10), $1
+	JNZ  unmodified
+
+	MOVQ postProc+48(FP), AX
+	MOVQ 0(AX), BX
+	MOVQ 8(AX), CX
+	MOVQ DX, (BX)(CX*8)
+	INCQ 8(AX)
+
+unmodified:
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
