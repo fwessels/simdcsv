@@ -16,6 +16,8 @@
 #define CARRIAGE_RETURN_MASK_IN 16
 #define QUOTE_MASK_IN_NEXT      24
 #define QUOTED                  32
+#define NEWLINE_MASK_IN         40
+#define NEWLINE_MASK_IN_NEXT    48
 
 // See stage1Output struct
 #define QUOTE_MASK_OUT            0
@@ -30,6 +32,7 @@
 #define Y_PREPROC_QUO Y11
 #define Y_PREPROC_NWL Y10
 #define Y_QUOTE_CHAR  Y6
+#define Y_NEWLINE     Y3
 
 // func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input *stage1Input, output *stage1Output)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
@@ -49,6 +52,9 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ         AX, X10
 	VPBROADCASTB X10, Y_PREPROC_NWL
 
+	MOVQ         $0x0a, AX                // character for newline
+	MOVQ         AX, X3
+	VPBROADCASTB X3, Y_NEWLINE
 	MOVQ         $0x0d, AX                // character for carriage return
 	MOVQ         AX, X4
 	VPBROADCASTB X4, Y4
@@ -73,6 +79,12 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, QUOTE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
 
+	// newline
+	VPCMPEQB Y8, Y_NEWLINE, Y0
+	VPCMPEQB Y9, Y_NEWLINE, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
+	MOVQ     CX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
+
 loop:
 	MOVQ    buf+0(FP), DI
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
@@ -80,9 +92,11 @@ loop:
 
 	MOVQ input+32(FP), SI
 
-	// quote mask
+	// copy next masks to current slot (for quote mask and newline mask)
 	MOVQ QUOTE_MASK_IN_NEXT(SI), CX
 	MOVQ CX, QUOTE_MASK_IN(SI)
+	MOVQ NEWLINE_MASK_IN_NEXT(SI), CX
+	MOVQ CX, NEWLINE_MASK_IN(SI)
 
 	// separator mask
 	VPCMPEQB Y8, Y5, Y0
@@ -104,6 +118,12 @@ loop:
 	VPCMPEQB Y1, Y_QUOTE_CHAR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, QUOTE_MASK_IN_NEXT(SI)
+
+	// quote mask next for next YMM word
+	VPCMPEQB Y0, Y_NEWLINE, Y0
+	VPCMPEQB Y1, Y_NEWLINE, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
+	MOVQ     CX, NEWLINE_MASK_IN_NEXT(SI)
 
 	PUSHQ DX
 	MOVQ  input+32(FP), AX
