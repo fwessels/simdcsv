@@ -215,8 +215,6 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 
 func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
 
-	// TODO: Return indexes of columns where we need to post-process
-
 	for i := 0; i < 64 && i < len(in); i++ {
 		b := in[i]
 
