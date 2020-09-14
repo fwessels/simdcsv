@@ -32,6 +32,8 @@
 #define Y_PREPROC_QUO Y11
 #define Y_PREPROC_NWL Y10
 #define Y_QUOTE_CHAR  Y6
+#define Y_SEPARATOR   Y5
+#define Y_CARRIAGE_R  Y4
 #define Y_NEWLINE     Y3
 
 // func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input *stage1Input, output *stage1Output)
@@ -57,10 +59,10 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	VPBROADCASTB X3, Y_NEWLINE
 	MOVQ         $0x0d, AX                // character for carriage return
 	MOVQ         AX, X4
-	VPBROADCASTB X4, Y4
+	VPBROADCASTB X4, Y_CARRIAGE_R
 	MOVQ         separatorChar+24(FP), AX // get character for separator
 	MOVQ         AX, X5
-	VPBROADCASTB X5, Y5
+	VPBROADCASTB X5, Y_SEPARATOR
 	MOVQ         $0x22, AX                // character for quote
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y_QUOTE_CHAR
@@ -99,14 +101,14 @@ loop:
 	MOVQ CX, NEWLINE_MASK_IN(SI)
 
 	// separator mask
-	VPCMPEQB Y8, Y5, Y0
-	VPCMPEQB Y9, Y5, Y1
+	VPCMPEQB Y8, Y_SEPARATOR, Y0
+	VPCMPEQB Y9, Y_SEPARATOR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, SEPARATOR_MASK_IN(SI)
 
 	// carriage return
-	VPCMPEQB Y8, Y4, Y0
-	VPCMPEQB Y9, Y4, Y1
+	VPCMPEQB Y8, Y_CARRIAGE_R, Y0
+	VPCMPEQB Y9, Y_CARRIAGE_R, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, CARRIAGE_RETURN_MASK_IN(SI)
 
