@@ -310,3 +310,53 @@ func alternativeStage1Masks(data []byte) {
 		log.Fatalf("alternativeStage1Masks: got %v, want %v", simdrecords, records)
 	}
 }
+
+type postProcRow struct {
+	start int
+	end  int
+}
+
+//
+// Determine which rows and columns need post processing
+// This is  need to replace both "" to " as well as
+// \r\n to \n in specific columns
+func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) (ppRows []postProcRow) {
+
+	// TODO: Crude implementation, make more refined/granular
+
+	sliceptr := func(slc []byte) uintptr {
+		return (*reflect.SliceHeader)(unsafe.Pointer(&slc)).Data
+	}
+	stringptr := func (s string) uintptr {
+		return (*reflect.StringHeader)(unsafe.Pointer(&s)).Data
+	}
+
+	ppRows = make([]postProcRow, 0, 128)
+
+	row, pbuf := 0, sliceptr(buf)
+	for ipp, pp := range postProc {
+
+		if ipp < len(postProc) - 1 && pp == postProc[ipp+1]  {
+			continue // if offset occurs multiple times, process only last one
+		}
+
+		// find start row to process
+		for row < len(simdrecords) && uint64(stringptr(simdrecords[row][0])-pbuf) < pp {
+			row++
+		}
+
+		ppr := postProcRow{}
+		if row > 0 {
+			ppr.start = row-1
+		}
+
+		// find end row to process
+		for row < len(simdrecords) && uint64(stringptr(simdrecords[row][0])-pbuf) < pp+64 {
+			row++
+		}
+		ppr.end = row
+
+		ppRows = append(ppRows, ppr)
+	}
+	return
+}
