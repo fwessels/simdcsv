@@ -406,3 +406,194 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 		stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc)
 	}
 }
+
+func TestStage1DeterminePostProcRows(t *testing.T) {
+
+	t.Run("none", func(t *testing.T) {
+		const data = `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+`
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("double-quote", func(t *testing.T) {
+		const data = `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Grie""semer","gri"
+`
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{2,4}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("quoted-CRLF", func(t *testing.T) {
+		const data = `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Grie`+"\r\n"+`semer","gri"
+`
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{2,4}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("multiple-double-quotes", func(t *testing.T) {
+		const data = `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Grie""semer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Ro""bert","Griesemer","gri"
+`
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{2,6}, {9, 13}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("multiple-quoted-CRLFs", func(t *testing.T) {
+		const data = `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Rob`+"\r\n"+`ert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","g`+"\r\n"+`ri"
+`
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{2, 6}, {12, 13}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("mixed", func(t *testing.T) {
+		const data = `first_name,last_name,username
+"Rob","Pi`+"\r\n"+`ke",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Ro""b","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","g`+"\r\n"+`ri"
+`
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{0, 3}, {5, 10}, {12, 13}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("huge", func(t *testing.T) {
+		const header = `first_name,last_name,username` + "\n"
+		const first = `"Rob","Pike",rob` + "\n"
+		const second = `Ken,Thompson,ken` + "\n"
+		const third = `"Robert","Griesemer","gri"` + "\n"
+
+		data := header
+
+		for i := 0; i < 250; i++ {
+			if i % 59 == 58 {
+				data += strings.ReplaceAll(first, "Pike", `Pi""ke`) + second + third
+			} else if i % 97 == 96 {
+				data += first + second + strings.ReplaceAll(third, "Griesemer", "Grie\r\nsemer")
+			} else {
+				data += first + second + third
+			}
+		}
+
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{172, 176},  {288, 292}, {351, 355}, {528, 532}, {581, 585}, {704, 708}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+
+	t.Run("long-lines", func(t *testing.T) {
+
+		data := ""
+
+		for i := 0; i < 50; i++ {
+			if i % 11 == 10 {
+				data += strings.Repeat("a", 40) + `,"` + strings.Repeat("b", 20) + `""` + strings.Repeat("b", 20) + `",` + strings.Repeat("c", 40) + "\n"
+			} else if i %  17 == 16 {
+				data += strings.Repeat("a", 40) + "," + strings.Repeat("b", 40) + `,"` + strings.Repeat("c", 15) + "\r\n" + strings.Repeat("c", 25)+ `"` + "\n"
+			} else {
+				data += strings.Repeat("a", 40) + "," + strings.Repeat("b", 40) + "," + strings.Repeat("c", 40) + "\n"
+			}
+		}
+
+		pprows := testStage1DeterminePostProcRows(t, []byte(data))
+		expected := []postProcRow{{10, 11}, {16, 18}, {21, 22}, {32, 33}, {33, 35}, {43, 44}}
+
+		if !reflect.DeepEqual(pprows, expected) {
+			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
+		}
+	})
+}
+
+func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
+
+	input, output := stage1Input{} ,stage1Output{}
+	postProc := make([]uint64, 0, len(buf)>>6)
+
+	stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc)
+	simdrecords, _ := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+
+	pprows := getPostProcRows(buf, postProc, simdrecords)
+
+	// Sanity check: there must be either a double quote or \r\n combination to replace in  all
+	for _, ppr := range pprows {
+		foundAny := false
+		for r := ppr.start; r < ppr.end; r++ {
+			//fmt.Println(simdrecords[r-1])
+			//fmt.Println(simdrecords[r])
+			for c := range  simdrecords[r] {
+				foundAny = foundAny || strings.Index(simdrecords[r][c], "\"\"") != -1
+				foundAny = foundAny || strings.Index(simdrecords[r][c], "\r\n") != -1
+			}
+		}
+		if !foundAny {
+			log.Fatalf("Sanity check fails: could not find any post processing to do")
+		}
+	}
+
+	return pprows
+}
