@@ -83,6 +83,44 @@ field"`,
 		},
 		UseFieldsPerRecord: true,
 		FieldsPerRecord:    0,
+	}, {
+		Name:             "TrimSpace",
+		Input:            " a,  b,   c\n",
+		Output:           [][]string{{"a", "b", "c"}},
+		TrimLeadingSpace: true,
+	}, {
+		Name:   "LeadingSpace",
+		Input:  " a,  b,   c\n",
+		Output: [][]string{{" a", "  b", "   c"}},
+	}, {
+		Name:    "Comment",
+		Input:   "#1,2,3\na,b,c\n#comment",
+		Output:  [][]string{{"a", "b", "c"}},
+		Comment: '#',
+	}, {
+		Name:   "NoComment",
+		Input:  "#1,2,3\na,b,c",
+		Output: [][]string{{"#1", "2", "3"}, {"a", "b", "c"}},
+	}, {
+		Name:       "LazyQuotes",
+		Input:      `a "word","1"2",a","b`,
+		Output:     [][]string{{`a "word"`, `1"2`, `a"`, `b`}},
+		LazyQuotes: true,
+	}, {
+		Name:       "BareQuotes",
+		Input:      `a "word","1"2",a"`,
+		Output:     [][]string{{`a "word"`, `1"2`, `a"`}},
+		LazyQuotes: true,
+	}, {
+		Name:       "BareDoubleQuotes",
+		Input:      `a""b,c`,
+		Output:     [][]string{{`a""b`, `c`}},
+		LazyQuotes: true,
+	}, {
+		Name:   "FieldCount",
+		Input:  "a,b,c\nd,e",
+		Output: [][]string{{"a", "b", "c"}, {"d", "e"}},
+	}, {
 	}}
 
 	for _, tt := range tests {
