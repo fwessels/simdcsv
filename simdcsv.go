@@ -125,7 +125,11 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		TrimLeadingSpace(&records)
 	}
 
-	return records, nil
+	if len(records) == 0 {
+		return nil, nil
+	} else {
+		return records, nil
+	}
 }
 
 func FilterOutComments(records *[][]string, comment byte) {

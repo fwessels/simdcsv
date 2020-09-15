@@ -225,6 +225,13 @@ x,,,
 		Output:  [][]string{{"λ"}, {"λ"}, {"λ"}},
 		Comment: 'θ',
 	}, {
+		Name:   "QuotedFieldMultipleLF",
+		Input:  "\"\n\n\n\n\"",
+		Output: [][]string{{"\n\n\n\n"}},
+	}, {
+		Name:  "MultipleCRLF",
+		Input: "\r\n\r\n\r\n\r\n",
+	}, {
 		// The implementation may read each line in several chunks if it doesn't fit entirely
 		// in the read buffer, so we should test the code to handle that condition.
 		Name:    "HugeLines",
