@@ -67,12 +67,6 @@ func preprocessDoubleQuotes(in []byte) (out []byte) {
 	return
 }
 
-func preprocessCarriageReturns(in []byte) (out []byte) {
-
-	out = bytes.ReplaceAll(in, []byte{'\r', '\n'}, []byte{'\n'})
-	return
-}
-
 func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64]uint64, index *uint64) {
 
 	const clearMask = 0xfffffffffffffffe
