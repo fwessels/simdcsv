@@ -67,55 +67,6 @@ func preprocessDoubleQuotes(in []byte) (out []byte) {
 	return
 }
 
-func stage1Masking(quotesDoubleMask, crnlMask, quotesMask uint64, positions *[64]uint64, index *uint64) {
-
-	const clearMask = 0xfffffffffffffffe
-
-	quotesDoublePos := bits.TrailingZeros64(quotesDoubleMask)
-	crnlPos := bits.TrailingZeros64(crnlMask)
-	quotesPos := bits.TrailingZeros64(quotesMask)
-
-	quoted := uint64(0)
-
-	for {
-		if quotesDoublePos < crnlPos && quotesDoublePos <= quotesPos {
-
-			if quoted != 0 {
-				(*positions)[*index] = uint64(quotesDoublePos)
-				*index++
-			}
-
-			quotesDoubleMask &= clearMask << quotesDoublePos
-			quotesDoublePos = bits.TrailingZeros64(quotesDoubleMask)
-
-			// TODO:
-			// 1. Clear corresponding two bits in quotesMask as well (easy)
-			// 2. Handle case where double quote is split over two masks (HARD)
-
-		} else if crnlPos < quotesDoublePos && crnlPos < quotesPos {
-
-			if quoted != 0 {
-				(*positions)[*index] = uint64(crnlPos)
-				*index++
-			}
-
-			crnlMask &= clearMask << crnlPos
-			crnlPos = bits.TrailingZeros64(crnlMask)
-
-		} else if quotesPos < quotesDoublePos && quotesPos < crnlPos {
-
-			quoted = ^quoted
-
-			quotesMask &= clearMask << quotesPos
-			quotesPos = bits.TrailingZeros64(quotesMask)
-
-		} else {
-			// we must be done
-			break
-		}
-	}
-}
-
 type stage1Input struct {
 	quoteMaskIn          uint64
 	separatorMaskIn      uint64
