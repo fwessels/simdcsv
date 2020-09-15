@@ -121,6 +121,58 @@ field"`,
 		Input:  "a,b,c\nd,e",
 		Output: [][]string{{"a", "b", "c"}, {"d", "e"}},
 	}, {
+		Name:   "TrailingCommaEOF",
+		Input:  "a,b,c,",
+		Output: [][]string{{"a", "b", "c", ""}},
+	}, {
+		Name:   "TrailingCommaEOL",
+		Input:  "a,b,c,\n",
+		Output: [][]string{{"a", "b", "c", ""}},
+	}, {
+		Name:             "TrailingCommaSpaceEOF",
+		Input:            "a,b,c, ",
+		Output:           [][]string{{"a", "b", "c", ""}},
+		TrimLeadingSpace: true,
+	}, {
+		Name:             "TrailingCommaSpaceEOL",
+		Input:            "a,b,c, \n",
+		Output:           [][]string{{"a", "b", "c", ""}},
+		TrimLeadingSpace: true,
+	}, {
+		Name:             "TrailingCommaLine3",
+		Input:            "a,b,c\nd,e,f\ng,hi,",
+		Output:           [][]string{{"a", "b", "c"}, {"d", "e", "f"}, {"g", "hi", ""}},
+		TrimLeadingSpace: true,
+	}, {
+		Name:   "NotTrailingComma3",
+		Input:  "a,b,c, \n",
+		Output: [][]string{{"a", "b", "c", " "}},
+	}, {
+		Name: "CommaFieldTest",
+		Input: `x,y,z,w
+x,y,z,
+x,y,,
+x,,,
+,,,
+"x","y","z","w"
+"x","y","z",""
+"x","y","",""
+"x","","",""
+"","","",""
+`,
+		Output: [][]string{
+			{"x", "y", "z", "w"},
+			{"x", "y", "z", ""},
+			{"x", "y", "", ""},
+			{"x", "", "", ""},
+			{"", "", "", ""},
+			{"x", "y", "z", "w"},
+			{"x", "y", "z", ""},
+			{"x", "y", "", ""},
+			{"x", "", "", ""},
+			{"", "", "", ""},
+		},
+	}, {
 	}}
 
 	for _, tt := range tests {
