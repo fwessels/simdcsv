@@ -225,6 +225,31 @@ x,,,
 		Output:  [][]string{{"λ"}, {"λ"}, {"λ"}},
 		Comment: 'θ',
 	}, {
+		// The implementation may read each line in several chunks if it doesn't fit entirely
+		// in the read buffer, so we should test the code to handle that condition.
+		Name:    "HugeLines",
+		Input:   strings.Repeat("#ignore\n", 10000) + strings.Repeat("@", 5000) + "," + strings.Repeat("*", 5000),
+		Output:  [][]string{{strings.Repeat("@", 5000), strings.Repeat("*", 5000)}},
+		Comment: '#',
+	}, {
+		Name:       "LazyQuoteWithTrailingCRLF",
+		Input:      "\"foo\"bar\"\r\n",
+		Output:     [][]string{{`foo"bar`}},
+		LazyQuotes: true,
+	}, {
+		Name:   "DoubleQuoteWithTrailingCRLF",
+		Input:  "\"foo\"\"bar\"\r\n",
+		Output: [][]string{{`foo"bar`}},
+	}, {
+		Name:   "EvenQuotes",
+		Input:  `""""""""`,
+		Output: [][]string{{`"""`}},
+	}, {
+		Name:       "LazyOddQuotes",
+		Input:      `"""""""`,
+		Output:     [][]string{{`"""`}},
+		LazyQuotes: true,
+	}, {
 	}}
 
 	for _, tt := range tests {
