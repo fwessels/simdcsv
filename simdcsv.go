@@ -74,7 +74,7 @@ func NewReader(r io.Reader) *Reader {
 // reported.
 func (r *Reader) ReadAll() ([][]string, error) {
 
-	if r.LazyQuotes {
+	fallback := func(r *Reader) ([][]string, error) {
 		rCsv := csv.NewReader(r.r)
 		rCsv.LazyQuotes = r.LazyQuotes
 		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
@@ -83,6 +83,12 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		rCsv.FieldsPerRecord = r.FieldsPerRecord
 		rCsv.ReuseRecord = r.ReuseRecord
 		return rCsv.ReadAll()
+	}
+
+	if r.LazyQuotes ||
+		r.Comma != 0 && r.Comma > unicode.MaxLatin1 ||
+		r.Comment != 0 && r.Comment > unicode.MaxLatin1 {
+		return fallback(r)
 	}
 
 	buf, err := r.r.ReadBytes(0)

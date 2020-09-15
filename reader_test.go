@@ -173,6 +173,58 @@ x,,,
 			{"", "", "", ""},
 		},
 	}, {
+		Name:  "TrailingCommaIneffective1",
+		Input: "a,b,\nc,d,e",
+		Output: [][]string{
+			{"a", "b", ""},
+			{"c", "d", "e"},
+		},
+		TrimLeadingSpace: true,
+	}, {
+		Name:  "ReadAllReuseRecord",
+		Input: "a,b\nc,d",
+		Output: [][]string{
+			{"a", "b"},
+			{"c", "d"},
+		},
+		ReuseRecord: true,
+	}, {
+		Name:  "CRLFInQuotedField", // Issue 21201
+		Input: "A,\"Hello\r\nHi\",B\r\n",
+		Output: [][]string{
+			{"A", "Hello\nHi", "B"},
+		},
+	}, {
+		Name:   "BinaryBlobField", // Issue 19410
+		Input:  "x09\x41\xb4\x1c,aktau",
+		Output: [][]string{{"x09A\xb4\x1c", "aktau"}},
+	}, {
+		Name:             "NonASCIICommaAndComment",
+		Input:            "a£b,c£ \td,e\n€ comment\n",
+		Output:           [][]string{{"a", "b,c", "d,e"}},
+		TrimLeadingSpace: true,
+		Comma:            '£',
+		Comment:          '€',
+	}, {
+		Name:    "NonASCIICommaAndCommentWithQuotes",
+		Input:   "a€\"  b,\"€ c\nλ comment\n",
+		Output:  [][]string{{"a", "  b,", " c"}},
+		Comma:   '€',
+		Comment: 'λ',
+	}, {
+		// λ and θ start with the same byte.
+		// This tests that the parser doesn't confuse such characters.
+		Name:    "NonASCIICommaConfusion",
+		Input:   "\"abθcd\"λefθgh",
+		Output:  [][]string{{"abθcd", "efθgh"}},
+		Comma:   'λ',
+		Comment: '€',
+	}, {
+		Name:    "NonASCIICommentConfusion",
+		Input:   "λ\nλ\nθ\nλ\n",
+		Output:  [][]string{{"λ"}, {"λ"}, {"λ"}},
+		Comment: 'θ',
+	}, {
 	}}
 
 	for _, tt := range tests {
