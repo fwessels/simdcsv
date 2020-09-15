@@ -103,11 +103,12 @@ func (r *Reader) ReadAll() ([][]string, error) {
 
 	records := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
 
-	// TODO: Do this more optimally
-	for _, r := range records {
-		for i  := range r {
-			r[i] = strings.ReplaceAll(r[i], "\"\"", "\"")
-			r[i] = strings.ReplaceAll(r[i], "\r\n", "\n")
+	for _, ppr := range getPostProcRows(bufWithPadding, postProc, records) {
+		for r := ppr.start; r < ppr.end; r++ {
+			for c := range records[r] {
+				records[r][c] = strings.ReplaceAll(records[r][c], "\"\"", "\"")
+				records[r][c] = strings.ReplaceAll(records[r][c], "\r\n", "\n")
+			}
 		}
 	}
 
