@@ -310,12 +310,14 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 	simdrecords := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
 
-	//
-	// postprocess
-	//   replace "" to " in specific columns
-	//   replace \r\n to \n in specific columns
-	simdrecords[3][2] = strings.ReplaceAll(simdrecords[3][2], "\"\"", "\"")
-	simdrecords[2][1] = strings.ReplaceAll(simdrecords[2][1], "\r\n", "\n")
+	for _, ppr := range getPostProcRows(buf, postProc, simdrecords) {
+		for r := ppr.start; r < ppr.end; r++ {
+			for c := range  simdrecords[r] {
+				simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
+				simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
+			}
+		}
+	}
 
 	r := csv.NewReader(bytes.NewReader([]byte(data)))
 	records, err := r.ReadAll()
