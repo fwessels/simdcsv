@@ -10,6 +10,12 @@
 	VPANDN       Y_ANDMASK, _YR1, _YR1                \
 	VPCMPEQB     Y_ZERO, _YR1, _YR1                   \
 
+#define ADD_TRAILING_NEWLINE \
+    MOVQ buf_len+8(FP), CX   \
+    MOVQ $1, AX              \
+    SHLQ CX, AX              \ // only lower 6 bits are taken into account, which is good for current and next YMM words
+    ORQ  AX, BX
+
 // See stage1Input struct
 #define QUOTE_MASK_IN           0
 #define SEPARATOR_MASK_IN       8
@@ -85,13 +91,7 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	VPCMPEQB Y8, Y_NEWLINE, Y0
 	VPCMPEQB Y9, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
-
-//TODO: fix hack
-MOVQ buf_len+8(FP), CX
-MOVQ $1, AX
-SHLQ CX, AX
-ORQ  AX, BX
-
+	ADD_TRAILING_NEWLINE
 	MOVQ     BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
 
 loop:
@@ -131,8 +131,9 @@ loop:
 	// quote mask next for next YMM word
 	VPCMPEQB Y0, Y_NEWLINE, Y0
 	VPCMPEQB Y1, Y_NEWLINE, Y1
-	CREATE_MASK(Y0, Y1, AX, CX)
-	MOVQ     CX, NEWLINE_MASK_IN_NEXT(SI)
+	CREATE_MASK(Y0, Y1, AX, BX)
+	ADD_TRAILING_NEWLINE
+	MOVQ     BX, NEWLINE_MASK_IN_NEXT(SI)
 
 	PUSHQ DX
 	MOVQ  input+32(FP), AX

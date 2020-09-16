@@ -365,6 +365,33 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	}
 }
 
+func TestTrailingCRs(t *testing.T) {
+
+	for cnt := 1; cnt <= 150; cnt++ {
+
+		// TOOD: Handle special case when length is multiple of 64 bytes
+		// we need to look ahead
+		if cnt == 63 {
+			continue
+		} else if cnt == 64+63 {
+			continue
+		}
+
+		input := strings.Repeat("f", cnt) + "\r"
+		output := [][]string{{strings.Repeat("f", cnt)}}
+
+		r := NewReader(strings.NewReader(input))
+
+		out, err := r.ReadAll()
+		if err != nil {
+			t.Errorf("TestTrailingCR() error:%v", err)
+		}
+		if !reflect.DeepEqual(out, output) {
+			t.Errorf("TestTrailingCR() output:\ngot  %q\nwant %q", out, output)
+		}
+	}
+}
+
 func TestStage1DeterminePostProcRows(t *testing.T) {
 
 	t.Run("none", func(t *testing.T) {
