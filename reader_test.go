@@ -199,6 +199,30 @@ x,,,
 		Input:  "x09\x41\xb4\x1c,aktau",
 		Output: [][]string{{"x09A\xb4\x1c", "aktau"}},
 	}, {
+		Name:   "TrailingCR",
+		Input:  "field1,field2\r",
+		Output: [][]string{{"field1", "field2"}},
+	}, {
+		Name:   "QuotedTrailingCR",
+		Input:  "\"field\"\r",
+		Output: [][]string{{"field"}},
+	}, {
+		Name:   "FieldCR",
+		Input:  "field\rfield\r",
+		Output: [][]string{{"field\rfield"}},
+	}, {
+		Name:   "FieldCRCR",
+		Input:  "field\r\rfield\r\r",
+		Output: [][]string{{"field\r\rfield\r"}},
+	}, {
+		Name:   "FieldCRCRLF",
+		Input:  "field\r\r\nfield\r\r\n",
+		Output: [][]string{{"field\r"}, {"field\r"}},
+	}, {
+		Name:   "FieldCRCRLFCRCR",
+		Input:  "field\r\r\n\r\rfield\r\r\n\r\r",
+		Output: [][]string{{"field\r"}, {"\r\rfield\r"}, {"\r"}},
+	}, {
 		Name:             "NonASCIICommaAndComment",
 		Input:            "a£b,c£ \td,e\n€ comment\n",
 		Output:           [][]string{{"a", "b,c", "d,e"}},

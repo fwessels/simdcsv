@@ -84,8 +84,15 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	// newline
 	VPCMPEQB Y8, Y_NEWLINE, Y0
 	VPCMPEQB Y9, Y_NEWLINE, Y1
-	CREATE_MASK(Y0, Y1, AX, CX)
-	MOVQ     CX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
+	CREATE_MASK(Y0, Y1, AX, BX)
+
+//TODO: fix hack
+MOVQ buf_len+8(FP), CX
+MOVQ $1, AX
+SHLQ CX, AX
+ORQ  AX, BX
+
+	MOVQ     BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
 
 loop:
 	MOVQ    buf+0(FP), DI
