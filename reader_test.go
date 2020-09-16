@@ -281,6 +281,18 @@ x,,,
 		Output:     [][]string{{`"""`}},
 		LazyQuotes: true,
 	}, {
+		Name:               "BadFieldCount",
+		Input:              "a,b,c\nd,e",
+		Error:              &csv.ParseError{StartLine: 2, Line: 2, Err: csv.ErrFieldCount},
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    0,
+	}, {
+		Name:               "BadFieldCount1",
+		Input:              `a,b,c`,
+		Error:              &csv.ParseError{StartLine: 1, Line: 1, Err: csv.ErrFieldCount},
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    2,
+	},
 	}}
 
 	for _, tt := range tests {
