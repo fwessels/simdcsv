@@ -14,7 +14,6 @@ import (
 // Substitute values when preprocessing a chunk
 // NB 0x0 should be avoided (since trailing bytes
 // beyond the end of the buffer are zeroed out)
-const preprocessedDelimiter = 0x1
 const preprocessedSeparator = 0x2
 const preprocessedQuote = 0x3
 
