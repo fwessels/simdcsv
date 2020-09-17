@@ -4,10 +4,12 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"bytes"
 	"strings"
 	"unicode"
 	"bufio"
 	"io"
+	"unicode/utf8"
 )
 
 // Below is the same interface definition from encoding/csv
@@ -59,6 +61,12 @@ type Reader struct {
 	r *bufio.Reader
 }
 
+var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
+
+func validDelim(r rune) bool {
+	return r != 0 && r != '"' && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
+}
+
 // NewReader returns a new Reader that reads from r.
 func NewReader(r io.Reader) *Reader {
 	return &Reader{
@@ -83,6 +91,10 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		rCsv.FieldsPerRecord = r.FieldsPerRecord
 		rCsv.ReuseRecord = r.ReuseRecord
 		return rCsv.ReadAll()
+	}
+
+	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
+		return nil, errInvalidDelim
 	}
 
 	if r.LazyQuotes ||

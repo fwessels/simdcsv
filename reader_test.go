@@ -1,10 +1,11 @@
 package simdcsv
 
 import (
-	_ "encoding/csv"
+	"encoding/csv"
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // These test cases are copied from https://golang.org/src/encoding/csv/reader_test.go
@@ -316,6 +317,39 @@ x,,,
 		Name:  "QuoteWithTrailingCRLF",
 		Input: "\"foo\"bar\"\r\n",
 		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 4, Err: csv.ErrQuote},
+	}, {
+		Name:  "BadComma1",
+		Comma: '\n',
+		Error: errInvalidDelim,
+	}, {
+		Name:  "BadComma2",
+		Comma: '\r',
+		Error: errInvalidDelim,
+	}, {
+		Name:  "BadComma3",
+		Comma: '"',
+		Error: errInvalidDelim,
+	}, {
+		Name:  "BadComma4",
+		Comma: utf8.RuneError,
+		Error: errInvalidDelim,
+	}, {
+		Name:    "BadComment1",
+		Comment: '\n',
+		Error:   errInvalidDelim,
+	}, {
+		Name:    "BadComment2",
+		Comment: '\r',
+		Error:   errInvalidDelim,
+	}, {
+		Name:    "BadComment3",
+		Comment: utf8.RuneError,
+		Error:   errInvalidDelim,
+	}, {
+		Name:    "BadCommaComment",
+		Comma:   'X',
+		Comment: 'X',
+		Error:   errInvalidDelim,
 	}, {
 		Name:  "QuotedTrailingCRCR",
 		Input: "\"field\"\r\r",
