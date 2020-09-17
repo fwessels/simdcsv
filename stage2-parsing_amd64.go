@@ -23,14 +23,14 @@ func stage2_parse_buffer(buf []byte, rows []uint64, columns []string, delimiterC
 //
 // `records` may be passed in, if non-nil it will be reused
 // and grown accordingly
-func Stage2ParseBuffer(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string) [][]string {
+func Stage2ParseBuffer(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string) ([][]string, bool) {
 
-	r, _, _ := Stage2ParseBufferEx(buf, delimiterChar, separatorChar, quoteChar, records, nil, nil)
-	return r
+	r, _, _, parseError := Stage2ParseBufferEx(buf, delimiterChar, separatorChar, quoteChar, records, nil, nil)
+	return r, parseError
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string) {
+func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, bool) {
 
 	if rows == nil {
 		_rows := make([]uint64, 1024) // do not reserve less than 128
@@ -45,11 +45,23 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	*rows = (*rows)[:cap(*rows)]
 	*columns = (*columns)[:cap(*columns)]
 
+	if records == nil {
+		_records := make([][]string, 0, 1024)
+		records = &_records
+	}
+
+	*records = (*records)[:0]
+
 	input, output := NewInput(), OutputAsm{}
 
 	offset := uint64(0)
 	for {
 		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, offset, &output)
+		if input.errorOffset != 0 {
+			*columns = (*columns)[:0]
+			*rows = (*rows)[:0]
+			return *records, *rows, *columns, true
+		}
 		if int(processed) >= len(buf) {
 			break
 		}
@@ -87,17 +99,11 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	*columns = (*columns)[:(output.index)/2]
 	*rows = (*rows)[:output.line]
 
-	if records == nil {
-		_records := make([][]string, 0, 1024)
-		records = &_records
-	}
-
-	*records = (*records)[:0]
 	for i := 0; i < len(*rows); i += 2 {
 		*records = append(*records, (*columns)[(*rows)[i]:(*rows)[i]+(*rows)[i+1]])
 	}
 
-	return *records, *rows, *columns
+	return *records, *rows, *columns, false
 }
 
 //go:noescape

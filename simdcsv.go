@@ -74,8 +74,8 @@ func NewReader(r io.Reader) *Reader {
 // reported.
 func (r *Reader) ReadAll() ([][]string, error) {
 
-	fallback := func(r *Reader) ([][]string, error) {
-		rCsv := csv.NewReader(r.r)
+	fallback := func(ioReader io.Reader) ([][]string, error) {
+		rCsv := csv.NewReader(ioReader)
 		rCsv.LazyQuotes = r.LazyQuotes
 		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
 		rCsv.Comment = r.Comment
@@ -88,7 +88,7 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	if r.LazyQuotes ||
 		r.Comma != 0 && r.Comma > unicode.MaxLatin1 ||
 		r.Comment != 0 && r.Comment > unicode.MaxLatin1 {
-		return fallback(r)
+		return fallback(r.r)
 	}
 
 	buf, err := r.r.ReadBytes(0)
@@ -107,7 +107,10 @@ func (r *Reader) ReadAll() ([][]string, error) {
 
 	stage1_preprocess_buffer(bufWithPadding[:len(buf)], uint64(r.Comma), &input, &output, &postProc)
 
-	records := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
+	records, parseError := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
+	if parseError {
+		return fallback(bytes.NewReader(buf))
+	}
 
 	for _, ppr := range getPostProcRows(bufWithPadding, postProc, records) {
 		for r := ppr.start; r < ppr.end; r++ {

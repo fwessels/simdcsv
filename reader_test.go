@@ -292,6 +292,22 @@ x,,,
 		Error:              &csv.ParseError{StartLine: 1, Line: 1, Err: csv.ErrFieldCount},
 		UseFieldsPerRecord: true,
 		FieldsPerRecord:    2,
+	}, {
+		Name:  "BadDoubleQuotes",
+		Input: `a""b,c`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 1, Err: csv.ErrBareQuote},
+	}, {
+		Name:  "BadBareQuote",
+		Input: `a "word","b"`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 2, Err: csv.ErrBareQuote},
+	}, {
+		Name:  "BadTrailingQuote",
+		Input: `"a word",b"`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 10, Err: csv.ErrBareQuote},
+	}, {
+		Name:  "ExtraneousQuote",
+		Input: `"a "word","b"`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 3, Err: csv.ErrQuote},
 	},
 	}}
 
