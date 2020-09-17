@@ -118,6 +118,39 @@ field"`,
 		Output:     [][]string{{`a""b`, `c`}},
 		LazyQuotes: true,
 	}, {
+		Name:  "BadDoubleQuotes",
+		Input: `a""b,c`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 1, Err: csv.ErrBareQuote},
+	}, {
+		//Name:             "TrimQuote",
+		//Input:            ` "a"," b",c`,
+		//Output:           [][]string{{"a", " b", "c"}},
+		//TrimLeadingSpace: true,
+	}, {
+		Name:  "BadBareQuote",
+		Input: `a "word","b"`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 2, Err: csv.ErrBareQuote},
+	}, {
+		Name:  "BadTrailingQuote",
+		Input: `"a word",b"`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 10, Err: csv.ErrBareQuote},
+	}, {
+		Name:  "ExtraneousQuote",
+		Input: `"a "word","b"`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 3, Err: csv.ErrQuote},
+	}, {
+		Name:               "BadFieldCount",
+		Input:              "a,b,c\nd,e",
+		Error:              &csv.ParseError{StartLine: 2, Line: 2, Err: csv.ErrFieldCount},
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    0,
+	}, {
+		Name:               "BadFieldCount1",
+		Input:              `a,b,c`,
+		Error:              &csv.ParseError{StartLine: 1, Line: 1, Err: csv.ErrFieldCount},
+		UseFieldsPerRecord: true,
+		FieldsPerRecord:    2,
+	}, {
 		Name:   "FieldCount",
 		Input:  "a,b,c\nd,e",
 		Output: [][]string{{"a", "b", "c"}, {"d", "e"}},
@@ -190,6 +223,14 @@ x,,,
 		},
 		ReuseRecord: true,
 	}, {
+		Name:  "StartLine1", // Issue 19019
+		Input: "a,\"b\nc\"d,e",
+		Error: &csv.ParseError{StartLine: 1, Line: 2, Column: 1, Err: csv.ErrQuote},
+	}, {
+		//Name:  "StartLine2",
+		//Input: "a,b\n\"d\n\n,e",
+		//Error: &csv.ParseError{StartLine: 2, Line: 5, Column: 0, Err: csv.ErrQuote},
+	}, {
 		Name:  "CRLFInQuotedField", // Issue 21201
 		Input: "A,\"Hello\r\nHi\",B\r\n",
 		Output: [][]string{
@@ -208,6 +249,10 @@ x,,,
 		Input:  "\"field\"\r",
 		Output: [][]string{{"field"}},
 	}, {
+		Name:  "QuotedTrailingCRCR",
+		Input: "\"field\"\r\r",
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 6, Err: csv.ErrQuote},
+	}, {
 		Name:   "FieldCR",
 		Input:  "field\rfield\r",
 		Output: [][]string{{"field\rfield"}},
@@ -220,9 +265,21 @@ x,,,
 		Input:  "field\r\r\nfield\r\r\n",
 		Output: [][]string{{"field\r"}, {"field\r"}},
 	}, {
+		Name:   "FieldCRCRLFCR",
+		Input:  "field\r\r\n\rfield\r\r\n\r",
+		Output: [][]string{{"field\r"}, {"\rfield\r"}},
+	}, {
 		Name:   "FieldCRCRLFCRCR",
 		Input:  "field\r\r\n\r\rfield\r\r\n\r\r",
 		Output: [][]string{{"field\r"}, {"\r\rfield\r"}, {"\r"}},
+	}, {
+		Name:  "MultiFieldCRCRLFCRCR",
+		Input: "field1,field2\r\r\n\r\rfield1,field2\r\r\n\r\r,",
+		Output: [][]string{
+			{"field1", "field2\r"},
+			{"\r\rfield1", "field2\r"},
+			{"\r\r", ""},
+		},
 	}, {
 		Name:             "NonASCIICommaAndComment",
 		Input:            "a£b,c£ \td,e\n€ comment\n",
@@ -264,6 +321,10 @@ x,,,
 		Output:  [][]string{{strings.Repeat("@", 5000), strings.Repeat("*", 5000)}},
 		Comment: '#',
 	}, {
+		Name:  "QuoteWithTrailingCRLF",
+		Input: "\"foo\"bar\"\r\n",
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 4, Err: csv.ErrQuote},
+	}, {
 		Name:       "LazyQuoteWithTrailingCRLF",
 		Input:      "\"foo\"bar\"\r\n",
 		Output:     [][]string{{`foo"bar`}},
@@ -277,46 +338,14 @@ x,,,
 		Input:  `""""""""`,
 		Output: [][]string{{`"""`}},
 	}, {
+		//Name:  "OddQuotes",
+		//Input: `"""""""`,
+		//Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 7, Err: csv.ErrQuote},
+	}, {
 		Name:       "LazyOddQuotes",
 		Input:      `"""""""`,
 		Output:     [][]string{{`"""`}},
 		LazyQuotes: true,
-	}, {
-		Name:               "BadFieldCount",
-		Input:              "a,b,c\nd,e",
-		Error:              &csv.ParseError{StartLine: 2, Line: 2, Err: csv.ErrFieldCount},
-		UseFieldsPerRecord: true,
-		FieldsPerRecord:    0,
-	}, {
-		Name:               "BadFieldCount1",
-		Input:              `a,b,c`,
-		Error:              &csv.ParseError{StartLine: 1, Line: 1, Err: csv.ErrFieldCount},
-		UseFieldsPerRecord: true,
-		FieldsPerRecord:    2,
-	}, {
-		Name:  "BadDoubleQuotes",
-		Input: `a""b,c`,
-		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 1, Err: csv.ErrBareQuote},
-	}, {
-		Name:  "BadBareQuote",
-		Input: `a "word","b"`,
-		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 2, Err: csv.ErrBareQuote},
-	}, {
-		Name:  "BadTrailingQuote",
-		Input: `"a word",b"`,
-		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 10, Err: csv.ErrBareQuote},
-	}, {
-		Name:  "ExtraneousQuote",
-		Input: `"a "word","b"`,
-		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 3, Err: csv.ErrQuote},
-	}, {
-		Name:  "StartLine1", // Issue 19019
-		Input: "a,\"b\nc\"d,e",
-		Error: &csv.ParseError{StartLine: 1, Line: 2, Column: 1, Err: csv.ErrQuote},
-	}, {
-		Name:  "QuoteWithTrailingCRLF",
-		Input: "\"foo\"bar\"\r\n",
-		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 4, Err: csv.ErrQuote},
 	}, {
 		Name:  "BadComma1",
 		Comma: '\n',
@@ -350,11 +379,6 @@ x,,,
 		Comma:   'X',
 		Comment: 'X',
 		Error:   errInvalidDelim,
-	}, {
-		Name:  "QuotedTrailingCRCR",
-		Input: "\"field\"\r\r",
-		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 6, Err: csv.ErrQuote},
-	},
 	}}
 
 	for _, tt := range tests {
