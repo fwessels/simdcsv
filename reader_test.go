@@ -308,6 +308,18 @@ x,,,
 		Name:  "ExtraneousQuote",
 		Input: `"a "word","b"`,
 		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 3, Err: csv.ErrQuote},
+	}, {
+		Name:  "StartLine1", // Issue 19019
+		Input: "a,\"b\nc\"d,e",
+		Error: &csv.ParseError{StartLine: 1, Line: 2, Column: 1, Err: csv.ErrQuote},
+	}, {
+		Name:  "QuoteWithTrailingCRLF",
+		Input: "\"foo\"bar\"\r\n",
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 4, Err: csv.ErrQuote},
+	}, {
+		Name:  "QuotedTrailingCRCR",
+		Input: "\"field\"\r\r",
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 6, Err: csv.ErrQuote},
 	},
 	}}
 
