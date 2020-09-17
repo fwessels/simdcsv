@@ -125,6 +125,12 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		TrimLeadingSpace(&records)
 	}
 
+	// create copy of fieldsPerRecord since it may be changed
+	fieldsPerRecord := r.FieldsPerRecord
+	if errSimd := EnsureFieldsPerRecord(&records, &fieldsPerRecord); errSimd != nil {
+		return fallback(bytes.NewReader(buf))
+	}
+
 	if len(records) == 0 {
 		return nil, nil
 	} else {
