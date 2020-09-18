@@ -11,7 +11,6 @@ import (
 	"testing"
 )
 
-
 func testStage2ParseUnquoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
@@ -160,10 +159,26 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input
 		input    string
 		expected uint64
 	}{
+		// 00000000  22 61 61 61 61 22 20 2c  62 62 62 62 00 00 00 00  |"aaaa" ,bbbb....|
+		//                             ^^
 		{`"aaaa" ,bbbb`, 7},
+		//
+		//
+		// 00000000  22 61 61 61 61 22 20 0a  22 62 62 62 62 22 00 00  |"aaaa" ."bbbb"..|
+		//                             ^^
 		{`"aaaa" `+`
 "bbbb"`, 7},
+		//
+		//
+		// 00000000  22 61 61 61 61 22 2c 22  62 62 62 62 22 20 00 00  |"aaaa","bbbb" ..|
+		//                                                   ^^
 		{`"aaaa","bbbb" `, 14},
+		//
+		//
+		// Name:  "StartLine2"
+		// 00000000  61 2c 62 0a 22 64 0a 0a  2c 65 00 00 00 00 00 00  |a,b."d..,e......|
+		//                                          ^^
+		{ "a,b\n\"d\n\n,e", 64},
 	}
 
 	for _, extraneousOrMissingQuoteInQuotedField := range extraneousOrMissingQuoteInQuotedFields {

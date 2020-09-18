@@ -34,6 +34,10 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 		offset += 0x40
 	}
 
+	if input.quoted != 0 {
+		input.errorOffset = uint64(len(buffer))
+	}
+
 	return columns[:output.index], rows[:output.line], input.errorOffset
 }
 
