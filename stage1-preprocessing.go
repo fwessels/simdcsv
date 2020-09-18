@@ -176,8 +176,8 @@ func alternativeStage1Masks(data []byte) {
 
 	fmt.Print(hex.Dump(buf))
 
-	simdrecords := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
-	fmt.Println(simdrecords)
+	simdrecords, parsingError := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	fmt.Println(simdrecords, parsingError)
 
 	//
 	// postprocess

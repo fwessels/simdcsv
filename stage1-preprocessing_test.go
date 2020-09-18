@@ -222,7 +222,6 @@ first_name,last_name,username123`
 			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
 		}
 	})
-
 }
 
 func diffBitmask(diff1, diff2 string) (diff string) {
@@ -308,7 +307,10 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 		t.Errorf("TestStage1MaskingOut: got %v, want %v", out.String(), expected)
 	}
 
-	simdrecords := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	simdrecords, parsingError := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	if parsingError {
+		t.Errorf("TestStage1MaskingOut: unexpected parsing error")
+	}
 
 	for _, ppr := range getPostProcRows(buf, postProc, simdrecords) {
 		for r := ppr.start; r < ppr.end; r++ {
