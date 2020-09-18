@@ -188,4 +188,3 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 		}
 	}
 }
-

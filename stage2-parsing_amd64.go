@@ -30,7 +30,7 @@ func Stage2ParseBuffer(buf []byte, delimiterChar, separatorChar, quoteChar uint6
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, bool) {
+func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
 
 	if rows == nil {
 		_rows := make([]uint64, 1024) // do not reserve less than 128

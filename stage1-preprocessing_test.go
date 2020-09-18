@@ -562,7 +562,10 @@ func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 	postProc := make([]uint64, 0, len(buf)>>6)
 
 	stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc)
-	simdrecords, _ := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	simdrecords, parsingError := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	if parsingError {
+		t.Errorf("testStage1DeterminePostProcRows: unexpected parsing error")
+	}
 
 	pprows := getPostProcRows(buf, postProc, simdrecords)
 
@@ -578,7 +581,7 @@ func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 			}
 		}
 		if !foundAny {
-			log.Fatalf("Sanity check fails: could not find any post processing to do")
+			t.Errorf("testStage1DeterminePostProcRows: sanity check fails: could not find any post processing to do")
 		}
 	}
 

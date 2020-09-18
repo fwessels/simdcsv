@@ -274,7 +274,10 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 
-			simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
+			simdrecords, parsingError := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
+			if parsingError {
+				t.Errorf("TestStage2MissingLastDelimiter: got %v, want %v", parsingError, false)
+			}
 
 			r := csv.NewReader(bytes.NewReader(buf))
 			r.FieldsPerRecord = -1
@@ -306,7 +309,10 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < 250; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
-		simdrecords := Stage2ParseBuffer(buf, '\n', ',', '"',  nil)
+		simdrecords, parsingError := Stage2ParseBuffer(buf, '\n', ',', '"',  nil)
+		if parsingError {
+			t.Errorf("TestParseBlockSecondPass: got %v, want %v", parsingError, false)
+		}
 
 		r := csv.NewReader(bytes.NewReader(buf))
 		records, err := r.ReadAll()
@@ -332,14 +338,18 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 	rows := make([]uint64, init[0])
 	columns := make([]string, init[1])
 	records := make([][]string, 0, init[2])
+	var parsingError bool
 
-	records, rows, columns = Stage2ParseBufferEx(buf, '\n', ',', '"', &records, &rows, &columns)
+	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, '\n', ',', '"', &records, &rows, &columns)
 
 	if cap(rows) != expected[0] {
 		t.Errorf("testStage2DynamicAllocation: got %d, want %d", cap(rows), expected[0])
 	}
 	if cap(columns) != expected[1] {
 		t.Errorf("testStage2DynamicAllocation: got %d, want %d", cap(columns), expected[1])
+	}
+	if parsingError {
+		t.Errorf("testStage2DynamicAllocation: got %v, want %v", parsingError, false)
 	}
 
 	// we rely on append() for growing the records slice, so use len() instead of cap()
