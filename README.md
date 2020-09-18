@@ -22,7 +22,19 @@ The first stage allows large CSV objects to be safely broken up into separate ch
 
 Due to the nature of CSV files this is not trivial by itself as for instance delimiter symbols are allowed in quoted fields. As such it is not possible to determine with certainty where chunks may be broken up at without doing additional processing.
 
-### Stage 1: split up CSV into chunks
+##  Performance compared to encoding/csv
+
+```
+benchmark                                     old MB/s     new MB/s     speedup
+BenchmarkSimdCsv/parking-citations-100K-8     208.64       1178.09      5.65x
+BenchmarkSimdCsv/worldcitiespop-8             127.65       1416.61      11.10x
+
+benchmark                                     old bytes     new bytes     delta
+BenchmarkSimdCsv/parking-citations-100K-8     58601190      1181503       -97.98%
+BenchmarkSimdCsv/worldcitiespop-8             933054464     27603772      -97.04%
+```
+
+### Stage 1: preprocessing
 
 ### Stage 2: parse CSV
 
