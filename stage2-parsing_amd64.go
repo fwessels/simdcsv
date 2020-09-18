@@ -32,6 +32,12 @@ func Stage2ParseBuffer(buf []byte, delimiterChar, separatorChar, quoteChar uint6
 // Same as above, but allow reuse of `rows` and `columns` slices as well
 func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
 
+	errorOut := func() ([][]string, []uint64, []string, /*parsingError*/ bool) {
+		*columns = (*columns)[:0]
+		*rows = (*rows)[:0]
+		return *records, *rows, *columns, true
+	}
+
 	if rows == nil {
 		_rows := make([]uint64, 1024) // do not reserve less than 128
 		rows = &_rows
@@ -58,9 +64,7 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 	for {
 		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, offset, &output)
 		if input.errorOffset != 0 {
-			*columns = (*columns)[:0]
-			*rows = (*rows)[:0]
-			return *records, *rows, *columns, true
+			return errorOut()
 		}
 		if int(processed) >= len(buf) {
 			break
@@ -85,6 +89,11 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 			copy(_rows, (*rows)[:output.line])
 			rows = &_rows
 		}
+	}
+
+	// Is the final quoted field not closed?
+	if input.quoted != 0 {
+		return errorOut()
 	}
 
 	if output.index >= 2 {

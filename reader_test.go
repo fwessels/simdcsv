@@ -227,9 +227,9 @@ x,,,
 		Input: "a,\"b\nc\"d,e",
 		Error: &csv.ParseError{StartLine: 1, Line: 2, Column: 1, Err: csv.ErrQuote},
 	}, {
-		//Name:  "StartLine2",
-		//Input: "a,b\n\"d\n\n,e",
-		//Error: &csv.ParseError{StartLine: 2, Line: 5, Column: 0, Err: csv.ErrQuote},
+		Name:  "StartLine2",
+		Input: "a,b\n\"d\n\n,e",
+		Error: &csv.ParseError{StartLine: 2, Line: 5, Column: 0, Err: csv.ErrQuote},
 	}, {
 		Name:  "CRLFInQuotedField", // Issue 21201
 		Input: "A,\"Hello\r\nHi\",B\r\n",
@@ -338,9 +338,9 @@ x,,,
 		Input:  `""""""""`,
 		Output: [][]string{{`"""`}},
 	}, {
-		//Name:  "OddQuotes",
-		//Input: `"""""""`,
-		//Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 7, Err: csv.ErrQuote},
+		Name:  "OddQuotes",
+		Input: `"""""""`,
+		Error: &csv.ParseError{StartLine: 1, Line: 1, Column: 7, Err: csv.ErrQuote},
 	}, {
 		Name:       "LazyOddQuotes",
 		Input:      `"""""""`,
