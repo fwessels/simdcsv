@@ -247,3 +247,67 @@ func TestTrimLeadingSpace(t *testing.T) {
 	})
 }
 
+func BenchmarkSimdCsv(b *testing.B) {
+	b.Run("parking-citations-100K", func(b *testing.B){
+		benchmarkSimdCsv(b, "parking-citations-100K.csv", 100000)
+	})
+	b.Run("worldcitiespop", func(b *testing.B){
+		benchmarkSimdCsv(b, "worldcitiespop.csv", 100000)
+	})
+}
+
+func benchmarkSimdCsv(b *testing.B, file string, lines int) {
+
+	data, _ := ioutil.ReadFile(file)
+
+	b.SetBytes(int64(len(data)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	input, output := stage1Input{} ,stage1Output{}
+
+	// TODO: Remove synchronization code
+	buf := make([]byte, (len(data) + 128)&^127)
+
+	postProc := make([]uint64, 0, len(buf)>>6)
+
+	rows := make([]uint64, 100000 * 2 * 1.5)
+	columns := make([]string, len(rows)*20)
+	simdrecords := make([][]string, 0, len(rows))
+
+	for i := 0; i < b.N; i++ {
+
+		//  TODO: Remove synchronization code
+		copy(buf, data)
+		postProc = postProc[:0]
+		stage1_preprocess_buffer(buf[:len(data)], uint64(','), &input, &output, &postProc)
+
+		Stage2ParseBufferEx(buf[:len(data)], '\n', ',', '"', &simdrecords, &rows, &columns)
+	}
+}
+
+func BenchmarkSimdCsvGo(b *testing.B) {
+	b.Run("parking-citations-100K", func(b *testing.B){
+		benchmarkSimdCsvGo(b, "parking-citations-100K.csv")
+	})
+	b.Run("worldcitiespop", func(b *testing.B){
+		benchmarkSimdCsvGo(b, "worldcitiespop.csv")
+	})
+}
+
+func benchmarkSimdCsvGo(b *testing.B, file string) {
+
+	data, _ := ioutil.ReadFile(file)
+
+	b.SetBytes(int64(len(data)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		r := csv.NewReader(bytes.NewReader(data))
+		_, err := r.ReadAll()
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+	}
+}
