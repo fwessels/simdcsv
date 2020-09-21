@@ -589,3 +589,51 @@ func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 
 	return pprows
 }
+
+func testStage1DynamicAllocation(t *testing.T) {
+
+	buf, err := ioutil.ReadFile("parking-citations-10K-postproc.csv")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	postProcSingleInvocation := make([]uint64, 0, len(buf)>>6)
+	{
+		bufSingleInvocation := make([]byte, len(buf))
+		copy(bufSingleInvocation, buf)
+
+		inputSingleInvocation, outputSingleInvocation := stage1Input{}, stage1Output{}
+		processed := stage1_preprocess_buffer(bufSingleInvocation, uint64(','), &inputSingleInvocation, &outputSingleInvocation, &postProcSingleInvocation, 0)
+		if processed < uint64(len(buf)) {
+			t.Errorf("testStage1DynamicAllocation: got %v, want %v", processed, len(buf))
+		}
+	}
+
+	postProc := make([]uint64, 0, 3)
+
+	processed := uint64(0)
+	for {
+		input := stage1Input{}
+		output := stage1Output{}
+		processed = stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, processed)
+
+		if processed > uint64(len(buf)) {
+			break
+		}
+
+		_postProc := make([]uint64, len(postProc), cap(postProc)*2)
+		copy(_postProc, postProc[:])
+		postProc = _postProc
+	}
+
+	if !reflect.DeepEqual(postProc, postProcSingleInvocation) {
+		t.Errorf("testStage1DynamicAllocation: got %v, want %v", postProc, postProcSingleInvocation)
+	}
+}
+
+func TestStage1DynamicAllocation(t *testing.T) {
+
+	t.Run("grow-postproc", func(t *testing.T) {
+		testStage1DynamicAllocation(t)
+	})
+}
