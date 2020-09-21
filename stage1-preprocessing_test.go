@@ -569,8 +569,6 @@ func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 	for _, ppr := range pprows {
 		foundAny := false
 		for r := ppr.start; r < ppr.end; r++ {
-			//fmt.Println(simdrecords[r-1])
-			//fmt.Println(simdrecords[r])
 			for c := range  simdrecords[r] {
 				foundAny = foundAny || strings.Index(simdrecords[r][c], "\"\"") != -1
 				foundAny = foundAny || strings.Index(simdrecords[r][c], "\r\n") != -1
