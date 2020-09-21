@@ -24,6 +24,8 @@ Due to the nature of CSV files this is not trivial by itself as for instance del
 
 ##  Performance compared to encoding/csv
 
+![encoding-csv_vs_simdcsv-comparison](charts/encoding-csv_vs_simdcsv.png)
+
 ```
 benchmark                                     old MB/s     new MB/s     speedup
 BenchmarkSimdCsv/parking-citations-100K-8     208.64       1178.09      5.65x
