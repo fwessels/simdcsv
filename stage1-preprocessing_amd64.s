@@ -73,7 +73,7 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y_QUOTE_CHAR
 
-	XORQ DX, DX
+	MOVQ offset+56(FP), DX
 
 	MOVQ    buf+0(FP), DI
 	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
@@ -181,12 +181,19 @@ loop:
 	MOVQ 8(AX), CX
 	MOVQ DX, (BX)(CX*8)
 	INCQ 8(AX)
+	INCQ CX
+	ADDQ $0x40, DX
+	CMPQ CX, 16(AX)
+	JGE  exit
+	SUBQ $0x40, DX
 
 unmodified:
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
 
+exit:
+    MOVQ DX, processed+64(FP)
 	RET
 
 DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
