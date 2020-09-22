@@ -126,16 +126,16 @@ loop:
 
 	// TODO: Check not reading beyond end of array
 	// quote mask next for next YMM word
-	VMOVDQU  0x40(DI)(DX*1), Y0         // load low 32-bytes
-	VMOVDQU  0x60(DI)(DX*1), Y1         // load high 32-bytes
-	VPCMPEQB Y0, Y_QUOTE_CHAR, Y0
-	VPCMPEQB Y1, Y_QUOTE_CHAR, Y1
+	VMOVDQU  0x40(DI)(DX*1), Y2         // load low 32-bytes
+	VMOVDQU  0x60(DI)(DX*1), Y7         // load high 32-bytes
+	VPCMPEQB Y2, Y_QUOTE_CHAR, Y0
+	VPCMPEQB Y7, Y_QUOTE_CHAR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, QUOTE_MASK_IN_NEXT(SI)
 
 	// quote mask next for next YMM word
-	VPCMPEQB Y0, Y_NEWLINE, Y0
-	VPCMPEQB Y1, Y_NEWLINE, Y1
+	VPCMPEQB Y2, Y_NEWLINE, Y0
+	VPCMPEQB Y7, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
 
 	MOVQ buf_len+8(FP), CX
@@ -194,7 +194,7 @@ skipAddTrailingNewline:
 	INCQ 8(AX)
 	INCQ CX
 	ADDQ $0x40, DX
-	CMPQ CX, 16(AX)
+	CMPQ CX, 16(AX) // slice is full?
 	JGE  exit
 	SUBQ $0x40, DX
 
