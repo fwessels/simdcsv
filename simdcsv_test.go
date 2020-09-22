@@ -97,6 +97,24 @@ func TestLosAngelesParkingCitations(t *testing.T) {
 	})
 }
 
+func TestSimdCsv(t *testing.T) {
+	t.Run("parking-citations-100K", func(t *testing.T) {
+		testSimdCsv(t, "parking-citations-100K.csv")
+	})
+	t.Run("worldcitiespop", func(t *testing.T) {
+		testSimdCsv(t, "worldcitiespop.csv")
+	})
+}
+
+func testSimdCsv(t *testing.T, filename string) {
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	compareAgainstEncodingCsv(t, buf)
+}
+
 func TestFilterEmptyLines(t *testing.T) {
 	compareAgainstEncodingCsv(t, []byte("a,b,c\n\nd,e,f\n\n"))
 	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n\nd,e,f\n\n"))
