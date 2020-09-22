@@ -371,7 +371,7 @@ label12:
 	JNE  label14
 	MOVQ 0x30(AX), R12
 	BTL  $0x0, R12
-	JB   label14
+	JB   label13
 	BTRQ DI, 0x10(R10)
 
 label13:
