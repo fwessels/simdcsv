@@ -359,15 +359,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 func TestTrailingCRs(t *testing.T) {
 
-	for cnt := 1; cnt <= 150; cnt++ {
-
-		// TOOD: Handle special case when length is multiple of 64 bytes
-		// we need to look ahead
-		if cnt == 63 {
-			continue
-		} else if cnt == 64+63 {
-			continue
-		}
+	for cnt := 1; cnt <= 1500; cnt++ {
 
 		input := strings.Repeat("f", cnt) + "\r"
 		output := [][]string{{strings.Repeat("f", cnt)}}

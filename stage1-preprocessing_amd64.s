@@ -11,10 +11,9 @@
 	VPCMPEQB     Y_ZERO, _YR1, _YR1                   \
 
 #define ADD_TRAILING_NEWLINE \
-    MOVQ buf_len+8(FP), CX   \
-    MOVQ $1, AX              \
-    SHLQ CX, AX              \ // only lower 6 bits are taken into account, which is good for current and next YMM words
-    ORQ  AX, BX
+	MOVQ $1, AX \
+	SHLQ CX, AX \ // only lower 6 bits are taken into account, which is good for current and next YMM words
+	ORQ  AX, BX
 
 // See stage1Input struct
 #define QUOTE_MASK_IN           0
@@ -91,8 +90,14 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	VPCMPEQB Y8, Y_NEWLINE, Y0
 	VPCMPEQB Y9, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
+
+	MOVQ buf_len+8(FP), CX
+	CMPQ CX, $64
+	JGE  skipAddTrailingNewlinePrologue
 	ADD_TRAILING_NEWLINE
-	MOVQ     BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
+
+skipAddTrailingNewlinePrologue:
+	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
 
 loop:
 	MOVQ    buf+0(FP), DI
@@ -132,8 +137,14 @@ loop:
 	VPCMPEQB Y0, Y_NEWLINE, Y0
 	VPCMPEQB Y1, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
+
+	MOVQ buf_len+8(FP), CX
+	SUBQ DX, CX
+	JLT  skipAddTrailingNewline
 	ADD_TRAILING_NEWLINE
-	MOVQ     BX, NEWLINE_MASK_IN_NEXT(SI)
+
+skipAddTrailingNewline:
+	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI)
 
 	PUSHQ DX
 	MOVQ  input+32(FP), AX
@@ -193,7 +204,7 @@ unmodified:
 	JLT  loop
 
 exit:
-    MOVQ DX, processed+64(FP)
+	MOVQ DX, processed+64(FP)
 	RET
 
 DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
