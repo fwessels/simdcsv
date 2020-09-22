@@ -1,14 +1,9 @@
 package simdcsv
 
 import (
-	"bytes"
-	"encoding/csv"
-	"encoding/hex"
-	"fmt"
-	"log"
 	"math/bits"
 	"reflect"
-	"strings"
+	"unsafe"
 )
 
 // Substitute values when preprocessing a chunk
@@ -106,104 +101,6 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 	}
 
 	return
-}
-
-func preprocessInPlaceMasks(in []byte, quoted *bool) (quoteMask, separatorMask, carriageReturnMask uint64) {
-
-	for i := 0; i < 64 && i < len(in); i++ {
-		b := in[i]
-
-		if *quoted {
-			if b == '"' && i+1 < len(in) && in[i+1] == '"' {
-				i += 1
-			} else if b == '"' {
-				quoteMask |= 1 << i // in[i] = preprocessedQuote
-				*quoted = false
-				//} else if b == '\r' && i+1 < len(in) && in[i+1] == '\n' {
-				//	i += 1
-				//} else {
-			}
-		} else {
-			if b == '"' {
-				quoteMask |= 1 << i // in[i] = preprocessedQuote
-				*quoted = true
-			} else if b == '\r' { // && i+1 < len(in) && in[i+1] == '\n' {
-				carriageReturnMask |= 1 << i // in[i] = '\n'
-			} else if b == ',' {
-				// replace separator with '\2'
-				separatorMask |= 1 << i // in[i] = preprocessedSeparator
-			}
-		}
-	}
-
-	return
-}
-
-func clearAndMerge(data []byte, mask, replacement uint64) {
-
-	for i := 0; i < 64 && i < len(data); i++ {
-		if mask&(1<<i) == (1 << i) {
-			data[i] = byte(replacement)
-		}
-	}
-}
-
-func alternativeStage1Masks(data []byte) {
-
-	buf := make([]byte, len(data))
-	copy(buf, data)
-
-	quoted := false
-	quoteMask0, separatorMask0, carriageReturnMask0 := preprocessInPlaceMasks(buf, &quoted)
-	quoteMask1, separatorMask1, carriageReturnMask1 := preprocessInPlaceMasks(buf[64:], &quoted)
-
-	fmt.Println()
-	fmt.Printf("%s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
-	fmt.Printf("·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
-
-	fmt.Printf("%064b·%064b\n", bits.Reverse64(quoteMask0), bits.Reverse64(quoteMask1))
-	fmt.Printf("%064b·%064b\n", bits.Reverse64(separatorMask0), bits.Reverse64(separatorMask1))
-	fmt.Printf("%064b·%064b\n", bits.Reverse64(carriageReturnMask0), bits.Reverse64(carriageReturnMask1))
-
-	clearAndMerge(buf, quoteMask0, preprocessedQuote)
-	clearAndMerge(buf[64:], quoteMask1, preprocessedQuote)
-
-	clearAndMerge(buf, separatorMask0, preprocessedSeparator)
-	clearAndMerge(buf[64:], separatorMask1, preprocessedSeparator)
-
-	clearAndMerge(buf, carriageReturnMask0, '\n')
-	clearAndMerge(buf[64:], carriageReturnMask1, '\n')
-
-	fmt.Print(hex.Dump(buf))
-
-	simdrecords, parsingError := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
-	fmt.Println(simdrecords, parsingError)
-
-	//
-	// postprocess
-	//   replace "" to " in specific columns
-	//   replace \r\n to \n in specific columns
-	fmt.Printf("double quotes: `%s`\n", simdrecords[3][2])
-	simdrecords[3][2] = strings.ReplaceAll(simdrecords[3][2], "\"\"", "\"")
-	fmt.Printf(" carriage ret: `%s`\n", simdrecords[2][1])
-	simdrecords[2][1] = strings.ReplaceAll(simdrecords[2][1], "\r\n", "\n")
-
-	fmt.Println()
-
-	fmt.Println("[0]:", simdrecords[0])
-	fmt.Println("[1]:", simdrecords[1])
-	fmt.Println("[2]:", simdrecords[2])
-	fmt.Println("[3]:", simdrecords[3])
-
-	r := csv.NewReader(bytes.NewReader(data))
-	records, err := r.ReadAll()
-	if err != nil {
-		log.Fatalf("encoding/csv: %v", err)
-	}
-
-	if !reflect.DeepEqual(simdrecords, records) {
-		log.Fatalf("alternativeStage1Masks: got %v, want %v", simdrecords, records)
-	}
 }
 
 type postProcRow struct {

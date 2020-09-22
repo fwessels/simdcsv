@@ -114,10 +114,9 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	//fmt.Println(len(bufWithPadding))
 	copy(bufWithPadding, buf)
 
-	input, output := stage1Input{} ,stage1Output{}
-	postProc := make([]uint64, 0, len(buf)>>6)
+	//fmt.Print(hex.Dump(bufWithPadding))
 
-	stage1_preprocess_buffer(bufWithPadding[:len(buf)], uint64(r.Comma), &input, &output, &postProc)
+	postProc := Stage1PreprocessBuffer(bufWithPadding[:len(buf)], uint64(r.Comma))
 
 	records, parseError := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
 	if parseError {

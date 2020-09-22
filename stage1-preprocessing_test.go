@@ -1,12 +1,13 @@
 package simdcsv
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/hex"
-	"log"
-	"math/bits"
 	"fmt"
-	"bytes"
+	"log"
+	"io/ioutil"
+	"math/bits"
 	"strings"
 	"reflect"
 	"testing"
@@ -328,16 +329,6 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	if !reflect.DeepEqual(simdrecords, records) {
 		log.Fatalf("TestStage1MaskingOut: got %v, want %v", simdrecords, records)
 	}
-}
-
-func TestStage1AlternativeMasks(t *testing.T) {
-
-	const data = `first_name,last_name,username
-RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
-"Robert","Griesemer","gr""i"`
-
-	fmt.Print(hex.Dump([]byte(data)))
-	alternativeStage1Masks([]byte(data))
 }
 
 func BenchmarkStage1PreprocessingMasks( b *testing.B) {
