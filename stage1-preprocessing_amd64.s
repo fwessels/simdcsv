@@ -36,10 +36,10 @@
 #define Y_PREPROC_SEP Y12
 #define Y_PREPROC_QUO Y11
 #define Y_PREPROC_NWL Y10
-#define Y_QUOTE_CHAR  Y6
-#define Y_SEPARATOR   Y5
-#define Y_CARRIAGE_R  Y4
-#define Y_NEWLINE     Y3
+#define Y_QUOTE_CHAR  Y5
+#define Y_SEPARATOR   Y4
+#define Y_CARRIAGE_R  Y3
+#define Y_NEWLINE     Y2
 
 // func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input *stage1Input, output *stage1Output)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
@@ -60,17 +60,17 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	VPBROADCASTB X10, Y_PREPROC_NWL
 
 	MOVQ         $0x0a, AX                // character for newline
-	MOVQ         AX, X3
-	VPBROADCASTB X3, Y_NEWLINE
+	MOVQ         AX, X2
+	VPBROADCASTB X2, Y_NEWLINE
 	MOVQ         $0x0d, AX                // character for carriage return
-	MOVQ         AX, X4
-	VPBROADCASTB X4, Y_CARRIAGE_R
+	MOVQ         AX, X3
+	VPBROADCASTB X3, Y_CARRIAGE_R
 	MOVQ         separatorChar+24(FP), AX // get character for separator
-	MOVQ         AX, X5
-	VPBROADCASTB X5, Y_SEPARATOR
+	MOVQ         AX, X4
+	VPBROADCASTB X4, Y_SEPARATOR
 	MOVQ         $0x22, AX                // character for quote
-	MOVQ         AX, X6
-	VPBROADCASTB X6, Y_QUOTE_CHAR
+	MOVQ         AX, X5
+	VPBROADCASTB X5, Y_QUOTE_CHAR
 
 	MOVQ offset+56(FP), DX
 
@@ -126,15 +126,15 @@ loop:
 
 	// TODO: Check not reading beyond end of array
 	// quote mask next for next YMM word
-	VMOVDQU  0x40(DI)(DX*1), Y2         // load low 32-bytes
+	VMOVDQU  0x40(DI)(DX*1), Y6         // load low 32-bytes
 	VMOVDQU  0x60(DI)(DX*1), Y7         // load high 32-bytes
-	VPCMPEQB Y2, Y_QUOTE_CHAR, Y0
+	VPCMPEQB Y6, Y_QUOTE_CHAR, Y0
 	VPCMPEQB Y7, Y_QUOTE_CHAR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, QUOTE_MASK_IN_NEXT(SI)
 
 	// quote mask next for next YMM word
-	VPCMPEQB Y2, Y_NEWLINE, Y0
+	VPCMPEQB Y6, Y_NEWLINE, Y0
 	VPCMPEQB Y7, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
 
