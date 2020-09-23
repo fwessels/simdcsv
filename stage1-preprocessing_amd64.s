@@ -75,20 +75,20 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ offset+56(FP), DX
 
 	MOVQ    buf+0(FP), DI
-	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
-	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+	VMOVDQU (DI)(DX*1), Y6     // load low 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y7 // load high 32-bytes
 
 	MOVQ input+32(FP), SI
 
 	// quote mask
-	VPCMPEQB Y8, Y_QUOTE_CHAR, Y0
-	VPCMPEQB Y9, Y_QUOTE_CHAR, Y1
+	VPCMPEQB Y6, Y_QUOTE_CHAR, Y0
+	VPCMPEQB Y7, Y_QUOTE_CHAR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, QUOTE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
 
 	// newline
-	VPCMPEQB Y8, Y_NEWLINE, Y0
-	VPCMPEQB Y9, Y_NEWLINE, Y1
+	VPCMPEQB Y6, Y_NEWLINE, Y0
+	VPCMPEQB Y7, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
 
 	MOVQ buf_len+8(FP), CX
@@ -100,9 +100,8 @@ skipAddTrailingNewlinePrologue:
 	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
 
 loop:
-	MOVQ    buf+0(FP), DI
-	VMOVDQU (DI)(DX*1), Y8     // load low 32-bytes
-	VMOVDQU 0x20(DI)(DX*1), Y9 // load high 32-bytes
+	VMOVDQU Y6, Y8 // get low 32-bytes
+	VMOVDQU Y7, Y9 // get high 32-bytes
 
 	MOVQ input+32(FP), SI
 
