@@ -123,10 +123,17 @@ loop:
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, CARRIAGE_RETURN_MASK_IN(SI)
 
-	// TODO: Check not reading beyond end of array
-	// quote mask next for next YMM word
-	VMOVDQU  0x40(DI)(DX*1), Y6         // load low 32-bytes
-	VMOVDQU  0x60(DI)(DX*1), Y7         // load high 32-bytes
+	// do we need to do a partial load?
+	MOVQ DX, CX
+	ADDQ $0x80, CX // since we are loading the next pair of YMM words, we need two times 64 bytes space
+	CMPQ CX, buf_len+8(FP)
+	JGT  partialLoad
+
+	// load next pair of YMM words
+	VMOVDQU  0x40(DI)(DX*1), Y6         // load low 32-bytes of next pair
+	VMOVDQU  0x60(DI)(DX*1), Y7         // load high 32-bytes of next pair
+
+joinAfterPartialLoad:
 	VPCMPEQB Y6, Y_QUOTE_CHAR, Y0
 	VPCMPEQB Y7, Y_QUOTE_CHAR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
@@ -205,6 +212,33 @@ unmodified:
 exit:
 	MOVQ DX, processed+64(FP)
 	RET
+
+partialLoad:
+	VPXOR Y6, Y6, Y6           // clear lower 32-bytes
+	VPXOR Y7, Y7, Y7           // clear upper 32-bytes
+
+    //
+    SUBQ $0x40, CX
+	CMPQ CX, buf_len+8(FP)
+	JGT  joinAfterPartialLoad
+
+	// do a partial load and mask out bytes after the end of the message with whitespace
+	VMOVDQU 0x40(DI)(DX*1), Y6 // always load low 32-bytes
+
+	MOVQ buf_len+8(FP), CX
+	ANDQ $0x3f, CX
+	CMPQ CX, $0x20
+	JGE  maskingHigh
+
+	// perform masking on low 32-bytes
+//	MASK_TRAILING_BYTES(0x1f, Y6)
+	JMP   joinAfterPartialLoad
+
+maskingHigh:
+	// perform masking on high 32-bytes
+	VMOVDQU 0x60(DI)(DX*1), Y7   // load high 32-bytes
+//	MASK_TRAILING_BYTES(0x3f, Y7)
+	JMP     joinAfterPartialLoad
 
 DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
 DATA SHUFMASK<>+0x008(SB)/8, $0x0101010101010101
