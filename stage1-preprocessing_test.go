@@ -597,3 +597,15 @@ func TestStage1DynamicAllocation(t *testing.T) {
 		testStage1DynamicAllocation(t)
 	})
 }
+
+func TestStage1ReadEndOfBuffer(t *testing.T) {
+
+	for l := 1; l <= 1024; l++ {
+		buf := make([]byte, l)
+		postProc := make([]uint64, 0, len(buf)>>6)
+		input, output := stage1Input{}, stage1Output{}
+
+		processed := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0)
+		fmt.Println(processed)
+	}
+}
