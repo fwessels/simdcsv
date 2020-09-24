@@ -598,15 +598,13 @@ func TestStage1DynamicAllocation(t *testing.T) {
 	})
 }
 
-func TestPartialLoad(t *testing.T) {
+func TestStage1PartialLoad(t *testing.T) {
 
 	input := make([]byte, 0, 256)
 	input = append(input, bytes.Repeat([]byte{0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a}, 4)...)
 	input = append(input, bytes.Repeat([]byte{0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a}, 4*3)...)
 
 	for cnt := 0; cnt <= 128; cnt++ {
-
-		//fmt.Println(hex.Dump(input[:cnt]))
 
 		var y8, y9, y6, y7 [32]byte
 		testPartialLoad(input[:cnt], &y8, &y9, &y6, &y7)
@@ -618,22 +616,8 @@ func TestPartialLoad(t *testing.T) {
 		verify = append(verify, y7[:]...)
 		verify = bytes.TrimRight(verify, string([]byte{0}))
 
-		//fmt.Printf("%x\n", verify)
-
 		if !reflect.DeepEqual(input[:cnt], verify) {
 			t.Errorf("TestPartialLoad: got %v, want %v", input[:cnt], verify)
 		}
-	}
-}
-
-func TestStage1ReadEndOfBuffer(t *testing.T) {
-
-	for l := 1; l <= 1024; l++ {
-		buf := make([]byte, l)
-		postProc := make([]uint64, 0, len(buf)>>6)
-		input, output := stage1Input{}, stage1Output{}
-
-		processed := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0)
-		fmt.Println(processed)
 	}
 }

@@ -108,22 +108,18 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		return nil, err
 	}
 
-	// TODO: Remove alignment code
-	bufWithPadding := make([]byte, (len(buf) + 128)&^127)
-	//fmt.Println(len(buf))
-	//fmt.Println(len(bufWithPadding))
-	copy(bufWithPadding, buf)
+	// TODO: Eliminate copy of buffer (when no longer modifying data)
+	bufCopy := make([]byte, len(buf))
+	copy(bufCopy, buf)
 
-	//fmt.Print(hex.Dump(bufWithPadding))
+	postProc := Stage1PreprocessBuffer(bufCopy, uint64(r.Comma))
 
-	postProc := Stage1PreprocessBuffer(bufWithPadding[:len(buf)], uint64(r.Comma))
-
-	records, parseError := Stage2ParseBuffer(bufWithPadding[:len(buf)], '\n', preprocessedSeparator, preprocessedQuote, nil)
+	records, parseError := Stage2ParseBuffer(bufCopy, '\n', preprocessedSeparator, preprocessedQuote, nil)
 	if parseError {
 		return fallback(bytes.NewReader(buf))
 	}
 
-	for _, ppr := range getPostProcRows(bufWithPadding, postProc, records) {
+	for _, ppr := range getPostProcRows(bufCopy, postProc, records) {
 		for r := ppr.start; r < ppr.end; r++ {
 			for c := range records[r] {
 				records[r][c] = strings.ReplaceAll(records[r][c], "\"\"", "\"")

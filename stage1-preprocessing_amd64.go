@@ -10,7 +10,7 @@ func stage1_preprocess_test(input *stage1Input, output *stage1Output)
 func stage1_preprocess()
 
 //go:noescape
-func testPartialLoad(buf []byte, y6, y7 *[32]byte)
+func testPartialLoad(buf []byte, y8, y9, y6, y7 *[32]byte)
 
 //go:noescape
 func partialLoad()
