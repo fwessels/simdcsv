@@ -221,16 +221,16 @@ exit:
 	RET
 
 TEXT ·testPartialLoad(SB), 7, $0
-    MOVQ buf+0(FP), DI
+	MOVQ buf+0(FP), DI
 	XORQ DX, DX
 
-    MOVQ DX, CX
-    ADDQ $0x40, CX
-    CMPQ CX, buf_len+8(FP)
-    JLE  fullLoadPrologue
-    MOVQ buf_len+8(FP), BX
-    CALL ·partialLoad(SB)
-    JMP  skipFullLoadPrologue
+	MOVQ DX, CX
+	ADDQ $0x40, CX
+	CMPQ CX, buf_len+8(FP)
+	JLE  fullLoadPrologue
+	MOVQ buf_len+8(FP), BX
+	CALL ·partialLoad(SB)
+	JMP  skipFullLoadPrologue
 
 fullLoadPrologue:
 	VMOVDQU (DI)(DX*1), Y6     // load low 32-bytes
@@ -241,13 +241,13 @@ skipFullLoadPrologue:
 	VMOVDQU Y7, Y9 // get high 32-bytes
 
 	// do we need to do a partial load?
-    MOVQ DX, CX
-    ADDQ $0x80, CX
-    CMPQ CX, buf_len+8(FP)
-    JLE  fullLoad
-    MOVQ buf_len+8(FP), BX
-    CALL ·partialLoad(SB)
-    JMP  skipFullLoad
+	MOVQ DX, CX
+	ADDQ $0x80, CX
+	CMPQ CX, buf_len+8(FP)
+	JLE  fullLoad
+	MOVQ buf_len+8(FP), BX
+	CALL ·partialLoad(SB)
+	JMP  skipFullLoad
 
 fullLoad:
 	// load next pair of YMM words
@@ -256,43 +256,45 @@ fullLoad:
 
 skipFullLoad:
 
-    MOVQ y8+24(FP), AX
-    VMOVDQU Y8, (AX)
-    MOVQ y9+32(FP), AX
-    VMOVDQU Y9, (AX)
-    MOVQ y6+40(FP), AX
-    VMOVDQU Y6, (AX)
-    MOVQ y7+48(FP), AX
-    VMOVDQU Y7, (AX)
-    RET
+	MOVQ    y8+24(FP), AX
+	VMOVDQU Y8, (AX)
+	MOVQ    y9+32(FP), AX
+	VMOVDQU Y9, (AX)
+	MOVQ    y6+40(FP), AX
+	VMOVDQU Y6, (AX)
+	MOVQ    y7+48(FP), AX
+	VMOVDQU Y7, (AX)
+	RET
 
-
+// CX = base for loading
+// BX = buf_len+8(FP)
 TEXT ·partialLoad(SB), 7, $0
-	VPXOR Y6, Y6, Y6           // clear lower 32-bytes
-	VPXOR Y7, Y7, Y7           // clear upper 32-bytes
+	VPXOR Y6, Y6, Y6 // clear lower 32-bytes
+	VPXOR Y7, Y7, Y7 // clear upper 32-bytes
 
-    //
-    SUBQ $0x40, CX
-	CMPQ CX, buf_len+8(FP)
-	JGT  joinAfterPartialLoad
+	SUBQ $0x40, CX
+
+	// check whether we need to load at all?
+	CMPQ CX, BX
+	JGT  partialLoadDone
 
 	// do a partial load and mask out bytes after the end of the message with whitespace
-	VMOVDQU 0x40(DI)(DX*1), Y6 // always load low 32-bytes
+	VMOVDQU (DI)(CX*1), Y6 // always load low 32-bytes
 
-	MOVQ buf_len+8(FP), CX
-	ANDQ $0x3f, CX
-	CMPQ CX, $0x20
+	ANDQ $0x3f, BX
+	CMPQ BX, $0x20
 	JGE  maskingHigh
 
 	// perform masking on low 32-bytes
-//	MASK_TRAILING_BYTES(0x1f, Y6)
-	JMP   joinAfterPartialLoad
+	MASK_TRAILING_BYTES(0x1f, Y6)
+	JMP partialLoadDone
 
 maskingHigh:
-	// perform masking on high 32-bytes
-	VMOVDQU 0x60(DI)(DX*1), Y7   // load high 32-bytes
-//	MASK_TRAILING_BYTES(0x3f, Y7)
-	JMP     joinAfterPartialLoad
+	VMOVDQU 0x20(DI)(CX*1), Y7 // load high 32-bytes
+	MASK_TRAILING_BYTES(0x3f, Y7)
+
+partialLoadDone:
+	RET
 
 DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
 DATA SHUFMASK<>+0x008(SB)/8, $0x0101010101010101
