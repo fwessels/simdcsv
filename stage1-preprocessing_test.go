@@ -600,17 +600,25 @@ func TestStage1DynamicAllocation(t *testing.T) {
 
 func TestPartialLoad(t *testing.T) {
 
-	input := strings.Repeat("wxyz", 64)
+	input := bytes.Repeat([]byte{0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a}, 16)
 
-	for cnt := 61; cnt <= 61; cnt++ {
+	for cnt := 1; cnt <= 64; cnt++ {
 
-		fmt.Println(hex.Dump([]byte(input[:cnt])))
+		//fmt.Println(hex.Dump(input[:cnt]))
 
 		var y6, y7 [32]byte
-		testPartialLoad([]byte(input[:cnt]), &y6, &y7)
+		testPartialLoad(input[:cnt], &y6, &y7)
 
-		fmt.Printf("%x\n", y6)
-		fmt.Printf("%x\n", y7)
+		verify := make([]byte, 0, 128)
+		verify = append(verify, y6[:]...)
+		verify = append(verify, y7[:]...)
+		verify = bytes.TrimRight(verify, string([]byte{0}))
+
+		fmt.Printf("%x\n", verify)
+
+		if !reflect.DeepEqual(input[:cnt], verify) {
+			t.Errorf("TestPartialLoad: got %v, want %v", input[:cnt], verify)
+		}
 	}
 }
 

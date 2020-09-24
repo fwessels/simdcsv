@@ -15,6 +15,13 @@
 	SHLQ CX, AX \ // only lower 6 bits are taken into account, which is good for current and next YMM words
 	ORQ  AX, BX
 
+#define MASK_TRAILING_BYTES(MAX, Y) \
+	LEAQ    MASKTABLE<>(SB), AX \
+	MOVQ    $MAX, CX            \
+	SUBQ    BX, CX              \
+	VMOVDQU (AX)(CX*1), Y0      \ // Load mask
+	VPAND   Y0, Y, Y              // Mask message
+
 // See stage1Input struct
 #define QUOTE_MASK_IN           0
 #define SEPARATOR_MASK_IN       8
@@ -219,12 +226,21 @@ TEXT ·testPartialLoad(SB), 7, $0
 
     MOVQ DX, CX
     ADDQ $0x40, CX
+    CMPQ CX, buf_len+8(FP)
+    JLE  fullLoadPrologue
     MOVQ buf_len+8(FP), BX
     CALL ·partialLoad(SB)
+    JMP  skipFullLoadPrologue
+
+fullLoadPrologue:
+	VMOVDQU (DI)(DX*1), Y6     // load low 32-bytes
+	VMOVDQU 0x20(DI)(DX*1), Y7 // load high 32-bytes
+
+skipFullLoadPrologue:
 
     MOVQ y6+24(FP), AX
     VMOVDQU Y6, (AX)
-    MOVQ yy+32(FP), AX
+    MOVQ y7+32(FP), AX
     VMOVDQU Y7, (AX)
     RET
 
