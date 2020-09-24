@@ -20,7 +20,7 @@
 	MOVQ    $MAX, CX            \
 	SUBQ    BX, CX              \
 	VMOVDQU (AX)(CX*1), Y0      \ // Load mask
-	VPAND   Y0, Y, Y              // Mask message
+	VPAND   Y0, Y, Y            // Mask message
 
 // See stage1Input struct
 #define QUOTE_MASK_IN           0
@@ -79,12 +79,22 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ         AX, X5
 	VPBROADCASTB X5, Y_QUOTE_CHAR
 
+	MOVQ buf+0(FP), DI
 	MOVQ offset+56(FP), DX
 
-	MOVQ    buf+0(FP), DI
+    MOVQ DX, CX
+    ADDQ $0x40, CX
+    CMPQ CX, buf_len+8(FP)
+    JLE  fullLoadPrologue
+    MOVQ buf_len+8(FP), BX
+    CALL ·partialLoad(SB)
+    JMP  skipFullLoadPrologue
+
+fullLoadPrologue:
 	VMOVDQU (DI)(DX*1), Y6     // load low 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y7 // load high 32-bytes
 
+skipFullLoadPrologue:
 	MOVQ input+32(FP), SI
 
 	// quote mask
@@ -130,17 +140,21 @@ loop:
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, CARRIAGE_RETURN_MASK_IN(SI)
 
-	// do we need to do a partial load?
-	MOVQ DX, CX
-	ADDQ $0x80, CX // since we are loading the next pair of YMM words, we need two times 64 bytes space
-	CMPQ CX, buf_len+8(FP)
-	JGT  partialLoad
+    // do we need to do a partial load?
+    MOVQ DX, CX
+    ADDQ $0x80, CX
+    CMPQ CX, buf_len+8(FP)
+    JLE  fullLoad
+    MOVQ buf_len+8(FP), BX
+    CALL ·partialLoad(SB)
+    JMP  skipFullLoad
 
-	// load next pair of YMM words
-	VMOVDQU  0x40(DI)(DX*1), Y6         // load low 32-bytes of next pair
-	VMOVDQU  0x60(DI)(DX*1), Y7         // load high 32-bytes of next pair
+fullLoad:
+    // load next pair of YMM words
+    VMOVDQU 0x40(DI)(DX*1), Y6 // load low 32-bytes of next pair
+    VMOVDQU 0x60(DI)(DX*1), Y7 // load high 32-bytes of next pair
 
-joinAfterPartialLoad:
+skipFullLoad:
 	VPCMPEQB Y6, Y_QUOTE_CHAR, Y0
 	VPCMPEQB Y7, Y_QUOTE_CHAR, Y1
 	CREATE_MASK(Y0, Y1, AX, CX)
@@ -207,7 +221,7 @@ skipAddTrailingNewline:
 	INCQ 8(AX)
 	INCQ CX
 	ADDQ $0x40, DX
-	CMPQ CX, 16(AX) // slice is full?
+	CMPQ CX, 16(AX)          // slice is full?
 	JGE  exit
 	SUBQ $0x40, DX
 
