@@ -600,21 +600,25 @@ func TestStage1DynamicAllocation(t *testing.T) {
 
 func TestPartialLoad(t *testing.T) {
 
-	input := bytes.Repeat([]byte{0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a}, 16)
+	input := make([]byte, 0, 256)
+	input = append(input, bytes.Repeat([]byte{0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7a}, 4)...)
+	input = append(input, bytes.Repeat([]byte{0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a}, 4*3)...)
 
-	for cnt := 1; cnt <= 64; cnt++ {
+	for cnt := 0; cnt <= 128; cnt++ {
 
 		//fmt.Println(hex.Dump(input[:cnt]))
 
-		var y6, y7 [32]byte
-		testPartialLoad(input[:cnt], &y6, &y7)
+		var y8, y9, y6, y7 [32]byte
+		testPartialLoad(input[:cnt], &y8, &y9, &y6, &y7)
 
 		verify := make([]byte, 0, 128)
+		verify = append(verify, y8[:]...)
+		verify = append(verify, y9[:]...)
 		verify = append(verify, y6[:]...)
 		verify = append(verify, y7[:]...)
 		verify = bytes.TrimRight(verify, string([]byte{0}))
 
-		fmt.Printf("%x\n", verify)
+		//fmt.Printf("%x\n", verify)
 
 		if !reflect.DeepEqual(input[:cnt], verify) {
 			t.Errorf("TestPartialLoad: got %v, want %v", input[:cnt], verify)

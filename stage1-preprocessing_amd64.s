@@ -237,10 +237,32 @@ fullLoadPrologue:
 	VMOVDQU 0x20(DI)(DX*1), Y7 // load high 32-bytes
 
 skipFullLoadPrologue:
+	VMOVDQU Y6, Y8 // get low 32-bytes
+	VMOVDQU Y7, Y9 // get high 32-bytes
 
-    MOVQ y6+24(FP), AX
+	// do we need to do a partial load?
+    MOVQ DX, CX
+    ADDQ $0x80, CX
+    CMPQ CX, buf_len+8(FP)
+    JLE  fullLoad
+    MOVQ buf_len+8(FP), BX
+    CALL ·partialLoad(SB)
+    JMP  skipFullLoad
+
+fullLoad:
+	// load next pair of YMM words
+	VMOVDQU 0x40(DI)(DX*1), Y6 // load low 32-bytes of next pair
+	VMOVDQU 0x60(DI)(DX*1), Y7 // load high 32-bytes of next pair
+
+skipFullLoad:
+
+    MOVQ y8+24(FP), AX
+    VMOVDQU Y8, (AX)
+    MOVQ y9+32(FP), AX
+    VMOVDQU Y9, (AX)
+    MOVQ y6+40(FP), AX
     VMOVDQU Y6, (AX)
-    MOVQ y7+32(FP), AX
+    MOVQ y7+48(FP), AX
     VMOVDQU Y7, (AX)
     RET
 

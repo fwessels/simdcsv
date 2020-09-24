@@ -18,16 +18,6 @@
 	VMOVDQU (AX)(BX*1), Y10     \ // Load mask
 	VPAND   Y10, Y, Y           \ // Mask message
 
-DATA MASKTABLE<>+0x000(SB)/8, $0xffffffffffffffff
-DATA MASKTABLE<>+0x008(SB)/8, $0xffffffffffffffff
-DATA MASKTABLE<>+0x010(SB)/8, $0xffffffffffffffff
-DATA MASKTABLE<>+0x018(SB)/8, $0x00ffffffffffffff
-DATA MASKTABLE<>+0x020(SB)/8, $0x0000000000000000
-DATA MASKTABLE<>+0x028(SB)/8, $0x0000000000000000
-DATA MASKTABLE<>+0x030(SB)/8, $0x0000000000000000
-DATA MASKTABLE<>+0x038(SB)/8, $0x0000000000000000
-GLOBL MASKTABLE<>(SB), 8, $64
-
 // func _stage2_parse_buffer()
 TEXT ·_stage2_parse_buffer(SB), 7, $0
 
