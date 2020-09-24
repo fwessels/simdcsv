@@ -9,6 +9,12 @@ func stage1_preprocess_test(input *stage1Input, output *stage1Output)
 //go:noescape
 func stage1_preprocess()
 
+//go:noescape
+func testPartialLoad(buf []byte, y6, y7 *[32]byte)
+
+//go:noescape
+func partialLoad()
+
 func Stage1PreprocessBuffer(buf []byte, separatorChar uint64) ([]uint64) {
 
 	return Stage1PreprocessBufferEx(buf, separatorChar, nil)

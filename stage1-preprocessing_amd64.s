@@ -213,7 +213,23 @@ exit:
 	MOVQ DX, processed+64(FP)
 	RET
 
-partialLoad:
+TEXT ·testPartialLoad(SB), 7, $0
+    MOVQ buf+0(FP), DI
+	XORQ DX, DX
+
+    MOVQ DX, CX
+    ADDQ $0x40, CX
+    MOVQ buf_len+8(FP), BX
+    CALL ·partialLoad(SB)
+
+    MOVQ y6+24(FP), AX
+    VMOVDQU Y6, (AX)
+    MOVQ yy+32(FP), AX
+    VMOVDQU Y7, (AX)
+    RET
+
+
+TEXT ·partialLoad(SB), 7, $0
 	VPXOR Y6, Y6, Y6           // clear lower 32-bytes
 	VPXOR Y7, Y7, Y7           // clear upper 32-bytes
 

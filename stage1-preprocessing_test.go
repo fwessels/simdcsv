@@ -598,6 +598,22 @@ func TestStage1DynamicAllocation(t *testing.T) {
 	})
 }
 
+func TestPartialLoad(t *testing.T) {
+
+	input := strings.Repeat("wxyz", 64)
+
+	for cnt := 61; cnt <= 61; cnt++ {
+
+		fmt.Println(hex.Dump([]byte(input[:cnt])))
+
+		var y6, y7 [32]byte
+		testPartialLoad([]byte(input[:cnt]), &y6, &y7)
+
+		fmt.Printf("%x\n", y6)
+		fmt.Printf("%x\n", y7)
+	}
+}
+
 func TestStage1ReadEndOfBuffer(t *testing.T) {
 
 	for l := 1; l <= 1024; l++ {
