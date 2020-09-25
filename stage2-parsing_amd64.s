@@ -15,21 +15,25 @@
 	LEAQ    MASKTABLE<>(SB), AX \
 	MOVQ    $MAX, BX            \
 	SUBQ    CX, BX              \
-	VMOVDQU (AX)(BX*1), Y10     \ // Load mask
-	VPAND   Y10, Y, Y           \ // Mask message
+	VMOVDQU (AX)(BX*1), Y0      \ // Load mask
+	VPAND   Y0, Y, Y            \ // Mask message
+
+#define Y_DELIMITER   Y4
+#define Y_SEPARATOR   Y5
+#define Y_QUOTE_CHAR  Y6
 
 // func _stage2_parse_buffer()
 TEXT ·_stage2_parse_buffer(SB), 7, $0
 
 	MOVQ         delimiterChar+80(FP), AX // get character for delimiter
 	MOVQ         AX, X4
-	VPBROADCASTB X4, Y4
+	VPBROADCASTB X4, Y_DELIMITER
 	MOVQ         separatorChar+88(FP), AX // get character for separator
 	MOVQ         AX, X5
-	VPBROADCASTB X5, Y5
+	VPBROADCASTB X5, Y_SEPARATOR
 	MOVQ         quoteChar+96(FP), AX     // get character for quote
 	MOVQ         AX, X6
-	VPBROADCASTB X6, Y6
+	VPBROADCASTB X6, Y_QUOTE_CHAR
 
 	MOVQ input+104(FP), BX
 	MOVQ buf+0(FP), AX
@@ -71,9 +75,9 @@ loop:
 
 joinAfterPartialLoad:
 	// delimiter mask
-	VPCMPEQB Y8, Y4, Y10
-	VPCMPEQB Y9, Y4, Y11
-	CREATE_MASK(Y10, Y11, AX, BX)
+	VPCMPEQB Y8, Y_DELIMITER, Y0
+	VPCMPEQB Y9, Y_DELIMITER, Y1
+	CREATE_MASK(Y0, Y1, AX, BX)
 
 	// are we processing the last 64-bytes?
 	MOVQ DX, AX
@@ -96,15 +100,15 @@ notLastZWord:
 	MOVQ BX, 8(SI)
 
 	// separator mask
-	VPCMPEQB Y8, Y5, Y10
-	VPCMPEQB Y9, Y5, Y11
-	CREATE_MASK(Y10, Y11, AX, CX)
+	VPCMPEQB Y8, Y_SEPARATOR, Y0
+	VPCMPEQB Y9, Y_SEPARATOR, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, 0(SI)
 
 	// quote mask
-	VPCMPEQB Y8, Y6, Y10
-	VPCMPEQB Y9, Y6, Y11
-	CREATE_MASK(Y10, Y11, AX, CX)
+	VPCMPEQB Y8, Y_QUOTE_CHAR, Y0
+	VPCMPEQB Y9, Y_QUOTE_CHAR, Y1
+	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, 16(SI)
 
 	MOVQ offset+112(FP), DI

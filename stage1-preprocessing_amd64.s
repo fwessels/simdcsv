@@ -231,6 +231,7 @@ unmodified:
 	JLT  loop
 
 exit:
+	VZEROUPPER
 	MOVQ DX, processed+64(FP)
 	RET
 
