@@ -234,52 +234,6 @@ exit:
 	MOVQ DX, processed+64(FP)
 	RET
 
-TEXT ·testPartialLoad(SB), 7, $0
-	MOVQ buf+0(FP), DI
-	XORQ DX, DX
-
-	MOVQ DX, CX
-	ADDQ $0x40, CX
-	CMPQ CX, buf_len+8(FP)
-	JLE  fullLoadPrologue
-	MOVQ buf_len+8(FP), BX
-	CALL ·partialLoad(SB)
-	JMP  skipFullLoadPrologue
-
-fullLoadPrologue:
-	VMOVDQU (DI)(DX*1), Y6     // load low 32-bytes
-	VMOVDQU 0x20(DI)(DX*1), Y7 // load high 32-bytes
-
-skipFullLoadPrologue:
-	VMOVDQU Y6, Y8 // get low 32-bytes
-	VMOVDQU Y7, Y9 // get high 32-bytes
-
-	// do we need to do a partial load?
-	MOVQ DX, CX
-	ADDQ $0x80, CX
-	CMPQ CX, buf_len+8(FP)
-	JLE  fullLoad
-	MOVQ buf_len+8(FP), BX
-	CALL ·partialLoad(SB)
-	JMP  skipFullLoad
-
-fullLoad:
-	// load next pair of YMM words
-	VMOVDQU 0x40(DI)(DX*1), Y6 // load low 32-bytes of next pair
-	VMOVDQU 0x60(DI)(DX*1), Y7 // load high 32-bytes of next pair
-
-skipFullLoad:
-
-	MOVQ    y8+24(FP), AX
-	VMOVDQU Y8, (AX)
-	MOVQ    y9+32(FP), AX
-	VMOVDQU Y9, (AX)
-	MOVQ    y6+40(FP), AX
-	VMOVDQU Y6, (AX)
-	MOVQ    y7+48(FP), AX
-	VMOVDQU Y7, (AX)
-	RET
-
 // CX = base for loading
 // BX = buf_len+8(FP)
 TEXT ·partialLoad(SB), 7, $0
