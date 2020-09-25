@@ -11,13 +11,6 @@
 #define ROWS_BASE    0x10
 #define LINE_OFFSET  0x18
 
-#define MASK_TRAILING_BYTES(MAX, Y) \
-	LEAQ    MASKTABLE<>(SB), AX \
-	MOVQ    $MAX, BX            \
-	SUBQ    CX, BX              \
-	VMOVDQU (AX)(BX*1), Y0      \ // Load mask
-	VPAND   Y0, Y, Y            \ // Mask message
-
 #define Y_DELIMITER   Y4
 #define Y_SEPARATOR   Y5
 #define Y_QUOTE_CHAR  Y6
@@ -162,14 +155,14 @@ partialLoad:
 	JGE  maskingHigh
 
 	// perform masking on low 32-bytes
-	MASK_TRAILING_BYTES(0x1f, Y8)
+	MASK_TRAILING_BYTES(0x1f, AX, BX, CX, Y0, Y8)
 	VPXOR Y9, Y9, Y9           // clear upper 32-bytes
 	JMP   joinAfterPartialLoad
 
 maskingHigh:
 	// perform masking on high 32-bytes
 	VMOVDQU 0x20(DI)(DX*1), Y9   // load high 32-bytes
-	MASK_TRAILING_BYTES(0x3f, Y9)
+	MASK_TRAILING_BYTES(0x3f, AX, BX, CX, Y0, Y9)
 	JMP     joinAfterPartialLoad
 
 // func stage2_parse_test(input *Input, offset uint64, output *Output)
