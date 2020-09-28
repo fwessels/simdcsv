@@ -6,7 +6,7 @@ import (
 )
 
 //go:noescape
-func _stage2_parse_buffer(buf []byte, lastCharIsDelimiter uint64, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64)
+func _stage2_parse_buffer(buf []byte, lastCharIsDelimiter uint64, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input2 *Input, offset uint64, output2 *OutputAsm) (processed uint64)
 
 func stage2_parse_buffer(buf []byte, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
 

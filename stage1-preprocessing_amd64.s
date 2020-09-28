@@ -88,7 +88,7 @@ fullLoadPrologue:
 	VMOVDQU 0x20(DI)(DX*1), Y7 // load high 32-bytes
 
 skipFullLoadPrologue:
-	MOVQ input+32(FP), SI
+	MOVQ input1+32(FP), SI
 
 	// quote mask
 	VPCMPEQB Y6, Y_QUOTE_CHAR, Y0
@@ -113,7 +113,7 @@ loop:
 	VMOVDQU Y6, Y8 // get low 32-bytes
 	VMOVDQU Y7, Y9 // get high 32-bytes
 
-	MOVQ input+32(FP), SI
+	MOVQ input1+32(FP), SI
 
 	// copy next masks to current slot (for quote mask and newline mask)
 	MOVQ QUOTE_MASK_IN_NEXT(SI), CX
@@ -167,12 +167,12 @@ skipAddTrailingNewline:
 	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI)
 
 	PUSHQ DX
-	MOVQ  input+32(FP), AX
-	MOVQ  output+40(FP), R10
+	MOVQ  input1+32(FP), AX
+	MOVQ  output1+40(FP), R10
 	CALL  ·stage1_preprocess(SB)
 	POPQ  DX
 
-	MOVQ output+40(FP), R10
+	MOVQ output1+40(FP), R10
 
 	// Replace quotes
 	MOVQ      QUOTE_MASK_OUT(R10), AX
@@ -203,7 +203,7 @@ skipAddTrailingNewline:
 	VMOVDQU Y8, (DI)(DX*1)
 	VMOVDQU Y9, 0x20(DI)(DX*1)
 
-	MOVQ output+40(FP), R10
+	MOVQ output1+40(FP), R10
 	CMPQ NEEDS_POST_PROCESSING_OUT(R10), $1
 	JNZ  unmodified
 

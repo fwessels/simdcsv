@@ -28,11 +28,11 @@ TEXT ·_stage2_parse_buffer(SB), 7, $0
 	MOVQ         AX, X6
 	VPBROADCASTB X6, Y_QUOTE_CHAR
 
-	MOVQ input+104(FP), BX
+	MOVQ input2+104(FP), BX
 	MOVQ buf+0(FP), AX
 	MOVQ AX, INPUT_BASE(BX) // initialize input buffer base pointer
 
-	MOVQ output+120(FP), BX
+	MOVQ output2+120(FP), BX
 	MOVQ rows_base+32(FP), AX
 	MOVQ AX, ROWS_BASE(BX)       // initialize rows base pointer
 	MOVQ columns_base+56(FP), AX
@@ -42,7 +42,7 @@ TEXT ·_stage2_parse_buffer(SB), 7, $0
 
 loop:
 	//  Check whether there is still enough reserved space in the rows and columns destination buffer
-	MOVQ output+120(FP), BX
+	MOVQ output2+120(FP), BX
 	MOVQ INDEX_OFFSET(BX), AX   // load output.index
 	SHRQ $1, AX                 // divide by 2 to get number of strings (since we write two words per string)
 	ADDQ $64, AX                // absolute maximum of strings to be potentially written per 64 bytes
@@ -55,7 +55,7 @@ loop:
 	JGE  done                // exit out and make sure more memory is allocated
 
 	MOVQ buf+0(FP), DI
-	MOVQ input+104(FP), SI
+	MOVQ input2+104(FP), SI
 
 	// do we need to do a partial load?
 	MOVQ DX, CX
@@ -105,10 +105,10 @@ notLastZWord:
 	MOVQ     CX, 16(SI)
 
 	MOVQ offset+112(FP), DI
-	MOVQ output+120(FP), R9
+	MOVQ output2+120(FP), R9
 
 	PUSHQ DX
-	MOVQ  input+104(FP), DX
+	MOVQ  input2+104(FP), DX
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
 
@@ -125,7 +125,7 @@ addTrailingDelimiter:
 	CMPQ CX, $1
 	JZ   done
 
-	MOVQ input+104(FP), SI
+	MOVQ input2+104(FP), SI
 	MOVQ $1, CX            // first bit marks first char is delimiter
 	MOVQ CX, 8(SI)
 	MOVQ $0, CX
@@ -133,10 +133,10 @@ addTrailingDelimiter:
 	MOVQ CX, 16(SI)
 
 	MOVQ offset+112(FP), DI
-	MOVQ output+120(FP), R9
+	MOVQ output2+120(FP), R9
 
 	PUSHQ DX
-	MOVQ  input+104(FP), DX
+	MOVQ  input2+104(FP), DX
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
 
