@@ -22,7 +22,6 @@ func StagesCombinedEx(buf []byte, separatorChar uint64, records *[][]string, row
 		return *records, *rows, *columns, *postProc, true
 	}
 
-	inputStage1, outputStage1 := stage1Input{}, stage1Output{}
 	if postProc == nil {
 		_postProc := make([]uint64, 0, 128*128*2)
 		postProc = &_postProc
@@ -50,17 +49,57 @@ func StagesCombinedEx(buf []byte, separatorChar uint64, records *[][]string, row
 
 	*records = (*records)[:0]
 
-	inputStage2, outputStage2 := NewInput(), OutputAsm{}
-
-	offset := uint64(0)
-
 	delimiterChar := '\n'
 	lastCharIsDelimiter := uint64(0)
 	if len(buf) > 0 && buf[len(buf)-1] == byte(delimiterChar) {
 		lastCharIsDelimiter = 1
 	}
 
-	stages_combined_buffer(buf, separatorChar, &inputStage1, &outputStage1, postProc, offset, &inputStage2, &outputStage2, lastCharIsDelimiter, *rows, *columns)
+	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+	offset := uint64(0)
+	processed, quoted := uint64(0), uint64(0)
+	for {
+		inputStage1, outputStage1 := stage1Input{}, stage1Output{}
+		inputStage1.quoted = quoted
+
+		processed = stages_combined_buffer(buf, separatorChar, &inputStage1, &outputStage1, postProc, offset, &inputStage2, &outputStage2, lastCharIsDelimiter, *rows, *columns)
+		if inputStage2.errorOffset != 0 {
+			return errorOut()
+		}
+		if int(processed) >= len(buf) {
+			break
+		}
+
+		// Sanity check
+		if offset == processed {
+			log.Fatalf("failed to process anything")
+		}
+		offset = processed
+
+		// Check whether we need to double columns slice capacity
+		if outputStage2.index / 2 >= cap(*columns) / 2 {
+			_columns := make([]string, cap(*columns)*2)
+			copy(_columns, (*columns)[:outputStage2.index/2])
+			columns = &_columns
+		}
+
+		// Check whether we need to double rows slice capacity
+		if outputStage2.line >= cap(*rows) / 2 {
+			_rows := make([]uint64, cap(*rows)*2)
+			copy(_rows, (*rows)[:outputStage2.line])
+			rows = &_rows
+		}
+
+		// Check if we need to grow the slice for keeping track of the lines to post process
+		if len(*postProc) >= cap(*postProc)/2 {
+			_postProc := make([]uint64, len(*postProc), cap(*postProc)*2)
+			copy(_postProc, (*postProc)[:])
+			postProc = &_postProc
+		}
+
+		quoted = inputStage1.quoted
+	}
 
 	// Is the final quoted field not closed?
 	if inputStage2.quoted != 0 {
