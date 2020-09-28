@@ -126,7 +126,7 @@ addTrailingDelimiter:
 	JZ   done
 
 	MOVQ input2+104(FP), SI
-	MOVQ $1, CX            // first bit marks first char is delimiter
+	MOVQ $1, CX             // first bit marks first char is delimiter
 	MOVQ CX, 8(SI)
 	MOVQ $0, CX
 	MOVQ CX, 0(SI)

@@ -75,13 +75,13 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ buf+0(FP), DI
 	MOVQ offset+56(FP), DX
 
-    MOVQ DX, CX
-    ADDQ $0x40, CX
-    CMPQ CX, buf_len+8(FP)
-    JLE  fullLoadPrologue
-    MOVQ buf_len+8(FP), BX
-    CALL ·partialLoad(SB)
-    JMP  skipFullLoadPrologue
+	MOVQ DX, CX
+	ADDQ $0x40, CX
+	CMPQ CX, buf_len+8(FP)
+	JLE  fullLoadPrologue
+	MOVQ buf_len+8(FP), BX
+	CALL ·partialLoad(SB)
+	JMP  skipFullLoadPrologue
 
 fullLoadPrologue:
 	VMOVDQU (DI)(DX*1), Y6     // load low 32-bytes
@@ -133,19 +133,19 @@ loop:
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, CARRIAGE_RETURN_MASK_IN(SI)
 
-    // do we need to do a partial load?
-    MOVQ DX, CX
-    ADDQ $0x80, CX
-    CMPQ CX, buf_len+8(FP)
-    JLE  fullLoad
-    MOVQ buf_len+8(FP), BX
-    CALL ·partialLoad(SB)
-    JMP  skipFullLoad
+	// do we need to do a partial load?
+	MOVQ DX, CX
+	ADDQ $0x80, CX
+	CMPQ CX, buf_len+8(FP)
+	JLE  fullLoad
+	MOVQ buf_len+8(FP), BX
+	CALL ·partialLoad(SB)
+	JMP  skipFullLoad
 
 fullLoad:
-    // load next pair of YMM words
-    VMOVDQU 0x40(DI)(DX*1), Y6 // load low 32-bytes of next pair
-    VMOVDQU 0x60(DI)(DX*1), Y7 // load high 32-bytes of next pair
+	// load next pair of YMM words
+	VMOVDQU 0x40(DI)(DX*1), Y6 // load low 32-bytes of next pair
+	VMOVDQU 0x60(DI)(DX*1), Y7 // load high 32-bytes of next pair
 
 skipFullLoad:
 	VPCMPEQB Y6, Y_QUOTE_CHAR, Y0
