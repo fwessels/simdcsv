@@ -24,11 +24,12 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, postProc *[]uint
 		postProc = &_postProc
 	}
 
-	processed :=uint64(0)
+	processed, quoted :=uint64(0), uint64(0)
 	for {
-		input := stage1Input{}
-		output := stage1Output{}
-		processed = stage1_preprocess_buffer(buf, separatorChar, &input, &output, postProc, processed)
+		inputStage1, outputStage2 := stage1Input{}, stage1Output{}
+		inputStage1.quoted = quoted
+
+		processed = stage1_preprocess_buffer(buf, separatorChar, &inputStage1, &outputStage2, postProc, processed)
 
 		if processed >= uint64(len(buf)) {
 			break
@@ -40,6 +41,8 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, postProc *[]uint
 			copy(_postProc, (*postProc)[:])
 			postProc = &_postProc
 		}
+
+		quoted = inputStage1.quoted
 	}
 
 	return *postProc

@@ -58,12 +58,12 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 
 	*records = (*records)[:0]
 
-	input, output := NewInput(), OutputAsm{}
+	inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
 	offset := uint64(0)
 	for {
-		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &input, offset, &output)
-		if input.errorOffset != 0 {
+		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &inputStage2, offset, &outputStage2)
+		if inputStage2.errorOffset != 0 {
 			return errorOut()
 		}
 		if int(processed) >= len(buf) {
@@ -77,36 +77,36 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 		offset = processed
 
 		// Check whether we need to double columns slice capacity
-		if output.index / 2 >= cap(*columns) / 2 {
+		if outputStage2.index / 2 >= cap(*columns) / 2 {
 			_columns := make([]string, cap(*columns)*2)
-			copy(_columns, (*columns)[:output.index/2])
+			copy(_columns, (*columns)[:outputStage2.index/2])
 			columns = &_columns
 		}
 
 		// Check whether we need to double rows slice capacity
-		if output.line >= cap(*rows) / 2 {
+		if outputStage2.line >= cap(*rows) / 2 {
 			_rows := make([]uint64, cap(*rows)*2)
-			copy(_rows, (*rows)[:output.line])
+			copy(_rows, (*rows)[:outputStage2.line])
 			rows = &_rows
 		}
 	}
 
 	// Is the final quoted field not closed?
-	if input.quoted != 0 {
+	if inputStage2.quoted != 0 {
 		return errorOut()
 	}
 
-	if output.index >= 2 {
+	if outputStage2.index >= 2 {
 		// Sanity check -- we must not point beyond the end of the buffer
-		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-2)*8) != 0 &&
-			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
-			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(output.index-1)*8) > uint64(len(buf)) {
+		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) != 0 &&
+			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
+			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-1)*8) > uint64(len(buf)) {
 			log.Fatalf("ERROR: Pointing past end of buffer")
 		}
 	}
 
-	*columns = (*columns)[:(output.index)/2]
-	*rows = (*rows)[:output.line]
+	*columns = (*columns)[:(outputStage2.index)/2]
+	*rows = (*rows)[:outputStage2.line]
 
 	for i := 0; i < len(*rows); i += 2 {
 		*records = append(*records, (*columns)[(*rows)[i]:(*rows)[i]+(*rows)[i+1]])
