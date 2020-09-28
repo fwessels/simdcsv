@@ -138,6 +138,8 @@ loop:
 	CREATE_MASK(Y0, Y1, AX, CX)
 	MOVQ     CX, CARRIAGE_RETURN_MASK_IN(SI)
 
+	MOVQ buf+0(FP), DI
+
 	// do we need to do a partial load?
 	MOVQ DX, CX
 	ADDQ $0x80, CX
@@ -186,7 +188,7 @@ skipAddTrailingNewline:
 	VPCMPEQB Y9, Y_DELIMITER, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
 
-	// Merge in carridage returns that are treated as newlines (and hence filtered out)
+	// Merge in carriage returns that are treated as newlines (and hence filtered out)
 	ORQ CARRIAGE_RETURN_MASK_OUT(R10), BX
 
 	// are we processing the last 64-bytes?
