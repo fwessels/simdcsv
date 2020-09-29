@@ -7,18 +7,30 @@ A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [s
 ## Design goals
 
 - 1 GB/sec parsing performance for a single core
-- linear performance scaling across cores
 - support arbitrarily large data sets
 - drop-in replacement for `encoding/csv`
 - zero copy behaviour/memory efficient
 
 ## Two Stage Design
 
-Fundamentally the architecture of `simdcsv` has two stages:
-- stage 1: split up CSV
+The design of `simdcsv` consists of two stages:
+- stage 1: preprocess the CSV
 - stage 2: parse CSV
 
-The first stage allows large CSV objects to be safely broken up into separate chunks that can be processed independently on multiple cores during the second stage. This is done in a deterministic manner whereby the "entry" state of each chunk is known definitively. 
+Fundamentally `simdcsv` works on chunks of 64 bytes at a time which are loaded into a set of 2 YMM registers. Using AVX2 instructions the presence of characters such as separators, newline delimiters and quotes are detected and merged into a single 64-bit wide register.
+
+# Stage 1: Preprocessing stage
+
+The main job of the first stage is to a chunk of data for the presence of quoted fields. 
+
+Within quoted fields some special processing is done for:
+- double quotes (`""`): these are cleared in the corresponding mask in order to prevent the next step to treat it from being treated as either an opening or closing qoute.
+- separator character: each separator character in a quoted field has its corresponding bit cleared so as to be skipped in the next step.
+
+In addition all CVS data is scanned for carriage return characters followed by a newline character (`\r\n`):
+- within quoted fields: the (`\r\n`) pair is marked as a position to be replaced with a single newline (`\n`) only during the next stage.
+- everywhere else: the `\r` is marked to be a newline (`\n`) so that it will be treated as an empty line during the next stage (which are ignored).
+
 
 Due to the nature of CSV files this is not trivial by itself as for instance delimiter symbols are allowed in quoted fields. As such it is not possible to determine with certainty where chunks may be broken up at without doing additional processing.
 
