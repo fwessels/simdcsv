@@ -31,6 +31,25 @@ In addition all CVS data is scanned for carriage return characters followed by a
 - within quoted fields: the (`\r\n`) pair is marked as a position to be replaced with a single newline (`\n`) only during the next stage.
 - everywhere else: the `\r` is marked to be a newline (`\n`) so that it will be treated as an empty line during the next stage (which are ignored).
 
+In order to be able to detect double quotes and carriage return and newline pairs, for the last bit (63rd) it is necessary to look ahead to the next set of 64 bytes. So the first stage reads one chunk ahead and, upon finishing the current chunk, swaps the next chunk to the current chunk and loads the next set of 64 bytes to process.
+
+Special care is taken to prevent errors such as segmentation violations in order to not (potentially) load beyond the end of the input buffer.
+
+The result from the first stage is a set of three bit-masks:
+- quote mask: mask indicating opening or closing quotes for quoted fields (excluding quote quotes)
+- separator mask: mask for splitsing the row of CSV data into separate fields (excluding separator characters in quoted fields)
+- carriage return mask: mask than indicate which carriage returns to treat as newlines
+
+# Stage 2: Parsing stage
+
+The second stage takes the (adjusted) bit masks from the first stage in order the work out the offsets of the individual fields into the originating buffer containing the CSV data.
+
+To prevent needlessy copying (and allocating) strings out of buffer of CSV data, there is a single large slice to strings representing all  the columns for all the rows in the CSV data. Each string out of the columns slice points back into the appropriate starting position in the CSV data and the corresponding length for that particular field.
+
+As the columns are parsed they are added to the same row (which is a slice of strings) until a delimiter in the form of an active bit in the newline mask is detected. The a new row is started to which the subsequent fields are added.
+
+Note that empty rows are automatically skipped as well as multiple empty rows immediately following each other. Due to the fact that a carriage return character, immediately followed by a newline, is indicated from the first stage to be treated as a newline character, it both properly terminates the current row as well as preventing an empty row from being added (since `\r\n` is treated as two subsequent newlines (`\n\n`) but empty lines are filtered out).
+
 
 Due to the nature of CSV files this is not trivial by itself as for instance delimiter symbols are allowed in quoted fields. As such it is not possible to determine with certainty where chunks may be broken up at without doing additional processing.
 
