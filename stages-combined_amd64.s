@@ -31,6 +31,10 @@
 #define ROWS_BASE    0x10
 #define LINE_OFFSET  0x18
 
+#define INPUT_STAGE2_SEPARATOR_MASK 0
+#define INPUT_STAGE2_DELIMITER_MASK 8
+#define INPUT_STAGE2_QUOTE_MASK     16
+
 #define Y_QUOTE_CHAR  Y5
 #define Y_SEPARATOR   Y4
 #define Y_CARRIAGE_R  Y3
@@ -209,15 +213,15 @@ skipAddTrailingNewline:
 	ORQ  AX, BX
 
 notLastZWord:
-	MOVQ BX, 8(SI)
+	MOVQ BX, INPUT_STAGE2_DELIMITER_MASK(SI)
 
-	// separator mask
-	MOVQ SEPARATOR_MASK_OUT(R10), CX
-	MOVQ CX, 0(SI)
+	// Set bitmask for quotes
+	MOVQ QUOTE_MASK_OUT(R10), AX
+	MOVQ AX, INPUT_STAGE2_QUOTE_MASK(SI)
 
-	// quote mask
-	MOVQ QUOTE_MASK_OUT(R10), CX
-	MOVQ CX, 16(SI)
+	// Set bitmask for separators
+	MOVQ SEPARATOR_MASK_OUT(R10), AX
+	MOVQ AX, INPUT_STAGE2_SEPARATOR_MASK(SI)
 
 	MOVQ offset+56(FP), DI
 	MOVQ output2+72(FP), R9
