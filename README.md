@@ -54,6 +54,33 @@ For the large majority of the fields we have an optimized "zero-copy" memory opt
 
 However there are certain fields that require post-processing in order to have the correct representation (and meeting equivalence to how `encoding/csv` operates. These fields are all quoted fields that contain either a double quote or a carriage return and newline pair. The first stage outputs a rough indication of which fields require this post-processing and, upon completion of the second stage, a final `string.ReplaceAll()` is invoked on these fields (which then will contain a modified copy of the string out of the original CSV data).
 
+## Example
+
+Below is an example that illustrates the bit masks for the different identification characters as well as their interaction between both stages.  
+
+```
+=== RUN   TestExample
+00000000  66 69 72 73 74 5f 6e 61  6d 65 2c 6c 61 73 74 5f  |first_name,last_|
+00000010  6e 61 6d 65 2c 75 73 65  72 6e 61 6d 65 0d 0a 22  |name,username.."|
+00000020  52 6f 22 22 62 22 2c 22  50 69 2c 6b 65 22 2c 72  |Ro""b","Pi,ke",r|
+00000030  6f 62 0a 4b 65 6e 2c 54  68 6f 6d 70 73 6f 6e 2c  |ob.Ken,Thompson,|
+00000040  6b 65 6e 0a 52 6f 62 0d  0a 65 72 74 2c 47 72 69  |ken.Rob..ert,Gri|
+00000050  65 73 0d 65 6d 65 72 2c  22 67 72 69 22 0a 00 00  |es.emer,"gri"...|
+00000060  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+
+     input: first_name,last_name,username  "Ro""b","Pi,ke",rob Ken,Thompson,·ken Rob  ert,Gries emer,"gri" 
+     quote: 0000000000000000000000000000000100110101000001000000000000000000·0000000000000000000000001000100000000000000000000000000000000000
+     quote: 0000000000000000000000000000000100000101000001000000000000000000·0000000000000000000000001000100000000000000000000000000000000000
+                                              ^^                                                                                             
+ separator: 0000000000100000000010000000000000000010001000100000001000000001·0000000000001000000000010000000000000000000000000000000000000000
+ separator: 0000000000100000000010000000000000000010000000100000001000000001·0000000000001000000000010000000000000000000000000000000000000000
+                                                      ^                                                                                      
+        \r: 0000000000000000000000000000010000000000000000000000000000000000·0000000100000000001000000000000000000000000000000000000000000000
+        \r: 0000000000000000000000000000010000000000000000000000000000000000·0000000100000000000000000000000000000000000000000000000000000000
+                                                                                               ^                                             
+
+```
 ##  Performance compared to encoding/csv
 
 ![encoding-csv_vs_simdcsv-comparison](charts/encoding-csv_vs_simdcsv.png)
