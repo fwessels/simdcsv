@@ -57,8 +57,6 @@ TEXT ·stages_combined_buffer(SB), 7, $0
 	MOVQ         AX, X5
 	VPBROADCASTB X5, Y_QUOTE_CHAR
 
-	MOVQ buf+0(FP), DI
-
 	MOVQ input2+64(FP), BX
 	MOVQ buf+0(FP), AX
 	MOVQ AX, INPUT_BASE(BX) // initialize input buffer base pointer
@@ -69,6 +67,7 @@ TEXT ·stages_combined_buffer(SB), 7, $0
 	MOVQ columns_base+112(FP), AX
 	MOVQ AX, COLUMNS_BASE(BX)     // initialize columns base pointer
 
+	MOVQ buf+0(FP), DI
 	MOVQ offset+56(FP), DX
 
 	MOVQ DX, CX
@@ -185,6 +184,7 @@ skipAddTrailingNewline:
 
 	MOVQ output1+40(FP), R10
 
+	MOVQ buf+0(FP), DI
 	MOVQ input2+64(FP), SI
 
 	// delimiter mask
@@ -241,9 +241,11 @@ notLastZWord:
 	MOVQ DX, (BX)(CX*8)
 	INCQ 8(AX)
 	INCQ CX
+	ADDQ $0x40, offset+56(FP)
 	ADDQ $0x40, DX
 	CMPQ CX, 16(AX)          // slice is full?
 	JGE  exit
+	SUBQ $0x40, offset+56(FP)
 	SUBQ $0x40, DX
 
 unmodified:
