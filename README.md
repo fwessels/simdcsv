@@ -19,7 +19,7 @@ The design of `simdcsv` consists of two stages:
 
 Fundamentally `simdcsv` works on chunks of 64 bytes at a time which are loaded into a set of 2 YMM registers. Using AVX2 instructions the presence of characters such as separators, newline delimiters and quotes are detected and merged into a single 64-bit wide register.
 
-# Stage 1: Preprocessing stage
+## Stage 1: Preprocessing stage
 
 The main job of the first stage is to a chunk of data for the presence of quoted fields. 
 
@@ -40,7 +40,7 @@ The result from the first stage is a set of three bit-masks:
 - separator mask: mask for splitsing the row of CSV data into separate fields (excluding separator characters in quoted fields)
 - carriage return mask: mask than indicate which carriage returns to treat as newlines
 
-# Stage 2: Parsing stage
+## Stage 2: Parsing stage
 
 The second stage takes the (adjusted) bit masks from the first stage in order the work out the offsets of the individual fields into the originating buffer containing the CSV data.
 
@@ -50,8 +50,9 @@ As the columns are parsed they are added to the same row (which is a slice of st
 
 Note that empty rows are automatically skipped as well as multiple empty rows immediately following each other. Due to the fact that a carriage return character, immediately followed by a newline, is indicated from the first stage to be treated as a newline character, it both properly terminates the current row as well as preventing an empty row from being added (since `\r\n` is treated as two subsequent newlines (`\n\n`) but empty lines are filtered out).
 
+For the large majority of the fields we have an optimized "zero-copy" memory optimized representation whereby the field is directly pointing back into the original buffer of CSV data.
 
-Due to the nature of CSV files this is not trivial by itself as for instance delimiter symbols are allowed in quoted fields. As such it is not possible to determine with certainty where chunks may be broken up at without doing additional processing.
+However there are certain fields that require post-processing in order to have the correct representation (and meeting equivalence to how `encoding/csv` operates. These fields are all quoted fields that contain either a double quote or a carriage return and newline pair. The first stage outputs a rough indication of which fields require this post-processing and, upon completion of the second stage, a final `string.ReplaceAll()` is invoked on these fields (which then will contain a modified copy of the string out of the original CSV data).
 
 ##  Performance compared to encoding/csv
 
