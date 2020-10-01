@@ -80,6 +80,16 @@ Below is an example that illustrates the bit masks for the different identificat
         \r: 0000000000000000000000000000010000000000000000000000000000000000·0000000100000000000000000000000000000000000000000000000000000000
                                                                                                ^                                             
 
+     input: first_name,last_name,username  "Ro""b","Pi,ke",rob Ken,Thompson,·ken Rob  ert,Gries emer,"gri" 
+      row0: first_name last_name username 
+      row1:                                 Ro""b   Pi,ke  rob 
+      row2:                                                    Ken Thompson ·ken 
+      row3:                                                                 ·    Rob  ert Gries emer  gri 
+
+      row0: first_name last_name username 
+      row1:                                 Ro"b   Pi,ke  rob 
+      row2:                                                    Ken Thompson ·ken 
+      row3:                                                                 ·    Rob ert  Gries emer  gri 
 ```
 ##  Performance compared to encoding/csv
 
