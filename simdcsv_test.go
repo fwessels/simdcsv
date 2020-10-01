@@ -265,6 +265,93 @@ func TestTrimLeadingSpace(t *testing.T) {
 	})
 }
 
+func TestExample(t *testing.T) {
+
+	// Example based on https://play.golang.org/p/XxthE8qqZtZ
+
+	instr := `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+`
+
+	instr = strings.Replace(instr, "\n", "\r\n", 1)
+	instr = strings.Replace(instr, `"Rob"`, `"Ro""b"`, 1) // separator in quote field that is disabled
+	instr = strings.Replace(instr, `"Pike"`, `"Pi,ke"`, 1) // separator in quote field that is disabled
+	instr = strings.Replace(instr, `"Robert"`, "Rob\r\nert", 1)     // carriage return in quoted field followed by newline --> treated as newline
+	instr = strings.Replace(instr, `"Griesemer"`, "Gries\remer", 1) // carriage return in quoted field not followed by newline  --> not treated as newline
+
+	buf := make([]byte, 128)
+	copy(buf, instr)
+
+	out := bytes.NewBufferString("")
+
+	fmt.Fprintln(out, hex.Dump(buf))
+	fmt.Fprintf(out,"         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+
+	separatorMasksIn := getBitMasks(buf, byte(','))
+	quoteMasksIn := getBitMasks(buf, byte('"'))
+	carriageReturnMasksIn := getBitMasks(buf, byte('\r'))
+	newlineMasksIn := getBitMasks(buf, byte('\n'))
+
+	input1 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], 0, newlineMasksIn[0], newlineMasksIn[1]}
+	output1_0 := stage1Output{}
+	preprocessMasksToMasksInverted(&input1, &output1_0)
+
+	input1 = stage1Input{input1.quoteMaskInNext, separatorMasksIn[1], carriageReturnMasksIn[1], 0, input1.quoted, newlineMasksIn[1], 0}
+	output1_1 := stage1Output{}
+	preprocessMasksToMasksInverted(&input1, &output1_1)
+
+	fmt.Fprintf(out, diffBitmask(
+		fmt.Sprintf("     quote-in : %064b·%064b", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1])),
+		fmt.Sprintf("     quote-out: %064b·%064b", bits.Reverse64(output1_0.quoteMaskOut), bits.Reverse64(output1_1.quoteMaskOut))))
+
+	fmt.Fprintf(out, diffBitmask(
+		fmt.Sprintf(" separator-in : %064b·%064b", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1])),
+		fmt.Sprintf(" separator-out: %064b·%064b", bits.Reverse64(output1_0.separatorMaskOut), bits.Reverse64(output1_1.separatorMaskOut))))
+
+	fmt.Fprintf(out, diffBitmask(
+		fmt.Sprintf("  carriage-in : %064b·%064b", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1])),
+		fmt.Sprintf("  carriage-out: %064b·%064b", bits.Reverse64(output1_0.carriageReturnMaskOut), bits.Reverse64(output1_1.carriageReturnMaskOut))))
+
+	input2 := NewInput()
+	input2.quoteMask = output1_0.quoteMaskOut
+	input2.separatorMask = output1_0.separatorMaskOut
+	input2.delimiterMask = newlineMasksIn[0] | output1_0.carriageReturnMaskOut
+
+	output2 := Output{}
+	output2.columns = &[128]uint64{}
+	output2.rows = &[128]uint64{}
+
+	Stage2ParseMasks(&input2, 0, &output2)
+
+	input2.quoteMask = output1_1.quoteMaskOut
+	input2.separatorMask = output1_1.separatorMaskOut
+	input2.delimiterMask = newlineMasksIn[1] | output1_1.carriageReturnMaskOut
+
+	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     delimiter: %064b·%064b", bits.Reverse64(newlineMasksIn[0] | output1_0.carriageReturnMaskOut), bits.Reverse64(input2.delimiterMask)))
+	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     separator: %064b·%064b", bits.Reverse64(output1_0.separatorMaskOut), bits.Reverse64(output1_1.separatorMaskOut)))
+	fmt.Fprintf(out,"         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "%s\n", fmt.Sprintf("        quotes: %064b·%064b", bits.Reverse64(output1_0.quoteMaskOut), bits.Reverse64(output1_1.quoteMaskOut)))
+
+	Stage2ParseMasks(&input2, 64, &output2)
+
+	fmt.Println("line",  output2.line)
+
+	for line := 0; line < output2.line; line += 2 {
+		start, size := output2.rows[line], output2.rows[line+1]
+		for column := uint64(0); column < size; column++ {
+			fmt.Fprint(out, string(buf[output2.columns[(start+column)*2]:output2.columns[(start+column)*2]+output2.columns[(start+column)*2+1]]))
+			fmt.Fprint(out, " ")
+		}
+		fmt.Fprintln(out)
+	}
+
+	fmt.Println(out.String())
+}
+
 func BenchmarkSimdCsv(b *testing.B) {
 	b.Run("parking-citations-100K", func(b *testing.B){
 		benchmarkSimdCsv(b, "parking-citations-100K.csv", 100000)
