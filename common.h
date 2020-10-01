@@ -7,7 +7,7 @@
 #define MASK_TRAILING_BYTES(MAX, SCRATCH1, SCRATCH2, RPOS, Y_SCRATCH, _Y) \
 	LEAQ    MASKTABLE<>(SB), SCRATCH1         \
 	MOVQ    $MAX, SCRATCH2                    \
-	SUBQ    CX, SCRATCH2                      \
+	SUBQ    RPOS, SCRATCH2                    \
 	VMOVDQU (SCRATCH1)(SCRATCH2*1), Y_SCRATCH \ // Load mask
 	VPAND   Y_SCRATCH, _Y, _Y                 // Mask message
 

@@ -108,18 +108,12 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		return nil, err
 	}
 
-	// TODO: Eliminate copy of buffer (when no longer modifying data)
-	bufCopy := make([]byte, len(buf))
-	copy(bufCopy, buf)
-
-	postProc := Stage1PreprocessBuffer(bufCopy, uint64(r.Comma))
-
-	records, parseError := Stage2ParseBuffer(bufCopy, '\n', preprocessedSeparator, preprocessedQuote, nil)
+	records, postProc, parseError := StagesCombined(buf, uint64(r.Comma), nil)
 	if parseError {
 		return fallback(bytes.NewReader(buf))
 	}
 
-	for _, ppr := range getPostProcRows(bufCopy, postProc, records) {
+	for _, ppr := range getPostProcRows(buf, postProc, records) {
 		for r := ppr.start; r < ppr.end; r++ {
 			for c := range records[r] {
 				records[r][c] = strings.ReplaceAll(records[r][c], "\"\"", "\"")
@@ -148,7 +142,12 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	}
 }
 
-func (r *Reader) ReadAllCombined() ([][]string, error) {
+// ReadAllSequential reads all the remaining records from r.
+// Each record is a slice of fields.
+// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+// defined to read until EOF, it does not treat end of file as an error to be
+// reported.
+func (r *Reader) ReadAllSequential() ([][]string, error) {
 
 	fallback := func(ioReader io.Reader) ([][]string, error) {
 		rCsv := csv.NewReader(ioReader)
@@ -176,12 +175,19 @@ func (r *Reader) ReadAllCombined() ([][]string, error) {
 		return nil, err
 	}
 
-	records, postProc, parseError := StagesCombined(buf, uint64(r.Comma), nil)
+	// For sequentially running stages 1 and 2, we need to make a copy of the buffer
+	// since the source data is being modified
+	bufCopy := make([]byte, len(buf))
+	copy(bufCopy, buf)
+
+	postProc := Stage1PreprocessBuffer(bufCopy, uint64(r.Comma))
+
+	records, parseError := Stage2ParseBuffer(bufCopy, '\n', preprocessedSeparator, preprocessedQuote, nil)
 	if parseError {
 		return fallback(bytes.NewReader(buf))
 	}
 
-	for _, ppr := range getPostProcRows(buf, postProc, records) {
+	for _, ppr := range getPostProcRows(bufCopy, postProc, records) {
 		for r := ppr.start; r < ppr.end; r++ {
 			for c := range records[r] {
 				records[r][c] = strings.ReplaceAll(records[r][c], "\"\"", "\"")
