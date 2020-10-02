@@ -1,7 +1,6 @@
 package simdcsv
 
 import (
-	"unsafe"
 	"log"
 )
 
@@ -144,14 +143,14 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 		return errorOut()
 	}
 
-	if outputStage2.index >= 2 {
-		// Sanity check -- we must not point beyond the end of the buffer
-		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) != 0 &&
-			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
-				peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-1)*8) > uint64(len(buf)) {
-			log.Fatalf("ERROR: Pointing past end of buffer")
-		}
-	}
+	//if outputStage2.index >= 2 {
+	//	// Sanity check -- we must not point beyond the end of the buffer
+	//	if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) != 0 &&
+	//		peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
+	//			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-1)*8) > uint64(len(buf)) {
+	//		log.Fatalf("ERROR: Pointing past end of buffer")
+	//	}
+	//}
 
 	*columns = (*columns)[:(outputStage2.index)/2]
 	*rows = (*rows)[:outputStage2.line]
@@ -270,14 +269,14 @@ func StagesCombinedEx(buf []byte, separatorChar uint64, records *[][]string, row
 		return errorOut()
 	}
 
-	if outputStage2.index >= 2 {
-		// Sanity check -- we must not point beyond the end of the buffer
-		if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) != 0 &&
-			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
-				peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-1)*8) > uint64(len(buf)) {
-			log.Fatalf("ERROR: Pointing past end of buffer")
-		}
-	}
+	//if outputStage2.index >= 2 {
+	//	// Sanity check -- we must not point beyond the end of the buffer
+	//	if peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) != 0 &&
+	//		peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-2)*8) - uint64(uintptr(unsafe.Pointer(&buf[0]))) +
+	//			peek(uintptr(unsafe.Pointer(&(*columns)[0])), uint64(outputStage2.index-1)*8) > uint64(len(buf)) {
+	//		log.Fatalf("ERROR: Pointing past end of buffer")
+	//	}
+	//}
 
 	*columns = (*columns)[:(outputStage2.index)/2]
 	*rows = (*rows)[:outputStage2.line]

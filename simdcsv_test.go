@@ -849,8 +849,7 @@ func benchmarkSimdCsv(b *testing.B, file string, lines int) {
 		//  TODO: Remove synchronization code
 		copy(buf, data)
 		postProc = postProc[:0]
-		stage1_preprocess_buffer(buf[:len(data)], uint64(','), &input, &output, &postProc)
-
+		Stage1PreprocessBufferEx(buf[:len(data)], uint64(','), &postProc)
 		Stage2ParseBufferEx(buf[:len(data)], '\n', ',', '"', &simdrecords, &rows, &columns)
 	}
 }
