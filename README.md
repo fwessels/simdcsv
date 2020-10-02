@@ -114,10 +114,6 @@ BenchmarkSimdCsv/parking-citations-100K-8     58601190      1181503       -97.98
 BenchmarkSimdCsv/worldcitiespop-8             933054464     27603772      -97.04%
 ```
 
-### Stage 1: preprocessing
-
-### Stage 2: parse CSV
-
 ## Benchmarking 
 
 ### Stage 1
@@ -145,16 +141,11 @@ benchmark                        old allocs     new allocs     delta
 BenchmarkStage2ParseBuffer-8     20034          0              -100.00%
 ```
 
-### Scaling across cores
+## Limitations
 
-```
-$ go test -run=X -cpu=1,2,4,8,16 -bench=BenchmarkFirstPassAsm
-BenchmarkFirstPassAsm              10000            109861 ns/op        4772.27 MB/s           0 B/op          0 allocs/op
-BenchmarkFirstPassAsm-2            21762             55086 ns/op        9517.58 MB/s           0 B/op          0 allocs/op
-BenchmarkFirstPassAsm-4            43603             27644 ns/op        18965.68 MB/s          0 B/op          0 allocs/op
-BenchmarkFirstPassAsm-8            85539             13772 ns/op        38068.81 MB/s          0 B/op          0 allocs/op
-BenchmarkFirstPassAsm-16          128840              9238 ns/op        56750.90 MB/s          0 B/op          0 allocs/op
-```
+`simdcsv` has the following limitations:
+- `LazyQuotes` is not supported (fallback to `encoding/csv`)
+- Non-ASCII characters for either Comma or Comment are not supported (fallback to `encoding/csv`)
 
 ## References
 

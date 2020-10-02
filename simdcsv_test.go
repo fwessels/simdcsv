@@ -278,7 +278,7 @@ Ken,Thompson,ken
 	instr = strings.Replace(instr, "\n", "\r\n", 1)
 	instr = strings.Replace(instr, `"Rob"`, `"Ro""b"`, 1) // separator in quote field that is disabled
 	instr = strings.Replace(instr, `"Pike"`, `"Pi,ke"`, 1) // separator in quote field that is disabled
-	instr = strings.Replace(instr, `"Robert"`, "Rob\r\nert", 1)     // carriage return in quoted field followed by newline --> treated as newline
+	instr = strings.Replace(instr, `"Robert"`, `"Rob`+"\r\n"+`ert"`, 1)     // carriage return in quoted field followed by newline --> treated as newline
 	instr = strings.Replace(instr, `"Griesemer"`, "Gries\remer", 1) // carriage return in quoted field not followed by newline  --> not treated as newline
 
 	buf := make([]byte, 128)
@@ -287,6 +287,11 @@ Ken,Thompson,ken
 	out := bytes.NewBufferString("")
 
 	fmt.Fprintln(out, hex.Dump(buf))
+
+	//
+	// Stage 1: preprocessing
+	//
+
 	fmt.Fprintf(out,"         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
@@ -315,6 +320,11 @@ Ken,Thompson,ken
 		fmt.Sprintf("  carriage-in : %064b·%064b", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1])),
 		fmt.Sprintf("  carriage-out: %064b·%064b", bits.Reverse64(output1_0.carriageReturnMaskOut), bits.Reverse64(output1_1.carriageReturnMaskOut))))
 
+
+	//
+	// Stage 2: parsing
+	//
+
 	input2 := NewInput()
 	input2.quoteMask = output1_0.quoteMaskOut
 	input2.separatorMask = output1_0.separatorMaskOut
@@ -330,6 +340,9 @@ Ken,Thompson,ken
 	input2.separatorMask = output1_1.separatorMaskOut
 	input2.delimiterMask = newlineMasksIn[1] | output1_1.carriageReturnMaskOut
 
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "                %s\n", strings.Repeat(" -", 64))
+
 	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     delimiter: %064b·%064b", bits.Reverse64(newlineMasksIn[0] | output1_0.carriageReturnMaskOut), bits.Reverse64(input2.delimiterMask)))
 	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     separator: %064b·%064b", bits.Reverse64(output1_0.separatorMaskOut), bits.Reverse64(output1_1.separatorMaskOut)))
 	fmt.Fprintf(out,"         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
@@ -338,15 +351,47 @@ Ken,Thompson,ken
 
 	Stage2ParseMasks(&input2, 64, &output2)
 
-	fmt.Println("line",  output2.line)
+	splitAt64 := func(str string) string {
+		if len(str) >= 64 {
+			str = str[:64] + "·" + str[64:]
+		}
+		return strings.ReplaceAll(strings.ReplaceAll(str, "\r", " "), "\n", " ")
+	}
 
 	for line := 0; line < output2.line; line += 2 {
 		start, size := output2.rows[line], output2.rows[line+1]
+
+		outline := bytes.Repeat([]byte(" "), 128)
+
 		for column := uint64(0); column < size; column++ {
-			fmt.Fprint(out, string(buf[output2.columns[(start+column)*2]:output2.columns[(start+column)*2]+output2.columns[(start+column)*2+1]]))
-			fmt.Fprint(out, " ")
+			copy(outline[output2.columns[(start+column)*2]:], buf[output2.columns[(start+column)*2]:output2.columns[(start+column)*2]+output2.columns[(start+column)*2+1]])
 		}
-		fmt.Fprintln(out)
+		fmt.Fprintf(out, "        row[%d]: %s\n", line/2, splitAt64(string(outline)))
+	}
+
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "                %s\n", strings.Repeat(" -", 64))
+
+	//
+	// Post processing
+	//
+
+	for line := 0; line < output2.line; line += 2 {
+		start, size := output2.rows[line], output2.rows[line+1]
+
+		outline := bytes.Repeat([]byte(" "), 128)
+
+		for column := uint64(0); column < size; column++ {
+			v := string(buf[output2.columns[(start+column)*2]:output2.columns[(start+column)*2]+output2.columns[(start+column)*2+1]])
+			if strings.Contains(v, `""`) || strings.Contains(v, "\r\n") {
+				v = strings.ReplaceAll(v, "\"\"", "\"")
+				v = strings.ReplaceAll(v, "\r\n", "\n")
+				copy(outline[output2.columns[(start+column)*2]:], []byte(v))
+			}
+		}
+		if len(strings.TrimSpace(string(outline))) > 0 {
+			fmt.Fprintf(out, "        row[%d]: %s\n", line/2, splitAt64(string(outline)))
+		}
 	}
 
 	fmt.Println(out.String())
