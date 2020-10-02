@@ -58,6 +58,24 @@ However there are certain fields that require post-processing in order to have t
 
 Below is an example that illustrates the bit masks for the different identification characters as well as their interaction between both stages.  
 
+The input data is a modified version of the example from `encoding\csv` with a couple of changes for cases that need proper handling:
+ 
+```go
+	instr := `first_name,last_name,username
+"Rob","Pike",rob
+Ken,Thompson,ken
+"Robert","Griesemer","gri"
+`
+
+	instr = strings.Replace(instr, "\n", "\r\n", 1)                     // change regular newline into carriage return and newline pair
+	instr = strings.Replace(instr, `"Rob"`, `"Ro""b"`, 1)               // pair of double quotes in quoted field that act as an escaped quote
+	instr = strings.Replace(instr, `"Pike"`, `"Pi,ke"`, 1)              // separator character in quoted field that shoule be disabled
+	instr = strings.Replace(instr, `"Robert"`, `"Rob`+"\r\n"+`ert"`, 1) // carriage return in quoted field followed by newline --> treated as newline
+	instr = strings.Replace(instr, `"Griesemer"`, "Gries\remer", 1)     // carriage return in quoted field not followed by newline  --> not treated as newline
+```
+
+So the input data is as shown below in hexadecimal dump with a mix of carriage return and newline lines along with normally terminated lines. Also one quoted field contains a carriage return and newline pair (which `encoding\csv` filters out to just a newline character) as well as another quoted field that just contains a carriage return character which is copied unchanged to the resulting output.
+
 ```
 === RUN   TestExample
 00000000  66 69 72 73 74 5f 6e 61  6d 65 2c 6c 61 73 74 5f  |first_name,last_|
@@ -68,7 +86,13 @@ Below is an example that illustrates the bit masks for the different identificat
 00000050  72 69 65 73 0d 65 6d 65  72 2c 22 67 72 69 22 0a  |ries.emer,"gri".|
 00000060  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
 00000070  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+```
 
+The first stage detects the occurrence of quotes, separator, and carriage return characters (whereby the separator character can be defined). Each mask is adjusted based accordingly based on the "quoted" status of a field and/or the occurrence of double quotes or carriage return and newline pairs.
+
+Below the input state for each bitmask is shown as well as the (adjusted) output state of the corresponding bitmask. For instance, for the test string shown above, the bits for the double quote pair are filtered out for the quote mask and the separator character in the quoted field is cleared for the separator mask.
+
+```
          input: first_name,last_name,username  "Ro""b","Pi,ke",rob Ken,Thompson,·ken "Rob  ert",Gries emer,"gri" 
      quote-in : 0000000000000000000000000000000100110101000001000000000000000000·0000100000000100000000000010001000000000000000000000000000000000
      quote-out: 0000000000000000000000000000000100000101000001000000000000000000·0000100000000100000000000010001000000000000000000000000000000000
@@ -81,6 +105,8 @@ Below is an example that illustrates the bit masks for the different identificat
                                                                                          ^           ^                                           
 ```
 
+The bitmasks for the quotes and the separators are passed directly to the second stage. The delimiter mask is the OR of the  carriage return mask shown above in combination with the mask of newline characters from the original data.
+
 ```
         quotes: 0000000000000000000000000000000100000101000001000000000000000000·0000100000000100000000000010001000000000000000000000000000000000
      delimiter: 0000000000000000000000000000011000000000000000000010000000000000·0001000001000000000000000000000100000000000000000000000000000000
@@ -92,10 +118,22 @@ Below is an example that illustrates the bit masks for the different identificat
         row[3]:                                                                 ·     Rob  ert  Gries emer  gri                                  
 ```
 
+Based on the separator, delimiter and quote masks, the second stage works where each field of each row starts (and ends) by pointing directly back into the original buffer. In case the field is quoted, both quotes are skipped, so effectively the content starts one position later and ends one position earlier.
+ 
+For the vast majority of fields this immediately yields the desired result, except for quoted fields that contain either escaped quotes (see `Ro""b"` above) or a carriage return and newline pair that should be replaced with a newline character only (see `Rob  ert` above).
+
+As such there is a final (small) postprocessing step that does a `strings.ReplaceAll()` for just the affected fields in order to make this correction. So only for these fields additional memory needs to be allocated and the behaviour is not "zero-copy". In case the CSV does not contain any fields that need this transformation this step is completely skipped (and note that the step is only applied to a very small number of fields to which it would apply, so the performance overhead is typically very low).
+
+The table below shows the adjusted field that are merge with the overall results shown in the previous code block.
+
 ```
         row[1]:                                 Ro"b                            ·                                                                
         row[3]:                                                                 ·     Rob ert                                                    
 ```
+
+This then gives us the slice of slices of strings (`[][]string`) which contains the results of the `ReadAll()` operation.
+
+The test code for this example is generated by the function `TestExample()` in `simdcsv_test.go`. So it is actually possible to modify the input data and see what the effects are on the individual masks and final result. Note that this code is for illustration purposes only as it just works up to CSV data of max. 128 characters (and not performance optimized at say the least).  
 
 ##  Performance compared to encoding/csv
 
