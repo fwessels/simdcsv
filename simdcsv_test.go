@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/bits"
 	"reflect"
 	"runtime"
 	"strings"
-	"math/bits"
 	"testing"
 	"unicode/utf8"
 )
@@ -728,17 +728,32 @@ Ken,Thompson,ken
 	output1_1 := stage1Output{}
 	preprocessMasksToMasksInverted(&input1, &output1_1)
 
-	fmt.Fprintf(out, diffBitmask(
-		fmt.Sprintf("     quote-in : %064b·%064b", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1])),
-		fmt.Sprintf("     quote-out: %064b·%064b", bits.Reverse64(output1_0.quoteMaskOut), bits.Reverse64(output1_1.quoteMaskOut))))
+	d := strings.Split(diffBitmask(
+		fmt.Sprintf("%064b·%064b", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1])),
+		fmt.Sprintf("%064b·%064b", bits.Reverse64(output1_0.quoteMaskOut), bits.Reverse64(output1_1.quoteMaskOut))), "\n")
 
-	fmt.Fprintf(out, diffBitmask(
-		fmt.Sprintf(" separator-in : %064b·%064b", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1])),
-		fmt.Sprintf(" separator-out: %064b·%064b", bits.Reverse64(output1_0.separatorMaskOut), bits.Reverse64(output1_1.separatorMaskOut))))
+	fmt.Fprintf(out, "%s\n%s\n%s\n",
+		fmt.Sprintf("     quote-in : %s", d[0]),
+		fmt.Sprintf("     quote-out: %s", d[1]),
+		fmt.Sprintf("                %s", d[2]))
 
-	fmt.Fprintf(out, diffBitmask(
-		fmt.Sprintf("  carriage-in : %064b·%064b", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1])),
-		fmt.Sprintf("  carriage-out: %064b·%064b", bits.Reverse64(output1_0.carriageReturnMaskOut), bits.Reverse64(output1_1.carriageReturnMaskOut))))
+	d = strings.Split(diffBitmask(
+		fmt.Sprintf("%064b·%064b", bits.Reverse64(separatorMasksIn[0]), bits.Reverse64(separatorMasksIn[1])),
+		fmt.Sprintf("%064b·%064b", bits.Reverse64(output1_0.separatorMaskOut), bits.Reverse64(output1_1.separatorMaskOut))), "\n")
+
+	fmt.Fprintf(out, "%s\n%s\n%s\n",
+		fmt.Sprintf(" separator-in : %s", d[0]),
+		fmt.Sprintf(" separator-out: %s", d[1]),
+		fmt.Sprintf("                %s", d[2]))
+
+	d = strings.Split(diffBitmask(
+		fmt.Sprintf("%064b·%064b", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1])),
+		fmt.Sprintf("%064b·%064b", bits.Reverse64(output1_0.carriageReturnMaskOut), bits.Reverse64(output1_1.carriageReturnMaskOut))), "\n")
+
+	fmt.Fprintf(out, "%s\n%s\n%s\n",
+		fmt.Sprintf("  carriage-in : %s", d[0]),
+		fmt.Sprintf("  carriage-out: %s", d[1]),
+		fmt.Sprintf("                %s", d[2]))
 
 	//
 	// Stage 2: parsing
