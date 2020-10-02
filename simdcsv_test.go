@@ -695,11 +695,11 @@ Ken,Thompson,ken
 "Robert","Griesemer","gri"
 `
 
-	instr = strings.Replace(instr, "\n", "\r\n", 1)
-	instr = strings.Replace(instr, `"Rob"`, `"Ro""b"`, 1) // separator in quote field that is disabled
-	instr = strings.Replace(instr, `"Pike"`, `"Pi,ke"`, 1) // separator in quote field that is disabled
-	instr = strings.Replace(instr, `"Robert"`, `"Rob`+"\r\n"+`ert"`, 1)     // carriage return in quoted field followed by newline --> treated as newline
-	instr = strings.Replace(instr, `"Griesemer"`, "Gries\remer", 1) // carriage return in quoted field not followed by newline  --> not treated as newline
+	instr = strings.Replace(instr, "\n", "\r\n", 1)                     // change regular newline into carriage return and newline pair
+	instr = strings.Replace(instr, `"Rob"`, `"Ro""b"`, 1)               // pair of double quotes in quoted field that act as an escaped quote
+	instr = strings.Replace(instr, `"Pike"`, `"Pi,ke"`, 1)              // separator character in quoted field that shoule be disabled
+	instr = strings.Replace(instr, `"Robert"`, `"Rob`+"\r\n"+`ert"`, 1) // carriage return in quoted field followed by newline --> treated as newline
+	instr = strings.Replace(instr, `"Griesemer"`, "Gries\remer", 1)     // carriage return in quoted field not followed by newline  --> not treated as newline
 
 	buf := make([]byte, 128)
 	copy(buf, instr)
@@ -712,8 +712,8 @@ Ken,Thompson,ken
 	// Stage 1: preprocessing
 	//
 
-	fmt.Fprintf(out,"         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
-	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
 	separatorMasksIn := getBitMasks(buf, byte(','))
 	quoteMasksIn := getBitMasks(buf, byte('"'))
@@ -740,7 +740,6 @@ Ken,Thompson,ken
 		fmt.Sprintf("  carriage-in : %064b·%064b", bits.Reverse64(carriageReturnMasksIn[0]), bits.Reverse64(carriageReturnMasksIn[1])),
 		fmt.Sprintf("  carriage-out: %064b·%064b", bits.Reverse64(output1_0.carriageReturnMaskOut), bits.Reverse64(output1_1.carriageReturnMaskOut))))
 
-
 	//
 	// Stage 2: parsing
 	//
@@ -764,10 +763,10 @@ Ken,Thompson,ken
 	fmt.Fprintf(out, "                %s\n", strings.Repeat(" -", 64))
 
 	fmt.Fprintf(out, "%s\n", fmt.Sprintf("        quotes: %064b·%064b", bits.Reverse64(output1_0.quoteMaskOut), bits.Reverse64(output1_1.quoteMaskOut)))
-	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     delimiter: %064b·%064b", bits.Reverse64(newlineMasksIn[0] | output1_0.carriageReturnMaskOut), bits.Reverse64(input2.delimiterMask)))
+	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     delimiter: %064b·%064b", bits.Reverse64(newlineMasksIn[0]|output1_0.carriageReturnMaskOut), bits.Reverse64(input2.delimiterMask)))
 	fmt.Fprintf(out, "%s\n", fmt.Sprintf("     separator: %064b·%064b", bits.Reverse64(output1_0.separatorMaskOut), bits.Reverse64(output1_1.separatorMaskOut)))
-	fmt.Fprintf(out,"         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
-	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
 	Stage2ParseMasks(&input2, 64, &output2)
 
@@ -802,7 +801,7 @@ Ken,Thompson,ken
 		outline := bytes.Repeat([]byte(" "), 128)
 
 		for column := uint64(0); column < size; column++ {
-			v := string(buf[output2.columns[(start+column)*2]:output2.columns[(start+column)*2]+output2.columns[(start+column)*2+1]])
+			v := string(buf[output2.columns[(start+column)*2] : output2.columns[(start+column)*2]+output2.columns[(start+column)*2+1]])
 			if strings.Contains(v, `""`) || strings.Contains(v, "\r\n") {
 				v = strings.ReplaceAll(v, "\"\"", "\"")
 				v = strings.ReplaceAll(v, "\r\n", "\n")
