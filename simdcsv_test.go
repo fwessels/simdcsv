@@ -833,14 +833,12 @@ func benchmarkSimdCsv(b *testing.B, file string, lines int) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	input, output := stage1Input{} ,stage1Output{}
-
 	// TODO: Remove synchronization code
-	buf := make([]byte, (len(data) + 128)&^127)
+	buf := make([]byte, (len(data)+128)&^127)
 
 	postProc := make([]uint64, 0, len(buf)>>6)
 
-	rows := make([]uint64, 100000 * 2 * 1.5)
+	rows := make([]uint64, 100000*2*1.5)
 	columns := make([]string, len(rows)*20)
 	simdrecords := make([][]string, 0, len(rows))
 
