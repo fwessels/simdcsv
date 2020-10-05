@@ -689,12 +689,14 @@ func TestExample(t *testing.T) {
 
 	// Example based on https://play.golang.org/p/XxthE8qqZtZ
 
+	// NB You are free to change this example, just make sure it does not extend beyond 128 bytes !
 	instr := `first_name,last_name,username
 "Rob","Pike",rob
 Ken,Thompson,ken
 "Robert","Griesemer","gri"
 `
 
+	// Merge in some special behaviour/corner cases
 	instr = strings.Replace(instr, "\n", "\r\n", 1)                     // change regular newline into carriage return and newline pair
 	instr = strings.Replace(instr, `"Rob"`, `"Ro""b"`, 1)               // pair of double quotes in quoted field that act as an escaped quote
 	instr = strings.Replace(instr, `"Pike"`, `"Pi,ke"`, 1)              // separator character in quoted field that shoule be disabled
