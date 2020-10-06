@@ -13,17 +13,17 @@ import (
 	"testing"
 )
 
-func TestStage1PreprocessMasksToMasks(t *testing.T) {
+func TestStage1PreprocessMasks(t *testing.T) {
 
 	t.Run("go", func(t *testing.T) {
-		testStage1PreprocessMasksToMasksFunc(t, preprocessMasks)
+		testStage1PreprocessMasksFunc(t, preprocessMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
-		testStage1PreprocessMasksToMasksFunc(t, stage1_preprocess_test)
+		testStage1PreprocessMasksFunc(t, stage1_preprocess_test)
 	})
 }
 
-func testStage1PreprocessMasksToMasksFunc(t *testing.T, f func(input *stage1Input, output *stage1Output)) {
+func testStage1PreprocessMasksFunc(t *testing.T, f func(input *stage1Input, output *stage1Output)) {
 
 	t.Run("simple", func(t *testing.T) {
 
@@ -31,7 +31,7 @@ func testStage1PreprocessMasksToMasksFunc(t *testing.T, f func(input *stage1Inpu
 RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Griesemer","gr""i"                            `
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             first_name,last_name,username RRobertt,"Pi,e",rob  Kenny,"ho  so·",kenny "Robert","Griesemer","gr""i"                            
@@ -47,7 +47,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 `
 
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -57,7 +57,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Griesemer","gr""i"                            
 first_name,last_name,username1234`
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             Robe,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr""·i"                             first_name,last_name,username1234
@@ -73,7 +73,7 @@ first_name,last_name,username1234`
 `
 
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -83,7 +83,7 @@ first_name,last_name,username1234`
 "Robert","Griesemer","gr""i"                            
 first_name,last_name,username123`
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             Rober,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr"·"i"                             first_name,last_name,username123
@@ -99,7 +99,7 @@ first_name,last_name,username123`
 `
 
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -109,7 +109,7 @@ first_name,last_name,username123`
 "Robert","Griesemer","gr`+"\r"+`i"                             
 first_name,last_name,username123`
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             Rober,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr ·i"                              first_name,last_name,username123
@@ -125,7 +125,7 @@ first_name,last_name,username123`
 `
 
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -135,7 +135,7 @@ first_name,last_name,username123`
 "Robert","Griesemer","gr`+"\r\n"+`i"                            
 first_name,last_name,username123`
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             Rober,"Pi,e",rob  Kenny,"ho  so",kenny "Robert","Griesemer","gr · i"                             first_name,last_name,username123
@@ -151,7 +151,7 @@ first_name,last_name,username123`
 `
 
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -159,7 +159,7 @@ first_name,last_name,username123`
 
 		const data = "a,b\rc,d\r\n                                                                                                                       "
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             a,b c,d                                                         ·                                                                
@@ -174,7 +174,7 @@ first_name,last_name,username123`
                ^                                                                                                                             
 `
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -182,7 +182,7 @@ first_name,last_name,username123`
 
 		const data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\rc,d\r\n                                                            "
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb c·,d                                                              
@@ -197,7 +197,7 @@ first_name,last_name,username123`
                                                                           ^                                                                  
 `
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 
@@ -205,7 +205,7 @@ first_name,last_name,username123`
 
 		const data = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\rc,d\r\n                                                           "
 
-		result := testStage1PreprocessMasksToMasks(t, []byte(data), f)
+		result := testStage1PreprocessMasks(t, []byte(data), f)
 
 		const expected = `
             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ·c,d                                                             
@@ -220,7 +220,7 @@ first_name,last_name,username123`
                                                                            ^                                                                 
 `
 		if result != expected {
-			t.Errorf("TestStage1PreprocessMasksToMasks: got %v, want %v", result, expected)
+			t.Errorf("testStage1PreprocessMasksFunc: got %v, want %v", result, expected)
 		}
 	})
 }
@@ -261,7 +261,7 @@ func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
 	return
 }
 
-func testStage1PreprocessMasksToMasks(t *testing.T, data []byte, f func(input *stage1Input, output *stage1Output)) string {
+func testStage1PreprocessMasks(t *testing.T, data []byte, f func(input *stage1Input, output *stage1Output)) string {
 
 	//fmt.Println(hex.Dump(data))
 	separatorMasksIn := getBitMasks(data, byte(','))
