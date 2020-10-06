@@ -2,14 +2,6 @@
 
 #include "common.h"
 
-#define UNPACK_BITMASK(_R1, _XR1, _YR1) \
-	\ // source: https://stackoverflow.com/a/24242696
-	VMOVQ        _R1, _XR1                            \
-	VPBROADCASTD _XR1, _YR1                           \
-	VPSHUFB      Y_SHUFMASK, _YR1, _YR1               \
-	VPANDN       Y_ANDMASK, _YR1, _YR1                \
-	VPCMPEQB     Y_ZERO, _YR1, _YR1                   \
-
 #define ADD_TRAILING_NEWLINE \
 	MOVQ $1, AX \
 	SHLQ CX, AX \ // only lower 6 bits are taken into account, which is good for current and next YMM words
@@ -30,34 +22,18 @@
 #define CARRIAGE_RETURN_MASK_OUT  16
 #define NEEDS_POST_PROCESSING_OUT 24
 
-#define Y_ANDMASK     Y15
-#define Y_SHUFMASK    Y14
-#define Y_ZERO        Y13
-#define Y_PREPROC_SEP Y12
-#define Y_PREPROC_QUO Y11
-#define Y_PREPROC_NWL Y10
+// Offsets for  masks slice
+#define MASKS_NEWLINE_OFFSET   0
+#define MASKS_SEPARATOR_OFFSET 8
+#define MASKS_QUOTE_OFFSET     16
+
 #define Y_QUOTE_CHAR  Y5
 #define Y_SEPARATOR   Y4
 #define Y_CARRIAGE_R  Y3
 #define Y_NEWLINE     Y2
 
-// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input *stage1Input, output *stage1Output)
+// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed uint64)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
-
-	LEAQ         ANDMASK<>(SB), AX
-	VMOVDQU      (AX), Y_ANDMASK
-	LEAQ         SHUFMASK<>(SB), AX
-	VMOVDQU      (AX), Y_SHUFMASK
-	VPXOR        Y_ZERO, Y_ZERO, Y_ZERO
-	MOVQ         $0x2, AX               // preprocessedSeparator
-	MOVQ         AX, X12
-	VPBROADCASTB X12, Y_PREPROC_SEP
-	MOVQ         $0x3, AX               // preprocessedQuote
-	MOVQ         AX, X11
-	VPBROADCASTB X11, Y_PREPROC_QUO
-	MOVQ         $0x0a, AX              // new line
-	MOVQ         AX, X10
-	VPBROADCASTB X10, Y_PREPROC_NWL
 
 	MOVQ         $0x0a, AX                // character for newline
 	MOVQ         AX, X2
@@ -74,6 +50,7 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 
 	MOVQ buf+0(FP), DI
 	MOVQ offset+56(FP), DX
+	MOVQ masks_base+64(FP), R11
 
 	MOVQ DX, CX
 	ADDQ $0x40, CX
@@ -120,6 +97,7 @@ loop:
 	MOVQ CX, QUOTE_MASK_IN(SI)
 	MOVQ NEWLINE_MASK_IN_NEXT(SI), CX
 	MOVQ CX, NEWLINE_MASK_IN(SI)
+	MOVQ CX, MASKS_NEWLINE_OFFSET(R11)
 
 	// separator mask
 	VPCMPEQB Y8, Y_SEPARATOR, Y0
@@ -166,42 +144,27 @@ skipFullLoad:
 skipAddTrailingNewline:
 	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI)
 
+	PUSHQ R11
+	PUSHQ DI
 	PUSHQ DX
 	MOVQ  input1+32(FP), AX
 	MOVQ  output1+40(FP), R10
 	CALL  ·stage1_preprocess(SB)
 	POPQ  DX
+	POPQ  DI
+	POPQ  R11
 
 	MOVQ output1+40(FP), R10
 
-	// Replace quotes
-	MOVQ      QUOTE_MASK_OUT(R10), AX
-	UNPACK_BITMASK(AX, X0, Y0)
-	SHRQ      $32, AX
-	UNPACK_BITMASK(AX, X1, Y1)
-	VPBLENDVB Y0, Y_PREPROC_QUO, Y8, Y8
-	VPBLENDVB Y1, Y_PREPROC_QUO, Y9, Y9
+    // write out masks to slice
+	MOVQ QUOTE_MASK_OUT(R10), AX
+	MOVQ AX, MASKS_QUOTE_OFFSET(R11)
+	MOVQ SEPARATOR_MASK_OUT(R10), AX
+	MOVQ AX, MASKS_SEPARATOR_OFFSET(R11)
+	MOVQ CARRIAGE_RETURN_MASK_OUT(R10), AX
+	ORQ  AX, MASKS_NEWLINE_OFFSET(R11)
 
-	// Replace separators
-	MOVQ      SEPARATOR_MASK_OUT(R10), AX
-	UNPACK_BITMASK(AX, X0, Y0)
-	SHRQ      $32, AX
-	UNPACK_BITMASK(AX, X1, Y1)
-	VPBLENDVB Y0, Y_PREPROC_SEP, Y8, Y8
-	VPBLENDVB Y1, Y_PREPROC_SEP, Y9, Y9
-
-	// Replace carriage returns
-	MOVQ      CARRIAGE_RETURN_MASK_OUT(R10), AX
-	UNPACK_BITMASK(AX, X0, Y0)
-	SHRQ      $32, AX
-	UNPACK_BITMASK(AX, X1, Y1)
-	VPBLENDVB Y0, Y_PREPROC_NWL, Y8, Y8
-	VPBLENDVB Y1, Y_PREPROC_NWL, Y9, Y9
-
-	// Store updated result
-	MOVQ    buf+0(FP), DI
-	VMOVDQU Y8, (DI)(DX*1)
-	VMOVDQU Y9, 0x20(DI)(DX*1)
+	ADDQ $24, R11
 
 	MOVQ output1+40(FP), R10
 	CMPQ NEEDS_POST_PROCESSING_OUT(R10), $1
@@ -225,7 +188,7 @@ unmodified:
 
 exit:
 	VZEROUPPER
-	MOVQ DX, processed+64(FP)
+	MOVQ DX, processed+88(FP)
 	RET
 
 // CX = base for loading
@@ -257,16 +220,3 @@ maskingHigh:
 
 partialLoadDone:
 	RET
-
-DATA SHUFMASK<>+0x000(SB)/8, $0x0000000000000000
-DATA SHUFMASK<>+0x008(SB)/8, $0x0101010101010101
-DATA SHUFMASK<>+0x010(SB)/8, $0x0202020202020202
-DATA SHUFMASK<>+0x018(SB)/8, $0x0303030303030303
-GLOBL SHUFMASK<>(SB), 8, $32
-
-DATA ANDMASK<>+0x000(SB)/8, $0x8040201008040201
-DATA ANDMASK<>+0x008(SB)/8, $0x8040201008040201
-DATA ANDMASK<>+0x010(SB)/8, $0x8040201008040201
-DATA ANDMASK<>+0x018(SB)/8, $0x8040201008040201
-GLOBL ANDMASK<>(SB), 8, $32
-

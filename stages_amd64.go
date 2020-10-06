@@ -5,7 +5,7 @@ import (
 )
 
 //go:noescape
-func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64) (processed uint64)
+func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed uint64)
 
 //go:noescape
 func stage1_preprocess_test(input *stage1Input, output *stage1Output)
@@ -33,7 +33,7 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, postProc *[]uint
 		inputStage1, outputStage1 := stage1Input{}, stage1Output{}
 		inputStage1.quoted = quoted
 
-		processed = stage1_preprocess_buffer(buf, separatorChar, &inputStage1, &outputStage1, postProc, processed)
+		processed = stage1_preprocess_buffer(buf, separatorChar, &inputStage1, &outputStage1, postProc, processed, masks)
 
 		if processed >= uint64(len(buf)) {
 			break
