@@ -55,6 +55,9 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, postProc *[]uint
 //go:noescape
 func _stage2_parse_buffer(buf []byte, lastCharIsDelimiter uint64, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input2 *Input, offset uint64, output2 *OutputAsm) (processed uint64)
 
+//go:noescape
+func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64, rows []uint64, columns []string, input2 *Input, offset uint64, output2 *OutputAsm) (processed uint64)
+
 func stage2_parse_buffer(buf []byte, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
 
 	lastCharIsDelimiter := uint64(0)
@@ -63,6 +66,17 @@ func stage2_parse_buffer(buf []byte, rows []uint64, columns []string, delimiterC
 	}
 
 	processed = _stage2_parse_buffer(buf, lastCharIsDelimiter, rows, columns, delimiterChar, separatorChar, quoteChar, input, offset, output)
+	return
+}
+
+func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
+
+	lastCharIsDelimiter := uint64(0)
+	if len(buf) > 0 && buf[len(buf)-1] == byte(delimiterChar) {
+		lastCharIsDelimiter = 1
+	}
+
+	processed = _stage2_parse_masks(buf, masks, lastCharIsDelimiter, rows, columns, input, offset, output)
 	return
 }
 
