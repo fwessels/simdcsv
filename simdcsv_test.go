@@ -662,7 +662,7 @@ func testTrimLeadingSpace(t *testing.T, csvData []byte) {
 	TrimLeadingSpace(&simdrecords)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
-	r.TrimLeadingSpace =true
+	r.TrimLeadingSpace = true
 	records, err := r.ReadAll()
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -724,11 +724,11 @@ Ken,Thompson,ken
 
 	input1 := stage1Input{quoteMasksIn[0], separatorMasksIn[0], carriageReturnMasksIn[0], quoteMasksIn[1], 0, newlineMasksIn[0], newlineMasksIn[1]}
 	output1_0 := stage1Output{}
-	preprocessMasksToMasksInverted(&input1, &output1_0)
+	preprocessMasks(&input1, &output1_0)
 
 	input1 = stage1Input{input1.quoteMaskInNext, separatorMasksIn[1], carriageReturnMasksIn[1], 0, input1.quoted, newlineMasksIn[1], 0}
 	output1_1 := stage1Output{}
-	preprocessMasksToMasksInverted(&input1, &output1_1)
+	preprocessMasks(&input1, &output1_1)
 
 	d := strings.Split(diffBitmask(
 		fmt.Sprintf("%064b·%064b", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1])),

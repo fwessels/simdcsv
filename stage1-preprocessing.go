@@ -29,7 +29,7 @@ type stage1Output struct {
 	needsPostProcessing   uint64
 }
 
-func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
+func preprocessMasks(input *stage1Input, output *stage1Output) {
 
 	const clearMask = 0xfffffffffffffffe
 
@@ -109,7 +109,7 @@ func preprocessMasksToMasksInverted(input *stage1Input, output *stage1Output) {
 
 type postProcRow struct {
 	start int
-	end  int
+	end   int
 }
 
 //

@@ -16,7 +16,7 @@ import (
 func TestStage1PreprocessMasksToMasks(t *testing.T) {
 
 	t.Run("go", func(t *testing.T) {
-		testStage1PreprocessMasksToMasksFunc(t, preprocessMasksToMasksInverted)
+		testStage1PreprocessMasksToMasksFunc(t, preprocessMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testStage1PreprocessMasksToMasksFunc(t, stage1_preprocess_test)
