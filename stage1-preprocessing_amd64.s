@@ -106,6 +106,7 @@ skipFullLoadPrologue:
 
 skipAddTrailingNewlinePrologue:
 	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
+	MOVQ BX, MASKS_NEWLINE_OFFSET(R11)
 
 loop:
 	VMOVDQU Y6, Y8 // get low 32-bytes
@@ -118,7 +119,6 @@ loop:
 	MOVQ CX, QUOTE_MASK_IN(SI)
 	MOVQ NEWLINE_MASK_IN_NEXT(SI), CX
 	MOVQ CX, NEWLINE_MASK_IN(SI)
-	MOVQ CX, MASKS_NEWLINE_OFFSET(R11)
 
 	// separator mask
 	VPCMPEQB Y8, Y_SEPARATOR, Y0
@@ -156,6 +156,8 @@ skipFullLoad:
 	VPCMPEQB Y6, Y_NEWLINE, Y0
 	VPCMPEQB Y7, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
+
+    MOVQ BX, 24(R11)
 
 	MOVQ buf_len+8(FP), CX
 	SUBQ DX, CX
