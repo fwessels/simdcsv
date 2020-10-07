@@ -108,86 +108,14 @@ func (r *Reader) ReadAll() ([][]string, error) {
 		return nil, err
 	}
 
-	records, postProc, parseError := StagesCombined(buf, uint64(r.Comma), nil)
+	masks, postProc := Stage1PreprocessBuffer(buf, uint64(r.Comma))
+
+	records, parseError := Stage2ParseBuffer(buf, masks, '\n', nil)
 	if parseError {
 		return fallback(bytes.NewReader(buf))
 	}
 
 	for _, ppr := range getPostProcRows(buf, postProc, records) {
-		for r := ppr.start; r < ppr.end; r++ {
-			for c := range records[r] {
-				records[r][c] = strings.ReplaceAll(records[r][c], "\"\"", "\"")
-				records[r][c] = strings.ReplaceAll(records[r][c], "\r\n", "\n")
-			}
-		}
-	}
-
-	if r.Comment != 0 {
-		FilterOutComments(&records, byte(r.Comment))
-	}
-	if r.TrimLeadingSpace {
-		TrimLeadingSpace(&records)
-	}
-
-	// create copy of fieldsPerRecord since it may be changed
-	fieldsPerRecord := r.FieldsPerRecord
-	if errSimd := EnsureFieldsPerRecord(&records, &fieldsPerRecord); errSimd != nil {
-		return fallback(bytes.NewReader(buf))
-	}
-
-	if len(records) == 0 {
-		return nil, nil
-	} else {
-		return records, nil
-	}
-}
-
-// ReadAllSequential reads all the remaining records from r.
-// Each record is a slice of fields.
-// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
-// defined to read until EOF, it does not treat end of file as an error to be
-// reported.
-func (r *Reader) ReadAllSequential() ([][]string, error) {
-
-	fallback := func(ioReader io.Reader) ([][]string, error) {
-		rCsv := csv.NewReader(ioReader)
-		rCsv.LazyQuotes = r.LazyQuotes
-		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
-		rCsv.Comment = r.Comment
-		rCsv.Comma = r.Comma
-		rCsv.FieldsPerRecord = r.FieldsPerRecord
-		rCsv.ReuseRecord = r.ReuseRecord
-		return rCsv.ReadAll()
-	}
-
-	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
-		return nil, errInvalidDelim
-	}
-
-	if r.LazyQuotes ||
-		r.Comma != 0 && r.Comma > unicode.MaxLatin1 ||
-		r.Comment != 0 && r.Comment > unicode.MaxLatin1 {
-		return fallback(r.r)
-	}
-
-	buf, err := r.r.ReadBytes(0)
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-
-	// For sequentially running stages 1 and 2, we need to make a copy of the buffer
-	// since the source data is being modified
-	bufCopy := make([]byte, len(buf))
-	copy(bufCopy, buf)
-
-	postProc := Stage1PreprocessBuffer(bufCopy, uint64(r.Comma))
-
-	records, parseError := Stage2ParseBuffer(bufCopy, '\n', preprocessedSeparator, preprocessedQuote, nil)
-	if parseError {
-		return fallback(bytes.NewReader(buf))
-	}
-
-	for _, ppr := range getPostProcRows(bufCopy, postProc, records) {
 		for r := ppr.start; r < ppr.end; r++ {
 			for c := range records[r] {
 				records[r][c] = strings.ReplaceAll(records[r][c], "\"\"", "\"")
