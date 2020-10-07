@@ -50,7 +50,7 @@ loop:
 	// are we processing the last 64-bytes?
 	MOVQ DX, AX
 	ADDQ $0x40, AX
-	CMPQ AX, masks_len+32(FP)
+	CMPQ AX, buf_len+8(FP)
 	JLE  notLastZWord
 
 	// Check if we need to OR in closing delimiter into last delimiter mask

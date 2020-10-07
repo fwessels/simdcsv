@@ -58,21 +58,7 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, masks *[]uint64,
 }
 
 //go:noescape
-func _stage2_parse_buffer(buf []byte, lastCharIsDelimiter uint64, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input2 *Input, offset uint64, output2 *OutputAsm) (processed uint64)
-
-//go:noescape
 func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64, rows []uint64, columns []string, input2 *Input, offset uint64, output2 *OutputAsm) (processed uint64)
-
-func stage2_parse_buffer(buf []byte, rows []uint64, columns []string, delimiterChar, separatorChar, quoteChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
-
-	lastCharIsDelimiter := uint64(0)
-	if len(buf) > 0 && buf[len(buf)-1] == byte(delimiterChar) {
-		lastCharIsDelimiter = 1
-	}
-
-	processed = _stage2_parse_buffer(buf, lastCharIsDelimiter, rows, columns, delimiterChar, separatorChar, quoteChar, input, offset, output)
-	return
-}
 
 func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
 
@@ -89,14 +75,14 @@ func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []str
 //
 // `records` may be passed in, if non-nil it will be reused
 // and grown accordingly
-func Stage2ParseBuffer(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string) ([][]string, bool) {
+func Stage2ParseBuffer(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string) ([][]string, bool) {
 
-	r, _, _, parseError := Stage2ParseBufferEx(buf, delimiterChar, separatorChar, quoteChar, records, nil, nil)
+	r, _, _, parseError := Stage2ParseBufferEx(buf, masks, delimiterChar, records, nil, nil)
 	return r, parseError
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
+func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
 
 	errorOut := func() ([][]string, []uint64, []string, /*parsingError*/ bool) {
 		*columns = (*columns)[:0]
@@ -128,7 +114,7 @@ func Stage2ParseBufferEx(buf []byte, delimiterChar, separatorChar, quoteChar uin
 
 	offset := uint64(0)
 	for {
-		processed := stage2_parse_buffer(buf, *rows, *columns, delimiterChar, separatorChar, quoteChar, &inputStage2, offset, &outputStage2)
+		processed := stage2_parse_masks(buf, masks, *rows, *columns, delimiterChar, &inputStage2, offset, &outputStage2)
 		if inputStage2.errorOffset != 0 {
 			return errorOut()
 		}

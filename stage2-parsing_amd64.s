@@ -1,7 +1,5 @@
 //+build !noasm !appengine
 
-#include "common.h"
-
 // See Input struct
 #define INPUT_BASE   0x38
 
@@ -18,10 +16,6 @@
 #define Y_DELIMITER   Y4
 #define Y_SEPARATOR   Y5
 #define Y_QUOTE_CHAR  Y6
-
-// func _stage2_parse_buffer()
-TEXT ·_stage2_parse_buffer(SB), 7, $0
-    RET
 
 // func stage2_parse_test(input *Input, offset uint64, output *Output)
 TEXT ·stage2_parse_test(SB), 7, $0
