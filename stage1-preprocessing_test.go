@@ -306,7 +306,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 	buf := []byte(data)
 
-	postProc := Stage1PreprocessBuffer(buf, uint64(','))
+	masks, postProc := Stage1PreprocessBuffer(buf, uint64(','))
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, hex.Dump(buf))
@@ -326,7 +326,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 		t.Errorf("TestStage1MaskingOut: got %v, want %v", out.String(), expected)
 	}
 
-	simdrecords, parsingError := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	simdrecords, parsingError := Stage2ParseBuffer(buf, masks, 0xa, nil)
 	if parsingError {
 		t.Errorf("TestStage1MaskingOut: unexpected parsing error")
 	}
@@ -373,7 +373,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 		copy(buf, dataN)
 		postProc = postProc[:0]
-		Stage1PreprocessBufferEx(buf, uint64(','), &postProc)
+		Stage1PreprocessBufferEx(buf, uint64(','), &masks, &postProc)
 	}
 }
 
@@ -560,8 +560,8 @@ Ken,Thompson,ken
 
 func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 
-	postProc := Stage1PreprocessBuffer(buf, uint64(','))
-	simdrecords, parsingError := Stage2ParseBuffer(buf, 0xa, preprocessedSeparator, preprocessedQuote, nil)
+	masks, postProc := Stage1PreprocessBuffer(buf, uint64(','))
+	simdrecords, parsingError := Stage2ParseBuffer(buf, masks, 0xa, nil)
 	if parsingError {
 		t.Errorf("testStage1DeterminePostProcRows: unexpected parsing error")
 	}
@@ -597,14 +597,14 @@ func testStage1DynamicAllocation(t *testing.T) {
 	{
 		input, output := stage1Input{}, stage1Output{}
 		// explicitly invoke stage 1 directly with single call
-		processed := stage1_preprocess_buffer(bufSingleInvoc, uint64(','), &input, &output, &postProcSingleInvoc, 0)
+		processed := stage1_preprocess_buffer(bufSingleInvoc, uint64(','), &input, &output, &postProcSingleInvoc, 0, masks)
 		if processed < uint64(len(buf)) {
 			t.Errorf("testStage1DynamicAllocation: got %v, want %v", processed, len(buf))
 		}
 	}
 
 	postProc := make([]uint64, 0, 3) // small allocation, make sure we dynamically grow
-	postProc = Stage1PreprocessBufferEx(buf, uint64(','), &postProc)
+	masks, postProc = Stage1PreprocessBufferEx(buf, uint64(','), nil, &postProc)
 
 	if !reflect.DeepEqual(postProc, postProcSingleInvoc) {
 		t.Errorf("testStage1DynamicAllocation: got %v, want %v", postProc, postProcSingleInvoc)

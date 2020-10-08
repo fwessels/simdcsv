@@ -289,7 +289,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 
-			simdrecords, parsingError := Stage2ParseBuffer(buf, '\n', ',', '"', nil)
+			simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n', nil)
 			if parsingError {
 				t.Errorf("TestStage2MissingLastDelimiter: got %v, want %v", parsingError, false)
 			}
@@ -324,7 +324,7 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < 250; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
-		simdrecords, parsingError := Stage2ParseBuffer(buf, '\n', ',', '"',  nil)
+		simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n',nil)
 		if parsingError {
 			t.Errorf("TestParseBlockSecondPass: got %v, want %v", parsingError, false)
 		}
@@ -355,7 +355,7 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 	records := make([][]string, 0, init[2])
 	var parsingError bool
 
-	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, '\n', ',', '"', &records, &rows, &columns)
+	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
 
 	if cap(rows) != expected[0] {
 		t.Errorf("testStage2DynamicAllocation: got %d, want %d", cap(rows), expected[0])
