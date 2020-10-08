@@ -270,6 +270,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 
+			masks, _ := Stage1PreprocessBuffer(buf, ',')
 			simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n', nil)
 			if parsingError {
 				t.Errorf("TestStage2MissingLastDelimiter: got %v, want %v", parsingError, false)
@@ -305,9 +306,10 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < 250; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
+		masks, _ := Stage1PreprocessBuffer(buf, ',')
 		simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n',nil)
 		if parsingError {
-			t.Errorf("TestParseBlockSecondPass: got %v, want %v", parsingError, false)
+			t.Errorf("TestStage2ParseBuffer: got %v, want %v", parsingError, false)
 		}
 
 		r := csv.NewReader(bytes.NewReader(buf))
@@ -336,6 +338,7 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 	records := make([][]string, 0, init[2])
 	var parsingError bool
 
+	masks, _ := Stage1PreprocessBuffer(buf, ',')
 	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
 
 	if cap(rows) != expected[0] {
@@ -369,12 +372,12 @@ func TestStage2DynamicAllocation(t *testing.T) {
 
 func BenchmarkStage2ParseBuffer(b *testing.B) {
 
-	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+	buf, err := ioutil.ReadFile("parking-citations-100K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	rows := make([]uint64, 10000 + 10)
+	rows := make([]uint64, 100000 * 2 * 1.5)
 	columns := make([]string, len(rows)*20)
 	simdrecords := make([][]string, 0, len(rows))
 
@@ -382,14 +385,16 @@ func BenchmarkStage2ParseBuffer(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	masks, _ := Stage1PreprocessBuffer(buf, ',')
+
 	for i := 0; i < b.N; i++ {
-		Stage2ParseBufferEx(buf, '\n', ',', '"', &simdrecords, &rows, &columns)
+		Stage2ParseBufferEx(buf, masks,'\n', &simdrecords, &rows, &columns)
 	}
 }
 
 func BenchmarkStage2ParseBufferGolang(b *testing.B) {
 
-	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+	buf, err := ioutil.ReadFile("parking-citations-100K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
