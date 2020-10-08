@@ -256,25 +256,6 @@ func TestStage2SkipEmptyLines(t *testing.T) {
 	})
 }
 
-// Test whether the last two YMM words are correctly masked out (beyond end of buffer)
-func TestStage2PartialLoad(t *testing.T) {
-
-	const data = `,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`
-
-	for i := 1; i <= 128; i++ {
-		buf := []byte(data[:i])
-		rows := make([]uint64, 100)
-		columns := make([]string, len(rows)*10)
-		input, output := NewInput(), OutputAsm{}
-
-		stage2_parse_buffer(buf, rows, columns, '\n', ',', '"', &input, 0, &output)
-
-		if output.index/2 - 1 != i {
-			t.Errorf("TestStage2TestPartialLoad: got: %d want: %d", output.index/2 - 1, i)
-		}
-	}
-}
-
 func TestStage2MissingLastDelimiter(t *testing.T) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd

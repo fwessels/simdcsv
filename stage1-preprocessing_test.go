@@ -225,6 +225,38 @@ first_name,last_name,username123`
 	})
 }
 
+// Test whether the last two YMM words are correctly masked out (beyond end of buffer)
+func TestStage1PartialLoad(t *testing.T) {
+
+	const data = `,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,`
+
+	for i := 1; i <= 128; i++ {
+		buf := []byte(data[:i])
+
+		masks := make([]uint64, ((len(buf)>>6)+1)*3)
+		postProc := make([]uint64, ((len(buf)>>6)+1))
+		input, output := stage1Input{}, stage1Output{}
+
+		processed := stage1_preprocess_buffer(buf, ',', &input, &output, &postProc, 0, masks)
+
+		out := ""
+		if processed <= 64 {
+			out = fmt.Sprintf("%064b", bits.Reverse64(masks[1]))
+		} else {
+			out = fmt.Sprintf("%064b%064b", bits.Reverse64(masks[1]), bits.Reverse64(masks[3+1]))
+		}
+
+		expected := strings.Repeat("1", i) + strings.Repeat("0", int(processed)-i)
+
+		//fmt.Println(out)
+		//fmt.Println(expected)
+
+		if out != expected {
+			t.Errorf("TestStage1PartialLoad: got %v, want %v", out, expected)
+		}
+	}
+}
+
 func diffBitmask(diff1, diff2 string) (diff string) {
 	if len(diff1) != len(diff2) {
 		log.Fatalf("sizes don't match")
