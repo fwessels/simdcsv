@@ -29,6 +29,11 @@ TEXT ·_stage2_parse_masks(SB), 7, $0
 	MOVQ offset+112(FP), DX
 	MOVQ masks_base+24(FP), DI
 
+	MOVQ  DX, BX
+	SHRQ  $6, BX
+	IMULQ $24, BX
+	ADDQ  BX, DI
+
 loop:
 	//  Check whether there is still enough reserved space in the rows and columns destination buffer
 	MOVQ output2+120(FP), BX
@@ -45,7 +50,7 @@ loop:
 
 	MOVQ input2+104(FP), SI
 
-    MOVQ (DI), BX
+	MOVQ (DI), BX
 
 	// are we processing the last 64-bytes?
 	MOVQ DX, AX
@@ -68,18 +73,18 @@ notLastZWord:
 	MOVQ BX, INPUT_STAGE2_DELIMITER_MASK(SI)
 
 	// separator mask
-    MOVQ 8(DI), CX
+	MOVQ 8(DI), CX
 	MOVQ CX, INPUT_STAGE2_SEPARATOR_MASK(SI)
 
 	// quote mask
-    MOVQ 16(DI), CX
+	MOVQ 16(DI), CX
 	MOVQ CX, INPUT_STAGE2_QUOTE_MASK(SI)
 	ADDQ $24, DI
 
 	PUSHQ DI
 	PUSHQ DX
-	MOVQ offset+112(FP), DI
-	MOVQ output2+120(FP), R9
+	MOVQ  offset+112(FP), DI
+	MOVQ  output2+120(FP), R9
 	MOVQ  input2+104(FP), DX
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
@@ -99,7 +104,7 @@ addTrailingDelimiter:
 	JZ   done
 
 	MOVQ input2+104(FP), SI
-	MOVQ $1, CX             // first bit marks first char is delimiter
+	MOVQ $1, CX                              // first bit marks first char is delimiter
 	MOVQ CX, INPUT_STAGE2_DELIMITER_MASK(SI)
 	MOVQ $0, CX
 	MOVQ CX, INPUT_STAGE2_SEPARATOR_MASK(SI)
