@@ -825,53 +825,60 @@ Ken,Thompson,ken
 }
 
 func BenchmarkSimdCsv(b *testing.B) {
-	b.Run("parking-citations-100K", func(b *testing.B){
+	b.Run("parking-citations-100K", func(b *testing.B) {
 		benchmarkSimdCsv(b, "parking-citations-100K.csv", 100000)
 	})
-	b.Run("worldcitiespop", func(b *testing.B){
-		benchmarkSimdCsv(b, "worldcitiespop.csv", 100000)
+	b.Run("worldcitiespop-100K", func(b *testing.B) {
+		benchmarkSimdCsv(b, "worldcitiespop-100K.csv", 100000)
+	})
+	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
+		benchmarkSimdCsv(b, "nyc-taxi-data-100K.csv", 100000)
 	})
 }
 
 func benchmarkSimdCsv(b *testing.B, file string, lines int) {
 
-	data, _ := ioutil.ReadFile(file)
+	buf, err := ioutil.ReadFile(file)
+	if err != nil {
+		panic(err)
+	}
 
-	b.SetBytes(int64(len(data)))
+	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	// TODO: Remove synchronization code
-	buf := make([]byte, (len(data)+128)&^127)
-
 	postProc := make([]uint64, 0, len(buf)>>6)
+	masks := make([]uint64, ((len(buf)>>6)+1)*3)
 
-	rows := make([]uint64, 100000*2*1.5)
+	rows := make([]uint64, int(float64(lines)*2*1.5))
 	columns := make([]string, len(rows)*20)
 	simdrecords := make([][]string, 0, len(rows))
 
 	for i := 0; i < b.N; i++ {
-
-		//  TODO: Remove synchronization code
-		copy(buf, data)
 		postProc = postProc[:0]
-		Stage1PreprocessBufferEx(buf[:len(data)], uint64(','), &postProc)
-		Stage2ParseBufferEx(buf[:len(data)], '\n', ',', '"', &simdrecords, &rows, &columns)
+		Stage1PreprocessBufferEx(buf, uint64(','), &masks, &postProc)
+		Stage2ParseBufferEx(buf, masks, '\n', &simdrecords, &rows, &columns)
 	}
 }
 
 func BenchmarkSimdCsvGo(b *testing.B) {
-	b.Run("parking-citations-100K", func(b *testing.B){
+	b.Run("parking-citations-100K", func(b *testing.B) {
 		benchmarkSimdCsvGo(b, "parking-citations-100K.csv")
 	})
-	b.Run("worldcitiespop", func(b *testing.B){
-		benchmarkSimdCsvGo(b, "worldcitiespop.csv")
+	b.Run("worldcitiespop-100K", func(b *testing.B) {
+		benchmarkSimdCsvGo(b, "worldcitiespop-100K.csv")
+	})
+	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
+		benchmarkSimdCsvGo(b, "nyc-taxi-data-100K.csv")
 	})
 }
 
 func benchmarkSimdCsvGo(b *testing.B, file string) {
 
-	data, _ := ioutil.ReadFile(file)
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		panic(err)
+	}
 
 	b.SetBytes(int64(len(data)))
 	b.ReportAllocs()
