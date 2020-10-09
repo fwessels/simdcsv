@@ -392,42 +392,32 @@ x,,,
 		Error:   errInvalidDelim,
 	}}
 
-	for run := 1; run <= 2; run++ {
-		runname := ""
-		if run == 2 {
-			runname = "-sequential"
-		}
-		for _, tt := range tests {
-			t.Run(fmt.Sprintf("%s%s", tt.Name, runname), func(t *testing.T) {
-				r := NewReader(strings.NewReader(tt.Input))
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			r := NewReader(strings.NewReader(tt.Input))
 
-				if tt.Comma != 0 {
-					r.Comma = tt.Comma
-				}
-				r.Comment = tt.Comment
-				if tt.UseFieldsPerRecord {
-					r.FieldsPerRecord = tt.FieldsPerRecord
-				} else {
-					r.FieldsPerRecord = -1
-				}
-				r.LazyQuotes = tt.LazyQuotes
-				r.TrimLeadingSpace = tt.TrimLeadingSpace
-				r.ReuseRecord = tt.ReuseRecord
+			if tt.Comma != 0 {
+				r.Comma = tt.Comma
+			}
+			r.Comment = tt.Comment
+			if tt.UseFieldsPerRecord {
+				r.FieldsPerRecord = tt.FieldsPerRecord
+			} else {
+				r.FieldsPerRecord = -1
+			}
+			r.LazyQuotes = tt.LazyQuotes
+			r.TrimLeadingSpace = tt.TrimLeadingSpace
+			r.ReuseRecord = tt.ReuseRecord
 
-				out := [][]string{}
-				var err error
-				if run == 1 {
-					out, err = r.ReadAll()
-				} else {
-					out, err = r.ReadAllSequential()
-				}
-				if !reflect.DeepEqual(err, tt.Error) {
-					t.Errorf("ReadAll() error:\ngot  %v\nwant %v", err, tt.Error)
-				} else if !reflect.DeepEqual(out, tt.Output) {
-					t.Errorf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
-				}
-			})
-		}
+			out := [][]string{}
+			var err error
+			out, err = r.ReadAll()
+			if !reflect.DeepEqual(err, tt.Error) {
+				t.Errorf("ReadAll() error:\ngot  %v\nwant %v", err, tt.Error)
+			} else if !reflect.DeepEqual(out, tt.Output) {
+				t.Errorf("ReadAll() output:\ngot  %q\nwant %q", out, tt.Output)
+			}
+		})
 	}
 }
 
@@ -572,6 +562,7 @@ func testIgnoreCommentedLines(t *testing.T, csvData []byte) {
 	const comment = '#'
 
 	simdr := NewReader(bytes.NewReader(csvData))
+	simdr.FieldsPerRecord = -1
 	simdrecords, err := simdr.ReadAll()
 	if err != nil {
 		log.Fatalf("%v", err)
@@ -600,7 +591,7 @@ func TestIgnoreCommentedLines(t *testing.T) {
 	t.Run("last", func(t *testing.T) {
 		testIgnoreCommentedLines(t, []byte("a,b,c\nd,e,f\n#IGNORED\n"))
 	})
-	t.Run("multiple", func(t *testing.T){
+	t.Run("multiple", func(t *testing.T) {
 		testIgnoreCommentedLines(t, []byte("a,b,c\n#A,B,C\nd,e,f\n#g,h,i\n"))
 	})
 }

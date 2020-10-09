@@ -3,13 +3,12 @@ package simdcsv
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/hex"
 	"fmt"
-	"log"
 	"io/ioutil"
+	"log"
 	"math/bits"
-	"strings"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -341,17 +340,16 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	masks, postProc := Stage1PreprocessBuffer(buf, uint64(','))
 
 	out := bytes.NewBufferString("")
-	fmt.Fprintf(out, hex.Dump(buf))
+	fmt.Fprintf(out,"%064b%064b\n", bits.Reverse64(masks[0]), bits.Reverse64(masks[3+0]))
+	fmt.Fprintf(out,"%064b%064b\n", bits.Reverse64(masks[1]), bits.Reverse64(masks[3+1]))
+	fmt.Fprintf(out,"%064b%064b\n", bits.Reverse64(masks[2]), bits.Reverse64(masks[3+2]))
+
+	//fmt.Println(out.String())
 
 	const expected =
-`00000000  66 69 72 73 74 5f 6e 61  6d 65 02 6c 61 73 74 5f  |first_name.last_|
-00000010  6e 61 6d 65 02 75 73 65  72 6e 61 6d 65 0a 52 52  |name.username.RR|
-00000020  6f 62 65 72 74 74 02 03  50 69 2c 65 03 02 72 6f  |obertt..Pi,e..ro|
-00000030  62 0a 0a 4b 65 6e 6e 79  02 03 68 6f 0d 0a 73 6f  |b..Kenny..ho..so|
-00000040  03 02 6b 65 6e 6e 79 0a  03 52 6f 62 65 72 74 03  |..kenny..Robert.|
-00000050  02 03 47 72 69 65 20 20  20 20 20 20 20 20 20 20  |..Grie          |
-00000060  20 20 20 20 20 20 20 20  20 20 20 20 20 20 20 20  |                |
-00000070  20 20 73 65 6d 65 72 03  02 03 67 72 22 22 69 03  |  semer...gr""i.|
+`00000000000000000000000000000100000000000000000001100000000001000000000100000000000000000000000000000000000000000000000000000000
+00000000001000000000100000000000000000100000010000000000100000000100000000000000100000000000000000000000000000000000000010000000
+00000000000000000000000000000000000000010000100000000000010000001000000010000001010000000000000000000000000000000000000101000001
 `
 
 	if out.String() != expected {
