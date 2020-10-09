@@ -13,6 +13,12 @@
 #define INPUT_STAGE2_DELIMITER_MASK 8
 #define INPUT_STAGE2_QUOTE_MASK     16
 
+// Offsets for  masks slice
+#define MASKS_NEWLINE_OFFSET   0
+#define MASKS_SEPARATOR_OFFSET 8
+#define MASKS_QUOTE_OFFSET     16
+#define MASKS_ELEM_SIZE        24
+
 // func _stage2_parse_masks()
 TEXT ·_stage2_parse_masks(SB), 7, $0
 
@@ -31,7 +37,7 @@ TEXT ·_stage2_parse_masks(SB), 7, $0
 
 	MOVQ  DX, BX
 	SHRQ  $6, BX
-	IMULQ $24, BX
+	IMULQ $MASKS_ELEM_SIZE, BX
 	ADDQ  BX, DI
 
 loop:
@@ -50,7 +56,7 @@ loop:
 
 	MOVQ input2+104(FP), SI
 
-	MOVQ (DI), BX
+	MOVQ MASKS_NEWLINE_OFFSET(DI), BX
 
 	// are we processing the last 64-bytes?
 	MOVQ DX, AX
@@ -73,13 +79,13 @@ notLastZWord:
 	MOVQ BX, INPUT_STAGE2_DELIMITER_MASK(SI)
 
 	// separator mask
-	MOVQ 8(DI), CX
+	MOVQ MASKS_SEPARATOR_OFFSET(DI), CX
 	MOVQ CX, INPUT_STAGE2_SEPARATOR_MASK(SI)
 
 	// quote mask
-	MOVQ 16(DI), CX
+	MOVQ MASKS_QUOTE_OFFSET(DI), CX
 	MOVQ CX, INPUT_STAGE2_QUOTE_MASK(SI)
-	ADDQ $24, DI
+	ADDQ $MASKS_ELEM_SIZE, DI
 
 	PUSHQ DI
 	PUSHQ DX
