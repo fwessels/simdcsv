@@ -388,20 +388,19 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 "Robert","Grie                           semer","gr""i"
 `
 
-	const repeat = 50
-	dataN := make([]byte, 128*repeat)
-	dataN = bytes.Repeat([]byte(data), repeat)
+	const repeat = 500
+	buf := make([]byte, 128*repeat)
+	buf = bytes.Repeat([]byte(data), repeat)
 
-	b.SetBytes(int64(len(dataN)))
+	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	buf := make([]byte, len(dataN))
 	postProc := make([]uint64, 0, len(buf)>>6)
+	masks := make([]uint64, 0, ((len(buf)>>6)+1)*3)
 
 	for i := 0; i < b.N; i++ {
 
-		copy(buf, dataN)
 		postProc = postProc[:0]
 		Stage1PreprocessBufferEx(buf, uint64(','), &masks, &postProc)
 	}
@@ -624,6 +623,7 @@ func testStage1DynamicAllocation(t *testing.T) {
 	}
 
 	postProcSingleInvoc := make([]uint64, 0, len(buf)>>6)
+	masks := make([]uint64, ((len(buf)>>6)+1)*3)
 	{
 		input, output := stage1Input{}, stage1Output{}
 		// explicitly invoke stage 1 directly with single call
