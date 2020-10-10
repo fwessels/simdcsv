@@ -826,13 +826,13 @@ Ken,Thompson,ken
 
 func BenchmarkSimdCsv(b *testing.B) {
 	b.Run("parking-citations-100K", func(b *testing.B) {
-		benchmarkSimdCsv(b, "parking-citations-100K.csv", 100000)
+		benchmarkSimdCsv(b, "testdata/parking-citations-100K.csv", 100000)
 	})
 	b.Run("worldcitiespop-100K", func(b *testing.B) {
-		benchmarkSimdCsv(b, "worldcitiespop-100K.csv", 100000)
+		benchmarkSimdCsv(b, "testdata/worldcitiespop-100K.csv", 100000)
 	})
 	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
-		benchmarkSimdCsv(b, "nyc-taxi-data-100K.csv", 100000)
+		benchmarkSimdCsv(b, "testdata/nyc-taxi-data-100K.csv", 100000)
 	})
 }
 
@@ -863,13 +863,13 @@ func benchmarkSimdCsv(b *testing.B, file string, lines int) {
 
 func BenchmarkSimdCsvGo(b *testing.B) {
 	b.Run("parking-citations-100K", func(b *testing.B) {
-		benchmarkSimdCsvGo(b, "parking-citations-100K.csv")
+		benchmarkSimdCsvGo(b, "testdata/parking-citations-100K.csv")
 	})
 	b.Run("worldcitiespop-100K", func(b *testing.B) {
-		benchmarkSimdCsvGo(b, "worldcitiespop-100K.csv")
+		benchmarkSimdCsvGo(b, "testdata/worldcitiespop-100K.csv")
 	})
 	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
-		benchmarkSimdCsvGo(b, "nyc-taxi-data-100K.csv")
+		benchmarkSimdCsvGo(b, "testdata/nyc-taxi-data-100K.csv")
 	})
 }
 

@@ -372,7 +372,7 @@ func TestStage2DynamicAllocation(t *testing.T) {
 
 func BenchmarkStage2ParseBuffer(b *testing.B) {
 
-	buf, err := ioutil.ReadFile("parking-citations-100K.csv")
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -394,7 +394,7 @@ func BenchmarkStage2ParseBuffer(b *testing.B) {
 
 func BenchmarkStage2ParseBufferGolang(b *testing.B) {
 
-	buf, err := ioutil.ReadFile("parking-citations-100K.csv")
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
