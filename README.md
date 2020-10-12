@@ -218,12 +218,14 @@ func TestStage1PreprocessMasks(t *testing.T) {
 
 ```
 benchmark                                     old MB/s     new MB/s     speedup
-BenchmarkSimdCsv/parking-citations-100K-8     208.64       1178.09      5.65x
-BenchmarkSimdCsv/worldcitiespop-8             127.65       1416.61      11.10x
+BenchmarkSimdCsv/parking-citations-100K-8     182.36       781.97       4.29x
+BenchmarkSimdCsv/worldcitiespop-100K-8        124.75       796.06       6.38x
+BenchmarkSimdCsv/nyc-taxi-data-100K-8         183.91       722.00       3.93x
 
 benchmark                                     old bytes     new bytes     delta
-BenchmarkSimdCsv/parking-citations-100K-8     58601190      1181503       -97.98%
-BenchmarkSimdCsv/worldcitiespop-8             933054464     27603772      -97.04%
+BenchmarkSimdCsv/parking-citations-100K-8     58601189      1650567       -97.18%
+BenchmarkSimdCsv/worldcitiespop-100K-8        30822166      581103        -98.11%
+BenchmarkSimdCsv/nyc-taxi-data-100K-8         133772128     5554548       -95.85%
 ```
 
 ## Benchmarking 
