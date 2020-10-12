@@ -214,6 +214,8 @@ func TestStage1PreprocessMasks(t *testing.T) {
 
 ##  Performance compared to encoding/csv
 
+Below is a comparison between `encoding/csv` and `simdcsv` for a couple of popular CSV data sets.
+
 ![encoding-csv_vs_simdcsv-comparison](charts/encoding-csv_vs_simdcsv.png)
 
 ```
@@ -226,33 +228,6 @@ benchmark                                     old bytes     new bytes     delta
 BenchmarkSimdCsv/parking-citations-100K-8     58601189      1650567       -97.18%
 BenchmarkSimdCsv/worldcitiespop-100K-8        30822166      581103        -98.11%
 BenchmarkSimdCsv/nyc-taxi-data-100K-8         133772128     5554548       -95.85%
-```
-
-## Benchmarking 
-
-### Stage 1
-
-```
-benchmark              old MB/s     new MB/s     speedup
-BenchmarkFirstPass     760.36       4495.12      5.91x
-```
-
-```
-go test -v -run=X -bench=Stage1PreprocessingMasks
-BenchmarkStage1PreprocessingMasks-8       281197              3746 ns/op        1708.47 MB/s
-```
-
-### Stage 2
-
-```
-benchmark                        old MB/s     new MB/s     speedup
-BenchmarkStage2ParseBuffer-8     205.81       1448.64      7.04x
-```
-
-Strongly reduced memory allocations:
-```
-benchmark                        old allocs     new allocs     delta
-BenchmarkStage2ParseBuffer-8     20034          0              -100.00%
 ```
 
 ## Limitations
