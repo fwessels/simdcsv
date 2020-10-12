@@ -650,15 +650,52 @@ func TestStage1DynamicAllocation(t *testing.T) {
 
 func TestStage1MasksBounds(t *testing.T) {
 
-	buf := []byte("a,b,c,d,e")
+	buf, err := ioutil.ReadFile("testdata/parking-citations.csv")
+	if err != nil {
+		panic(err)
+	}
 
 	postProc := make([]uint64, 0, (len(buf)>>6)+1)
-	masks := make([]uint64, ((len(buf)>>6)+4)*3)
-	fmt.Println(len(masks))
-	fmt.Println(cap(masks))
+	masks := allocMasks(buf)
 
-	input, output := stage1Input{}, stage1Output{}
+	{
+		input, output := stage1Input{}, stage1Output{}
 
-	processed, masksWritten := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks)
-	fmt.Println(processed, masksWritten)
+		processed, masksWritten := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks)
+
+		if processed/64 != masksWritten/3 {
+			panic("Sanity check fails: processed/64 != masksWritten/3")
+		}
+
+		if processed < uint64(len(buf)) {
+			panic("Sanity check fails: processed < uint64(len(buf))")
+		}
+	}
+
+	postProcLoop := make([]uint64, 0, (len(buf)>>6)+1)
+	masksLoop := make([]uint64, 10*3)
+	masksIndex := 0
+
+	processed, masksWritten := uint64(0), uint64(0)
+	inputStage1 := stage1Input{}
+	for {
+		outputStage1 := stage1Output{}
+
+		index := processed
+		processed, masksWritten = stage1_preprocess_buffer(buf, uint64(','), &inputStage1, &outputStage1, &postProcLoop, index, masksLoop)
+
+		if (processed-index)/64 != masksWritten/3 {
+			panic("Sanity check fails: (processed-index)/64 != masksWritten/3")
+		}
+
+		if processed >= uint64(len(buf)) {
+			break
+		}
+
+		if !reflect.DeepEqual(masksLoop[:masksWritten], masks[masksIndex:masksIndex+int(masksWritten)]) {
+			t.Errorf("TestStage1MasksBounds: got %v, want %v", masksLoop[:masksWritten], masks[masksIndex:masksIndex+int(masksWritten)])
+		}
+
+		masksIndex += int(masksWritten)
+	}
 }

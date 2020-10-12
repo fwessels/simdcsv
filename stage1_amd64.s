@@ -209,10 +209,11 @@ skipAddTrailingNewline:
 	SUBQ $0x40, DX
 
 unmodified:
+	ADDQ $0x40, DX
+
 	CMPQ R12, masks_len+72(FP) // still space in masks slice?
 	JGE  exit
 
-	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
 
