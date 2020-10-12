@@ -647,3 +647,18 @@ func TestStage1DynamicAllocation(t *testing.T) {
 		testStage1DynamicAllocation(t)
 	})
 }
+
+func TestStage1MasksBounds(t *testing.T) {
+
+	buf := []byte("a,b,c,d,e")
+
+	postProc := make([]uint64, 0, (len(buf)>>6)+1)
+	masks := make([]uint64, ((len(buf)>>6)+4)*3)
+	fmt.Println(len(masks))
+	fmt.Println(cap(masks))
+
+	input, output := stage1Input{}, stage1Output{}
+
+	processed, masksWritten := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks)
+	fmt.Println(processed, masksWritten)
+}

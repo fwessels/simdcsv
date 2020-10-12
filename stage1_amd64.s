@@ -54,7 +54,7 @@ GLOBL MASKTABLE<>(SB), 8, $64
 #define Y_CARRIAGE_R  Y3
 #define Y_NEWLINE     Y2
 
-// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed uint64)
+// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed, masksWritten uint64)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
 
 	MOVQ         $0x0a, AX                // character for newline
@@ -73,6 +73,7 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ buf+0(FP), DI
 	MOVQ offset+56(FP), DX
 	MOVQ masks_base+64(FP), R11
+	MOVQ $6, R12                // initialize indexing reg at 6, so we can compare to length of slice
 
 	MOVQ DX, CX
 	ADDQ $0x40, CX
@@ -106,8 +107,8 @@ skipFullLoadPrologue:
 	ADD_TRAILING_NEWLINE
 
 skipAddTrailingNewlinePrologue:
-	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI) // store in next slot, so that it gets copied back
-	MOVQ BX, MASKS_NEWLINE_OFFSET(R11)
+	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI)                           // store in next slot, so that it gets copied back
+	MOVQ BX, MASKS_NEWLINE_OFFSET-MASKS_ELEM_SIZE*2(R11)(R12*8)
 
 loop:
 	VMOVDQU Y6, Y8 // get low 32-bytes
@@ -158,7 +159,8 @@ skipFullLoad:
 	VPCMPEQB Y7, Y_NEWLINE, Y1
 	CREATE_MASK(Y0, Y1, AX, BX)
 
-    MOVQ BX, MASKS_ELEM_SIZE+MASKS_NEWLINE_OFFSET(R11)
+	// Write unaltered newline mask into next slot already
+	MOVQ BX, MASKS_NEWLINE_OFFSET-MASKS_ELEM_SIZE(R11)(R12*8)
 
 	MOVQ buf_len+8(FP), CX
 	SUBQ DX, CX
@@ -168,6 +170,7 @@ skipFullLoad:
 skipAddTrailingNewline:
 	MOVQ BX, NEWLINE_MASK_IN_NEXT(SI)
 
+	PUSHQ R12
 	PUSHQ R11
 	PUSHQ DI
 	PUSHQ DX
@@ -177,18 +180,18 @@ skipAddTrailingNewline:
 	POPQ  DX
 	POPQ  DI
 	POPQ  R11
+	POPQ  R12
 
 	MOVQ output1+40(FP), R10
 
-    // write out masks to slice
+	// write out masks to slice
 	MOVQ QUOTE_MASK_OUT(R10), AX
-	MOVQ AX, MASKS_QUOTE_OFFSET(R11)
+	MOVQ AX, MASKS_QUOTE_OFFSET-MASKS_ELEM_SIZE*2(R11)(R12*8)
 	MOVQ SEPARATOR_MASK_OUT(R10), AX
-	MOVQ AX, MASKS_SEPARATOR_OFFSET(R11)
+	MOVQ AX, MASKS_SEPARATOR_OFFSET-MASKS_ELEM_SIZE*2(R11)(R12*8)
 	MOVQ CARRIAGE_RETURN_MASK_OUT(R10), AX
-	ORQ  AX, MASKS_NEWLINE_OFFSET(R11)
-
-	ADDQ $MASKS_ELEM_SIZE, R11
+	ORQ  AX, MASKS_NEWLINE_OFFSET-MASKS_ELEM_SIZE*2(R11)(R12*8)
+	ADDQ $3, R12
 
 	MOVQ output1+40(FP), R10
 	CMPQ NEEDS_POST_PROCESSING_OUT(R10), $1
@@ -206,6 +209,9 @@ skipAddTrailingNewline:
 	SUBQ $0x40, DX
 
 unmodified:
+	CMPQ R12, masks_len+72(FP) // still space in masks slice?
+	JGE  exit
+
 	ADDQ $0x40, DX
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
@@ -213,6 +219,8 @@ unmodified:
 exit:
 	VZEROUPPER
 	MOVQ DX, processed+88(FP)
+	SUBQ $6, R12
+	MOVQ R12, masksWritten+96(FP)
 	RET
 
 // CX = base for loading
