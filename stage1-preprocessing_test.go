@@ -699,3 +699,54 @@ func TestStage1MasksBounds(t *testing.T) {
 		masksIndex += int(masksWritten)
 	}
 }
+
+func TestStage1MasksLoop(t *testing.T) {
+
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	postProcLoop := make([]uint64, 0, ((len(buf)>>6)+1)*2)
+	masksLoop := make([]uint64, 1000*3)
+
+	processed, masksWritten := uint64(0), uint64(0)
+	inputStage1 := stage1Input{}
+	outputStage1 := stage1Output{}
+
+	rows := make([]uint64, 100000*30)
+	columns := make([]string, len(rows)*20)
+
+	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+	for {
+
+		index := processed
+		processed, masksWritten = stage1_preprocess_buffer(buf, uint64(','), &inputStage1, &outputStage1, &postProcLoop, index, masksLoop)
+
+		fmt.Println("     processed:", processed)
+		fmt.Println("masksWritten/3:", masksWritten/3)
+
+		if (processed-index)/64 != masksWritten/3 {
+			panic("Sanity check fails: (processed-index)/64 != masksWritten/3")
+		}
+
+		/*processed =*/ stage2_parse_masks(buf, masksLoop/*[:masksWritten]*/, rows, columns, ',', &inputStage2, index, &outputStage2)
+
+		if processed >= uint64(len(buf)) {
+			break
+		}
+	}
+
+	columns = columns[:(outputStage2.index)/2]
+	rows = rows[:outputStage2.line]
+
+	records := make([][]string, 0, 1024)
+
+	for i := 0; i < len(rows); i += 2 {
+		records = append(records, columns[rows[i]:rows[i]+rows[i+1]])
+	}
+
+	fmt.Println(len(records))
+
+}
