@@ -232,7 +232,7 @@ func TestStage1PartialLoad(t *testing.T) {
 	for i := 1; i <= 128; i++ {
 		buf := []byte(data[:i])
 
-		masks := make([]uint64, ((len(buf)>>6)+1)*3)
+		masks := allocMasks(buf)
 		postProc := make([]uint64, ((len(buf)>>6)+1))
 		input, output := stage1Input{}, stage1Output{}
 
@@ -397,7 +397,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	b.ResetTimer()
 
 	postProc := make([]uint64, 0, len(buf)>>6)
-	masks := make([]uint64, 0, ((len(buf)>>6)+1)*3)
+	masks := allocMasks(buf)
 
 	for i := 0; i < b.N; i++ {
 
@@ -623,7 +623,7 @@ func testStage1DynamicAllocation(t *testing.T) {
 	}
 
 	postProcSingleInvoc := make([]uint64, 0, len(buf)>>6)
-	masks := make([]uint64, ((len(buf)>>6)+1)*3)
+	masks := allocMasks(buf)
 	{
 		input, output := stage1Input{}, stage1Output{}
 		// explicitly invoke stage 1 directly with single call

@@ -5,7 +5,7 @@ import (
 )
 
 //go:noescape
-func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed uint64)
+func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed, masksWritten uint64)
 
 //go:noescape
 func stage1_preprocess_test(input *stage1Input, output *stage1Output)
@@ -29,7 +29,7 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, masks *[]uint64,
 	}
 
 	if masks == nil {
-		_masks := make([]uint64, ((len(buf)>>6)+1)*3)
+		_masks := allocMasks(buf)
 		masks = &_masks
 	}
 

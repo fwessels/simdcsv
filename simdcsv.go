@@ -184,3 +184,7 @@ func TrimLeadingSpace(records *[][]string) {
 		}
 	}
 }
+
+func allocMasks(buf []byte) []uint64 {
+	return make([]uint64, ((len(buf)>>6)+4)*3)
+}
