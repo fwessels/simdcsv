@@ -54,16 +54,16 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, masks *[]uint64,
 }
 
 //go:noescape
-func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64, rows []uint64, columns []string, input2 *Input, offset uint64, output2 *OutputAsm) (processed uint64)
+func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64, rows []uint64, columns []string, input2 *Input, offset uint64, output2 *OutputAsm) (processed, masksRead uint64)
 
-func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *Input, offset uint64, output *OutputAsm) (processed uint64) {
+func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *Input, offset uint64, output *OutputAsm) (processed, masksRead uint64) {
 
 	lastCharIsDelimiter := uint64(0)
 	if len(buf) > 0 && buf[len(buf)-1] == byte(delimiterChar) {
 		lastCharIsDelimiter = 1
 	}
 
-	processed = _stage2_parse_masks(buf, masks, lastCharIsDelimiter, rows, columns, input, offset, output)
+	processed, masksRead = _stage2_parse_masks(buf, masks, lastCharIsDelimiter, rows, columns, input, offset, output)
 	return
 }
 
@@ -108,9 +108,9 @@ func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 
 	inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
-	offset := uint64(0)
+	offset, masksOffset := uint64(0), uint64(0)
 	for {
-		processed := stage2_parse_masks(buf, masks, *rows, *columns, delimiterChar, &inputStage2, offset, &outputStage2)
+		processed, masksRead := stage2_parse_masks(buf, masks[masksOffset:], *rows, *columns, delimiterChar, &inputStage2, offset, &outputStage2)
 		if inputStage2.errorOffset != 0 {
 			return errorOut()
 		}
@@ -118,11 +118,14 @@ func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 			break
 		}
 
-		// Sanity check
+		// Sanity checks
 		if offset == processed {
 			log.Fatalf("failed to process anything")
+		} else if masksOffset + masksRead > uint64(len(masks)) {
+			log.Fatalf("processed beyond end of masks buffer")
 		}
 		offset = processed
+		masksOffset += masksRead
 
 		// Check whether we need to double columns slice capacity
 		if outputStage2.index / 2 >= cap(*columns) / 2 {

@@ -383,4 +383,5 @@ addTrailingDelimiter:
 done:
 	VZEROUPPER
 	MOVQ DX, processed+128(FP)
+	MOVQ R12, masksRead+136(FP)
 	RET
