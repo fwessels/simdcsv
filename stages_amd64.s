@@ -283,12 +283,8 @@ TEXT ·_stage2_parse_masks(SB), 7, $0
 
 	MOVQ offset+112(FP), DX
 	MOVQ masks_base+24(FP), DI
-
-    // TODO: Correct initial offset into masks slice
-	MOVQ  DX, BX
-	SHRQ  $6, BX
-	IMULQ $MASKS_ELEM_SIZE, BX
-	ADDQ  BX, DI
+    // TODO: Add support for offset into masks array
+	XORQ R12, R12
 
 loop:
 	//  Check whether there is still enough reserved space in the rows and columns destination buffer
@@ -306,7 +302,7 @@ loop:
 
 	MOVQ input2+104(FP), SI
 
-	MOVQ MASKS_NEWLINE_OFFSET(DI), BX
+	MOVQ MASKS_NEWLINE_OFFSET(DI)(R12*8), BX
 
 	// are we processing the last 64-bytes?
 	MOVQ DX, AX
@@ -329,14 +325,14 @@ notLastZWord:
 	MOVQ BX, INPUT_STAGE2_DELIMITER_MASK(SI)
 
 	// separator mask
-	MOVQ MASKS_SEPARATOR_OFFSET(DI), CX
+	MOVQ MASKS_SEPARATOR_OFFSET(DI)(R12*8), CX
 	MOVQ CX, INPUT_STAGE2_SEPARATOR_MASK(SI)
 
 	// quote mask
-	MOVQ MASKS_QUOTE_OFFSET(DI), CX
+	MOVQ MASKS_QUOTE_OFFSET(DI)(R12*8), CX
 	MOVQ CX, INPUT_STAGE2_QUOTE_MASK(SI)
-	ADDQ $MASKS_ELEM_SIZE, DI
 
+    PUSHQ R12
 	PUSHQ DI
 	PUSHQ DX
 	MOVQ  offset+112(FP), DI
@@ -345,9 +341,15 @@ notLastZWord:
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
 	POPQ  DI
+	POPQ  R12
 
 	ADDQ $0x40, offset+112(FP)
 	ADDQ $0x40, DX
+
+	ADDQ  $3, R12
+	CMPQ  R12, masks_len+32(FP)
+	JGE   done
+
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
 	JNZ  done                  // in case we end exactly on a 64-byte boundary, check if we need to add a delimiter
@@ -369,10 +371,14 @@ addTrailingDelimiter:
 	MOVQ offset+112(FP), DI
 	MOVQ output2+120(FP), R9
 
+    PUSHQ R12
+	PUSHQ DI
 	PUSHQ DX
 	MOVQ  input2+104(FP), DX
 	CALL  ·stage2_parse(SB)
 	POPQ  DX
+	POPQ  DI
+	POPQ  R12
 
 done:
 	VZEROUPPER
