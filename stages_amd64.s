@@ -254,7 +254,6 @@ maskingHigh:
 partialLoadDone:
 	RET
 
-
 // See Input struct
 #define INPUT_BASE   0x38
 
@@ -283,7 +282,6 @@ TEXT ·_stage2_parse_masks(SB), 7, $0
 
 	MOVQ offset+112(FP), DX
 	MOVQ masks_base+24(FP), DI
-    // TODO: Add support for offset into masks array
 	XORQ R12, R12
 
 loop:
@@ -332,7 +330,7 @@ notLastZWord:
 	MOVQ MASKS_QUOTE_OFFSET(DI)(R12*8), CX
 	MOVQ CX, INPUT_STAGE2_QUOTE_MASK(SI)
 
-    PUSHQ R12
+	PUSHQ R12
 	PUSHQ DI
 	PUSHQ DX
 	MOVQ  offset+112(FP), DI
@@ -346,13 +344,13 @@ notLastZWord:
 	ADDQ $0x40, offset+112(FP)
 	ADDQ $0x40, DX
 
-	ADDQ  $3, R12
-	CMPQ  R12, masks_len+32(FP)
-	JGE   done
+	ADDQ $3, R12
+	CMPQ R12, masks_len+32(FP)
+	JGE  done
 
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
-	JNZ  done                  // in case we end exactly on a 64-byte boundary, check if we need to add a delimiter
+	JNZ  done              // in case we end exactly on a 64-byte boundary, check if we need to add a delimiter
 
 addTrailingDelimiter:
 	// simulate a last "trailing" delimiter, but only
@@ -371,7 +369,7 @@ addTrailingDelimiter:
 	MOVQ offset+112(FP), DI
 	MOVQ output2+120(FP), R9
 
-    PUSHQ R12
+	PUSHQ R12
 	PUSHQ DI
 	PUSHQ DX
 	MOVQ  input2+104(FP), DX
