@@ -54,7 +54,7 @@ GLOBL MASKTABLE<>(SB), 8, $64
 #define Y_CARRIAGE_R  Y3
 #define Y_NEWLINE     Y2
 
-// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64) (processed, masksWritten uint64)
+// func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64, masksOffset uint64) (processed, masksWritten uint64)
 TEXT ·stage1_preprocess_buffer(SB), 7, $0
 
 	MOVQ         $0x0a, AX                // character for newline
@@ -73,7 +73,8 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ buf+0(FP), DI
 	MOVQ offset+56(FP), DX
 	MOVQ masks_base+64(FP), R11
-	MOVQ $6, R12                // initialize indexing reg at 6, so we can compare to length of slice
+	MOVQ masksOffset+88(FP), R12
+	ADDQ $6, R12                // advance indexing register by 6, for easy comparisons to max length of slice
 
 	MOVQ DX, CX
 	ADDQ $0x40, CX
@@ -219,9 +220,9 @@ unmodified:
 
 exit:
 	VZEROUPPER
-	MOVQ DX, processed+88(FP)
+	MOVQ DX, processed+96(FP)
 	SUBQ $6, R12
-	MOVQ R12, masksWritten+96(FP)
+	MOVQ R12, masksWritten+104(FP)
 	RET
 
 // CX = base for loading
