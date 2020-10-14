@@ -16,12 +16,12 @@ func stage1_preprocess()
 //go:noescape
 func partialLoad()
 
-func Stage1PreprocessBuffer(buf []byte, separatorChar uint64) ([]uint64, []uint64) {
+func Stage1PreprocessBuffer(buf []byte, separatorChar uint64) ([]uint64, []uint64, uint64) {
 
 	return Stage1PreprocessBufferEx(buf, separatorChar, nil, nil)
 }
 
-func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, masks *[]uint64, postProc *[]uint64) ([]uint64, []uint64) {
+func Stage1PreprocessBufferEx(buf []byte, separatorChar, quoted uint64, masks *[]uint64, postProc *[]uint64) ([]uint64, []uint64, uint64) {
 
 	if postProc == nil {
 		_postProc := make([]uint64, 0, 128)
@@ -33,12 +33,16 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, masks *[]uint64,
 		masks = &_masks
 	}
 
-	processed := uint64(0)
+	processed, masksOffset := uint64(0), uint64(0)
 	inputStage1, outputStage1 := stage1Input{}, stage1Output{}
+	inputStage1.quoted = quoted
 	for {
-		processed = stage1_preprocess_buffer(buf, separatorChar, &inputStage1, &outputStage1, postProc, processed, *masks)
+		processed, masksOffset = stage1_preprocess_buffer(buf, separatorChar, &inputStage1, &outputStage1, postProc, processed, *masks, masksOffset)
 
 		if processed >= uint64(len(buf)) {
+			break
+		}
+		if masksOffset >= uint64(len(*masks)) {
 			break
 		}
 
@@ -50,7 +54,7 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar uint64, masks *[]uint64,
 		}
 	}
 
-	return *masks, *postProc
+	return (*masks)[:masksOffset], *postProc, inputStage1.quoted
 }
 
 //go:noescape

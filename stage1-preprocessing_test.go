@@ -700,6 +700,56 @@ func TestStage1MasksBounds(t *testing.T) {
 	}
 }
 
+func TestSimdCsvStreaming(t *testing.T) {
+
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
+	masksStream := make([]uint64, 10000*3)
+
+	rows := make([]uint64, 100000*30)
+	columns := make([]string, len(rows)*20)
+
+	quoted := uint64(0)
+	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+	const chunkSize = 1024*10
+
+	for offset := 0; offset < len(buf); offset += chunkSize {
+		var  chunk []byte
+		if offset+chunkSize > len(buf)  {
+			chunk = buf[offset:]
+		} else {
+			chunk = buf[offset:offset+chunkSize]
+		}
+
+		for len(chunk) > 0 {
+			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
+
+			Stage2ParseBufferExStreaming(chunk, masksStream, '\n', &inputStage2, &outputStage2, &rows, &columns)
+
+			next := len(masksStream) / 3 * 64
+			if next < len(chunk) {
+				chunk = chunk[next:]
+			} else {
+				chunk = chunk[len(chunk):]
+			}
+		}
+	}
+
+	columns = columns[:(outputStage2.index)/2]
+	rows = rows[:outputStage2.line]
+
+	records := make([][]string, 0, 1024)
+
+	for i := 0; i < len(rows); i += 2 {
+		records = append(records, columns[rows[i]:rows[i]+rows[i+1]])
+	}
+}
+
 func TestStage1MasksLoop(t *testing.T) {
 
 	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
