@@ -170,6 +170,70 @@ func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 	return *records, *rows, *columns, false
 }
 
+// Same as above, but allow reuse of `rows` and `columns` slices as well
+func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *Input, outputStage2 *OutputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, /*parsingError*/ bool) {
+
+	errorOut := func() ([]uint64, []string, /*parsingError*/ bool) {
+		*columns = (*columns)[:0]
+		*rows = (*rows)[:0]
+		return *rows, *columns, true
+	}
+
+	if rows == nil {
+		_rows := make([]uint64, 1024) // do not reserve less than 128
+		rows = &_rows
+	}
+	if columns == nil {
+		_columns := make([]string, 10240)
+		columns = &_columns
+	}
+
+	// for repeat calls the actual lengths may have been reduced, so set arrays to maximum size
+	*rows = (*rows)[:cap(*rows)]
+	*columns = (*columns)[:cap(*columns)]
+
+	offset, masksOffset := uint64(0), uint64(0)
+	for {
+		processed, masksRead := stage2_parse_masks(buf, masks[masksOffset:], *rows, *columns, delimiterChar, inputStage2, offset, outputStage2)
+		if inputStage2.errorOffset != 0 {
+			return errorOut()
+		}
+		if int(processed) >= len(buf) {
+			break
+		}
+
+		// Sanity checks
+		if offset == processed {
+			log.Fatalf("failed to process anything")
+		} else if masksOffset + masksRead > uint64(len(masks)) {
+			log.Fatalf("processed beyond end of masks buffer")
+		}
+		offset = processed
+		masksOffset += masksRead
+
+		// Check whether we need to double columns slice capacity
+		if outputStage2.index / 2 >= cap(*columns) / 2 {
+			_columns := make([]string, cap(*columns)*2)
+			copy(_columns, (*columns)[:outputStage2.index/2])
+			columns = &_columns
+		}
+
+		// Check whether we need to double rows slice capacity
+		if outputStage2.line >= cap(*rows) / 2 {
+			_rows := make([]uint64, cap(*rows)*2)
+			copy(_rows, (*rows)[:outputStage2.line])
+			rows = &_rows
+		}
+	}
+
+	// Is the final quoted field not closed?
+	if inputStage2.quoted != 0 {
+		return errorOut()
+	}
+
+	return *rows, *columns, false
+}
+
 //go:noescape
 func stage2_parse_test(input *Input, offset uint64, output *Output)
 

@@ -848,7 +848,7 @@ func benchmarkSimdCsv(b *testing.B, file string, lines int) {
 	b.ResetTimer()
 
 	postProc := make([]uint64, 0, len(buf)>>6)
-	masks := make([]uint64, ((len(buf)>>6)+1)*3)
+	masks := allocMasks(buf)
 
 	rows := make([]uint64, int(float64(lines)*2*1.5))
 	columns := make([]string, len(rows)*20)
