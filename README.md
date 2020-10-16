@@ -7,7 +7,7 @@ A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [s
 ## Design goals
 
 - 1 GB/sec parsing performance for a single core
-- support arbitrarily large data sets
+- support arbitrarily large data sets (and beyond 4 GB)
 - drop-in replacement for `encoding/csv`
 - zero copy behaviour/memory efficient
 
