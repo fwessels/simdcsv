@@ -392,9 +392,26 @@ func TestStage2MasksOffset(t *testing.T) {
 	records := make([][]string, 0, len(rows))
 	var parsingError bool
 
-	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
+	// header: 62
+	// trailer: 12
+
+	// 00000040  45 45 54 20 43 4c 45 41  4e 2c 37 33 2c 36 34 35  |EET CLEAN,73,645|
+	// 00000050  39 39 30 31 2e 33 2c 31  38 36 30 35 33 33 2e 35  |9901.3,1860533.5|
+	// 00000060  0d 0a 31 31 31 32 37 31  36 36 33 36 2c 32 30 31  |..1112716636,201|
+	// 00000070  35 2d 31 32 2d 32 38 54  30 30 3a 30 30 3a 30 30  |5-12-28T00:00:00|
+
+
+
+	masks[3] = masks[3] & ^uint64((1 << 0x22)-1)
+	masks[4] = masks[4] & ^uint64((1 << 0x22)-1)
+	masks[5] = masks[5] & ^uint64((1 << 0x22)-1)
+
+	records, rows, columns, parsingError = Stage2ParseBufferEx(buf[0x40:len(buf)-0x12], masks[3:], '\n', &records, &rows, &columns)
 
 	fmt.Println(len(records))
+	fmt.Println(records[0])
+	fmt.Println()
+
 	fmt.Println(parsingError)
 
 }
