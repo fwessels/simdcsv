@@ -713,7 +713,6 @@ func TestSimdCsvStreaming(t *testing.T) {
 
 	const chunkSize = 1024*30
 	chunks := make([][]byte, 0, 100)
-	masks := make([][]uint64, 0, 100)
 
 	for offset := 0; offset < len(buf); offset += chunkSize {
 		var  chunk []byte
@@ -739,8 +738,6 @@ func TestSimdCsvStreaming(t *testing.T) {
 						hr  := bits.TrailingZeros64(masksStream[index])
 						header += hr
 						if hr < 64 {
-							fmt.Printf("%d\n", hr)
-							fmt.Printf("%064b\n", masksStream[index] >> hr)
 							for {
 								if (masksStream[index] >> hr) & 1 == 1 {
 									hr++
@@ -762,11 +759,20 @@ func TestSimdCsvStreaming(t *testing.T) {
 						break
 					}
 				}
-				chunks = append(chunks, chunk)
+				chunks = append(chunks, chunk[header:len(chunk)-trailer])
 				chunk = chunk[len(chunk):]
 			}
-			masks = append(masks, masksStream)
+			// masks = append(masks, masksStream)
 		}
+	}
+
+	masks := make([][]uint64, 0, 100)
+
+	quoted = 0
+	for _, chunk := range chunks {
+		masksStream := make([]uint64, 100000*3)
+		masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
+		masks = append(masks, masksStream)
 	}
 
 	rows := make([]uint64, 100000*30)
@@ -774,20 +780,33 @@ func TestSimdCsvStreaming(t *testing.T) {
 
 	inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
-	for i, chunk := range chunks  {
-		Stage2ParseBufferExStreaming(chunk, masks[i], '\n', &inputStage2, &outputStage2, &rows, &columns)
+	for i, chunk := range chunks {
 
+		outputStage2.strData = 0 // reinit strData for every chunk (fields do not span chunks)
+
+		Stage2ParseBufferExStreaming(chunk, masks[i], '\n', &inputStage2, &outputStage2, &rows, &columns)
 	}
 
 	columns = columns[:(outputStage2.index)/2]
 	rows = rows[:outputStage2.line]
 
-	records := make([][]string, 0, 1024)
 	simdrecords := make([][]string, 0, 1024)
 
 	for i := 0; i < len(rows); i += 2 {
 		simdrecords = append(simdrecords, columns[rows[i]:rows[i]+rows[i+1]])
 	}
+
+	combined := make([]byte, 0, len(buf))
+	for _, chunk := range chunks {
+		combined = append(combined, chunk...)
+	}
+
+	records := EncodingCsv(combined)
+
+	if !reflect.DeepEqual(simdrecords, records) {
+		t.Errorf("TestSimdCsvStreaming: got %v, want %v", simdrecords, records)
+	}
+
 }
 
 func TestStage1MasksLoop(t *testing.T) {
