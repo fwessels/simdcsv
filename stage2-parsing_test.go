@@ -370,6 +370,35 @@ func TestStage2DynamicAllocation(t *testing.T) {
 	})
 }
 
+func TestStage2MasksOffset(t *testing.T) {
+
+	buf, err := ioutil.ReadFile("chunk.bin")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	masksBytes, err2 := ioutil.ReadFile("masks.bin")
+	if err2 != nil {
+		log.Fatalln(err2)
+	}
+
+	masks := make([]uint64, 0, 10000)
+	for i := 0; i < len(masksBytes); i += 8 {
+		masks = append(masks, binary.LittleEndian.Uint64(masksBytes[i:]))
+	}
+
+	rows := make([]uint64, 10000)
+	columns := make([]string, len(rows)*20)
+	records := make([][]string, 0, len(rows))
+	var parsingError bool
+
+	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
+
+	fmt.Println(len(records))
+	fmt.Println(parsingError)
+
+}
+
 func BenchmarkStage2ParseBuffer(b *testing.B) {
 
 	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
