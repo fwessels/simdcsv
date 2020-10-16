@@ -702,21 +702,18 @@ func TestStage1MasksBounds(t *testing.T) {
 
 func TestSimdCsvStreaming(t *testing.T) {
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	buf, err := ioutil.ReadFile("testdata/parking-citations-10K.csv")
 	if err != nil {
 		panic(err)
 	}
 
 	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
-	masksStream := make([]uint64, 10000*3)
-
-	rows := make([]uint64, 100000*30)
-	columns := make([]string, len(rows)*20)
 
 	quoted := uint64(0)
-	inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
-	const chunkSize = 1024*10
+	const chunkSize = 1024*30
+	chunks := make([][]byte, 0, 100)
+	masks := make([][]uint64, 0, 100)
 
 	for offset := 0; offset < len(buf); offset += chunkSize {
 		var  chunk []byte
@@ -727,26 +724,69 @@ func TestSimdCsvStreaming(t *testing.T) {
 		}
 
 		for len(chunk) > 0 {
+			masksStream := make([]uint64, 100000*3)
 			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
 
-			Stage2ParseBufferExStreaming(chunk, masksStream, '\n', &inputStage2, &outputStage2, &rows, &columns)
 
 			next := len(masksStream) / 3 * 64
 			if next < len(chunk) {
+				chunks = append(chunks, chunk[:next])
 				chunk = chunk[next:]
 			} else {
+				header := 0
+				if offset > 0 {
+					for index := 0; index < len(masksStream); index += 3 {
+						hr  := bits.TrailingZeros64(masksStream[index])
+						header += hr
+						if hr < 64 {
+							fmt.Printf("%d\n", hr)
+							fmt.Printf("%064b\n", masksStream[index] >> hr)
+							for {
+								if (masksStream[index] >> hr) & 1 == 1 {
+									hr++
+									header++
+								} else {
+									break
+								}
+							}
+							break
+						}
+					}
+				}
+
+				trailer := 0
+				for index := 3; index < len(masksStream); index += 3 {
+					tr  := bits.LeadingZeros64(masksStream[len(masksStream)-index])
+					trailer += tr
+					if tr < 64 {
+						break
+					}
+				}
+				chunks = append(chunks, chunk)
 				chunk = chunk[len(chunk):]
 			}
+			masks = append(masks, masksStream)
 		}
+	}
+
+	rows := make([]uint64, 100000*30)
+	columns := make([]string, len(rows)*20)
+
+	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+	for i, chunk := range chunks  {
+		Stage2ParseBufferExStreaming(chunk, masks[i], '\n', &inputStage2, &outputStage2, &rows, &columns)
+
 	}
 
 	columns = columns[:(outputStage2.index)/2]
 	rows = rows[:outputStage2.line]
 
 	records := make([][]string, 0, 1024)
+	simdrecords := make([][]string, 0, 1024)
 
 	for i := 0; i < len(rows); i += 2 {
-		records = append(records, columns[rows[i]:rows[i]+rows[i+1]])
+		simdrecords = append(simdrecords, columns[rows[i]:rows[i]+rows[i+1]])
 	}
 }
 
