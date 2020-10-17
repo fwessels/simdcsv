@@ -783,7 +783,6 @@ func TestSimdCsvStreaming(t *testing.T) {
 		outputStage2.strData = /*0*/ (headers[i] & 0x3f) // reinit strData for every chunk (fields do not span chunks)
 
 		skip := headers[i] >> 6
-
 		shift := headers[i] & 0x3f
 
 		masks[i][skip*3+0] &= ^uint64((1 << shift)-1)
@@ -797,13 +796,7 @@ func TestSimdCsvStreaming(t *testing.T) {
 		masks[i][len(masks[i])-int(skipTz)*3+1] &= uint64((1 << (63-shiftTz))-1)
 		masks[i][len(masks[i])-int(skipTz)*3+2] &= uint64((1 << (63-shiftTz))-1)
 
-		if i == 0 {
-			Stage2ParseBufferExStreaming(chunk[skip*0x40:len(chunk)-int(trailers[i])], masks[i][skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
-		}
-		if i == 1 {
-			Stage2ParseBufferExStreaming(chunk[0x40:len(chunk)-0x12], masks[i][3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
-		}
-
+		Stage2ParseBufferExStreaming(chunk[skip*0x40:len(chunk)-int(trailers[i])], masks[i][skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 	}
 
 	columns = columns[:(outputStage2.index)/2]
@@ -822,8 +815,6 @@ func TestSimdCsvStreaming(t *testing.T) {
 
 	records := EncodingCsv(combined)
 
-	if !reflect.DeepEqual(simdrecords, records) {
-		t.Errorf("TestSimdCsvStreaming: got %v, want %v", simdrecords, records)
 	for i := range records {
 		if !reflect.DeepEqual(simdrecords[i], records[i]) {
 			fmt.Println(i)
