@@ -785,11 +785,24 @@ func TestSimdCsvStreaming(t *testing.T) {
 		skip := headers[i] >> 6
 
 		shift := headers[i] & 0x3f
-		masks[i][skip*3+0] = masks[i][skip*3+0] & ^uint64((1 << shift)-1)
-		masks[i][skip*3+1] = masks[i][skip*3+1] & ^uint64((1 << shift)-1)
-		masks[i][skip*3+2] = masks[i][skip*3+2] & ^uint64((1 << shift)-1)
 
-		Stage2ParseBufferExStreaming(chunk[skip*0x40:len(chunk)-int(trailers[i])], masks[i][skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+		masks[i][skip*3+0] &= ^uint64((1 << shift)-1)
+		masks[i][skip*3+1] &= ^uint64((1 << shift)-1)
+		masks[i][skip*3+2] &= ^uint64((1 << shift)-1)
+
+		skipTz := (trailers[i] >> 6) + 1
+		shiftTz := trailers[i] & 0x3f
+
+		masks[i][len(masks[i])-int(skipTz)*3+0] &= uint64((1 << (63-shiftTz))-1)
+		masks[i][len(masks[i])-int(skipTz)*3+1] &= uint64((1 << (63-shiftTz))-1)
+		masks[i][len(masks[i])-int(skipTz)*3+2] &= uint64((1 << (63-shiftTz))-1)
+
+		if i == 0 {
+			Stage2ParseBufferExStreaming(chunk[skip*0x40:len(chunk)-int(trailers[i])], masks[i][skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+		}
+		if i == 1 {
+			Stage2ParseBufferExStreaming(chunk[0x40:len(chunk)-0x12], masks[i][3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+		}
 
 	}
 
