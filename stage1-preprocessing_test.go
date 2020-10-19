@@ -720,7 +720,8 @@ func TestSimdCsvStreaming(t *testing.T) {
 
 	for offset := 0; offset < len(buf); offset += chunkSize {
 		var  chunk []byte
-		if offset+chunkSize > len(buf)  {
+		lastChunk := offset+chunkSize > len(buf)
+		if lastChunk {
 			chunk = buf[offset:]
 		} else {
 			chunk = buf[offset:offset+chunkSize]
@@ -755,11 +756,13 @@ func TestSimdCsvStreaming(t *testing.T) {
 					}
 				}
 
-				for index := 3; index < len(masksStream); index += 3 {
-					tr  := bits.LeadingZeros64(masksStream[len(masksStream)-index])
-					trailer += uint64(tr)
-					if tr < 64 {
-						break
+				if !lastChunk {
+					for index := 3; index < len(masksStream); index += 3 {
+						tr  := bits.LeadingZeros64(masksStream[len(masksStream)-index])
+						trailer += uint64(tr)
+						if tr < 64 {
+							break
+						}
 					}
 				}
 
