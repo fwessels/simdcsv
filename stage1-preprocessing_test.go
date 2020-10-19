@@ -715,6 +715,8 @@ func TestSimdCsvStreaming(t *testing.T) {
 	chunks := make([][]byte, 0, 100)
 	masks := make([][]uint64, 0, 100)
 	headers, trailers := make([]uint64, 0, 100), make([]uint64, 0, 100)
+	splitRows := make([][]byte, 0, 100)
+	splitRow := make([]byte, 0, 256)
 
 	for offset := 0; offset < len(buf); offset += chunkSize {
 		var  chunk []byte
@@ -763,16 +765,26 @@ func TestSimdCsvStreaming(t *testing.T) {
 				chunks = append(chunks, chunk[header:len(chunk)-trailer])
 				chunk = chunk[len(chunk):]
 
+				splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
+
 				chunks = append(chunks, chunk/*[header:len(chunk)-int(trailer)]*/)
-				chunk = chunk[:0] //len(chunk):]
+				chunk = chunk[:0]
 			}
 
 			headers = append(headers, header)
 			trailers = append(trailers, trailer)
 			masks = append(masks, masksStream)
+
+			splitRows = append(splitRows, splitRow)
+
+			splitRow = buf[offset:offset+int(header)]
 		}
 	}
 
+	for i, sr := range splitRows {
+		fmt.Printf("%02d: %d\n", i, len(string(sr)))
+		fmt.Print(hex.Dump(sr))
+	}
 
 	rows := make([]uint64, 100000*30)
 	columns := make([]string, len(rows)*20)
