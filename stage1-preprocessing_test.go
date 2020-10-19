@@ -709,6 +709,12 @@ type ChunkInfo struct {
 }
 
 func TestSimdCsvStreaming(t *testing.T) {
+	t.Run("parking", func(t *testing.T) {
+		testSimdCsvStreaming(t, 1024 * 30)
+	})
+}
+
+func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 	buf, err := ioutil.ReadFile("testdata/parking-citations-10K.csv")
 	if err != nil {
@@ -718,8 +724,6 @@ func TestSimdCsvStreaming(t *testing.T) {
 	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
 
 	quoted := uint64(0)
-
-	const chunkSize = 1024 * 30
 
 	chunks := make([]ChunkInfo, 0, 100)
 	splitRow := make([]byte, 0, 256)
@@ -733,7 +737,7 @@ func TestSimdCsvStreaming(t *testing.T) {
 			chunk = buf[offset : offset+chunkSize]
 		}
 
-		// TODO:  Use memmory pool
+		// TODO: Use memory pool
 		masksStream := make([]uint64, ((chunkSize+63)>>6)*3)
 		masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
 
@@ -744,17 +748,9 @@ func TestSimdCsvStreaming(t *testing.T) {
 				hr := bits.TrailingZeros64(masksStream[index])
 				header += uint64(hr)
 				if hr < 64 {
-					for {
-						if hr == 64 {
-							panic("handle this")
-						}
-						if (masksStream[index]>>hr)&1 == 1 {
-							hr++
-							header++
-						} else {
-							break
-						}
-					}
+					// upon finding the first delimiter bit, we can break out
+					// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
+					//  are treated as empty lines anyways)
 					break
 				}
 			}
