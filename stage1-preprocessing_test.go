@@ -762,10 +762,8 @@ func TestSimdCsvStreaming(t *testing.T) {
 						break
 					}
 				}
-				chunks = append(chunks, chunk[header:len(chunk)-trailer])
-				chunk = chunk[len(chunk):]
 
-				splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
+				splitRow = append(splitRow, chunk[:header]...)
 
 				chunks = append(chunks, chunk/*[header:len(chunk)-int(trailer)]*/)
 				chunk = chunk[:0]
@@ -777,7 +775,11 @@ func TestSimdCsvStreaming(t *testing.T) {
 
 			splitRows = append(splitRows, splitRow)
 
-			splitRow = buf[offset:offset+int(header)]
+			if offset+chunkSize > len(buf)  {
+				splitRow = buf[len(buf)-int(trailer):]
+			} else {
+				splitRow = buf[offset+chunkSize-int(trailer):offset+chunkSize]
+			}
 		}
 	}
 
