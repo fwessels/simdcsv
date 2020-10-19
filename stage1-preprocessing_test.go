@@ -783,18 +783,16 @@ func TestSimdCsvStreaming(t *testing.T) {
 		}
 	}
 
-	for i, sr := range splitRows {
-		fmt.Printf("%02d: %d\n", i, len(string(sr)))
-		fmt.Print(hex.Dump(sr))
-	}
-
 	rows := make([]uint64, 100000*30)
 	columns := make([]string, len(rows)*20)
 
 	inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
+	simdrecords := make([][]string, 0, 1024)
+	line := 0
+
 	for i, chunk := range chunks {
-		outputStage2.strData = /*0*/ (headers[i] & 0x3f) // reinit strData for every chunk (fields do not span chunks)
+		outputStage2.strData = headers[i] & 0x3f // reinit strData for every chunk (fields do not span chunks)
 
 		skip := headers[i] >> 6
 		shift := headers[i] & 0x3f
@@ -811,23 +809,22 @@ func TestSimdCsvStreaming(t *testing.T) {
 		masks[i][len(masks[i])-int(skipTz)*3+2] &= uint64((1 << (63-shiftTz))-1)
 
 		Stage2ParseBufferExStreaming(chunk[skip*0x40:len(chunk)-int(trailers[i])], masks[i][skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+
+		for ; line < outputStage2.line; line += 2 {
+			simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+		}
+
+		if i < len(splitRows)-1 {
+			records := EncodingCsv(splitRows[i+1])
+			simdrecords = append(simdrecords, records...)
+		}
 	}
 
 	columns = columns[:(outputStage2.index)/2]
 	rows = rows[:outputStage2.line]
 
-	simdrecords := make([][]string, 0, 1024)
+	records := EncodingCsv(buf)
 
-	for i := 0; i < len(rows); i += 2 {
-		simdrecords = append(simdrecords, columns[rows[i]:rows[i]+rows[i+1]])
-	}
-
-	combined := make([]byte, 0, len(buf))
-	for i, chunk := range chunks {
-		combined = append(combined, chunk[headers[i]:len(chunk)-int(trailers[i])]...)
-	}
-
-	records := EncodingCsv(combined)
 
 	for i := range records {
 		if !reflect.DeepEqual(simdrecords[i], records[i]) {
