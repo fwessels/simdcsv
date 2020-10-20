@@ -837,6 +837,138 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 	}
 }
 
+
+func BenchmarkSimdCsvStreaming(b *testing.B) {
+
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	const chunkSize = 1024 * 300
+
+	b.SetBytes(int64(len(buf)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
+	chunks := make([]ChunkInfo, 0, 100)
+
+	rows := make([]uint64, 100000*30)
+	columns := make([]string, len(rows)*20)
+
+	simdrecords := make([][]string, 0, 1024)
+
+	for i := 0; i < b.N; i++ {
+
+		postProcStream = postProcStream[:0]
+
+		quoted := uint64(0)
+
+		chunks = chunks[:0]
+		splitRow := make([]byte, 0, 256)
+
+		for offset := 0; offset < len(buf); offset += chunkSize {
+			var chunk []byte
+			lastChunk := offset+chunkSize >= len(buf)
+			if lastChunk {
+				chunk = buf[offset:]
+			} else {
+				chunk = buf[offset : offset+chunkSize]
+			}
+
+			// TODO: Use memory pool
+			masksStream := make([]uint64, ((chunkSize+63)>>6)*3)
+			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
+
+			header, trailer := uint64(0), uint64(0)
+
+			if offset > 0 {
+				for index := 0; index < len(masksStream); index += 3 {
+					hr := bits.TrailingZeros64(masksStream[index])
+					header += uint64(hr)
+					if hr < 64 {
+						// upon finding the first delimiter bit, we can break out
+						// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
+						//  are treated as empty lines anyways)
+						break
+					}
+				}
+				if header == uint64(len(masksStream))/3*64 {
+					// we are not hitting a newline delimiter, so we need to
+					// make the chunk larger (double) to try and find one
+					panic("Handle this case")
+				}
+			}
+
+			if !lastChunk {
+				for index := 3; index < len(masksStream); index += 3 {
+					tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
+					trailer += uint64(tr)
+					if tr < 64 {
+						break
+					}
+				}
+				if trailer == uint64(len(masksStream))/3*64 {
+					// we are not hitting a newline delimiter, so we need to
+					// make the chunk larger (double) to try and find one
+					panic("Handle this case")
+				}
+			}
+
+			splitRow = append(splitRow, chunk[:header]...)
+
+			chunks = append(chunks, ChunkInfo{chunk, masksStream, header, trailer, splitRow})
+
+			if lastChunk {
+				splitRow = buf[len(buf)-int(trailer):]
+			} else {
+				splitRow = buf[offset+chunkSize-int(trailer) : offset+chunkSize]
+			}
+		}
+
+		rows = rows[:0]
+		columns = columns[:0]
+
+		inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+		simdrecords = simdrecords[:0]
+		line := 0
+
+		for i, chunkInfo := range chunks {
+			outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
+
+			skip := chunkInfo.header >> 6
+			shift := chunkInfo.header & 0x3f
+
+			chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
+			chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
+			chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
+
+			skipTz := (chunkInfo.trailer >> 6) + 1
+			shiftTz := chunkInfo.trailer & 0x3f
+
+			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
+			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
+			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
+
+			Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+
+			for ; line < outputStage2.line; line += 2 {
+				simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+			}
+
+			if i < len(chunks)-1 {
+				records := EncodingCsv(chunks[i+1].splitRow)
+				simdrecords = append(simdrecords, records...)
+			}
+		}
+
+		columns = columns[:(outputStage2.index)/2]
+		rows = rows[:outputStage2.line]
+	}
+}
+
 func TestStage1MasksLoop(t *testing.T) {
 
 	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
