@@ -706,6 +706,7 @@ type ChunkInfo struct {
 	header   uint64
 	trailer  uint64
 	splitRow []byte
+	lastChunk bool
 }
 
 func TestSimdCsvStreaming(t *testing.T) {
@@ -730,7 +731,7 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 	for offset := 0; offset < len(buf); offset += chunkSize {
 		var chunk []byte
-		lastChunk := offset+chunkSize > len(buf)
+		lastChunk := offset+chunkSize >= len(buf)
 		if lastChunk {
 			chunk = buf[offset:]
 		} else {
@@ -778,7 +779,8 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 		splitRow = append(splitRow, chunk[:header]...)
 
-		chunks = append(chunks, ChunkInfo{chunk, masksStream, header, trailer, splitRow})
+
+		chunks = append(chunks, ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk})
 
 		if lastChunk {
 			splitRow = buf[len(buf)-int(trailer):]
@@ -839,13 +841,20 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 
 func BenchmarkSimdCsvStreaming(b *testing.B) {
+	b.Run("parking-streaming-512K", func(b *testing.B) {
+		benchmarkSimdCsvStreaming(b, 1024*512)
+	})
+	b.Run("parking-streaming-1024K", func(b *testing.B) {
+		benchmarkSimdCsvStreaming(b, 1024*1024)
+	})
+}
+
+func benchmarkSimdCsvStreaming(b *testing.B, chunkSize int) {
 
 	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
 	if err != nil {
 		panic(err)
 	}
-
-	const chunkSize = 1024 * 300
 
 	b.SetBytes(int64(len(buf)))
 	b.ReportAllocs()
@@ -919,7 +928,7 @@ func BenchmarkSimdCsvStreaming(b *testing.B) {
 
 				splitRow = append(splitRow, chunk[:header]...)
 
-				chunks <- ChunkInfo{chunk, masksStream, header, trailer, splitRow}
+				chunks <- ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk}
 
 				if lastChunk {
 					splitRow = buf[len(buf)-int(trailer):]
@@ -942,6 +951,8 @@ func BenchmarkSimdCsvStreaming(b *testing.B) {
 		wg.Add(1)
 
 		go func() {
+
+			splitRow := make([]byte, 0)
 
 			for chunkInfo := range chunks {
 				outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
@@ -966,10 +977,15 @@ func BenchmarkSimdCsvStreaming(b *testing.B) {
 					simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
 				}
 
-				//if i < len(chunks)-1 {
-				//	records := EncodingCsv(chunks[i+1].splitRow)
-				//	simdrecords = append(simdrecords, records...)
-				//}
+				if len(splitRow) > 0 { // append row split between chunks
+					records := EncodingCsv(splitRow)
+					simdrecords = append(simdrecords, records...)
+					splitRow = splitRow[:0]
+				}
+
+				if !chunkInfo.lastChunk {
+					splitRow = chunkInfo.splitRow
+				}
 			}
 
 			wg.Done()
