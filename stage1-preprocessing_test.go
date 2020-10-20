@@ -852,9 +852,8 @@ func BenchmarkSimdCsvStreaming(b *testing.B) {
 	b.ResetTimer()
 
 	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
-	chunks := make([]ChunkInfo, 0, 100)
 
-	rows := make([]uint64, 100000*30)
+	rows := make([]uint64, 100000*3)
 	columns := make([]string, len(rows)*20)
 
 	simdrecords := make([][]string, 0, 1024)
@@ -865,67 +864,71 @@ func BenchmarkSimdCsvStreaming(b *testing.B) {
 
 		quoted := uint64(0)
 
-		chunks = chunks[:0]
+		chunks := make(chan ChunkInfo)
 		splitRow := make([]byte, 0, 256)
 
-		for offset := 0; offset < len(buf); offset += chunkSize {
-			var chunk []byte
-			lastChunk := offset+chunkSize >= len(buf)
-			if lastChunk {
-				chunk = buf[offset:]
-			} else {
-				chunk = buf[offset : offset+chunkSize]
-			}
+		go func() {
 
-			// TODO: Use memory pool
-			masksStream := make([]uint64, ((chunkSize+63)>>6)*3)
-			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
+			for offset := 0; offset < len(buf); offset += chunkSize {
+				var chunk []byte
+				lastChunk := offset+chunkSize >= len(buf)
+				if lastChunk {
+					chunk = buf[offset:]
+				} else {
+					chunk = buf[offset : offset+chunkSize]
+				}
 
-			header, trailer := uint64(0), uint64(0)
+				// TODO: Use memory pool
+				masksStream := make([]uint64, ((chunkSize+63)>>6)*3)
+				masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
 
-			if offset > 0 {
-				for index := 0; index < len(masksStream); index += 3 {
-					hr := bits.TrailingZeros64(masksStream[index])
-					header += uint64(hr)
-					if hr < 64 {
-						// upon finding the first delimiter bit, we can break out
-						// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
-						//  are treated as empty lines anyways)
-						break
+				header, trailer := uint64(0), uint64(0)
+
+				if offset > 0 {
+					for index := 0; index < len(masksStream); index += 3 {
+						hr := bits.TrailingZeros64(masksStream[index])
+						header += uint64(hr)
+						if hr < 64 {
+							// upon finding the first delimiter bit, we can break out
+							// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
+							//  are treated as empty lines anyways)
+							break
+						}
+					}
+					if header == uint64(len(masksStream))/3*64 {
+						// we are not hitting a newline delimiter, so we need to
+						// make the chunk larger (double) to try and find one
+						panic("Handle this case")
 					}
 				}
-				if header == uint64(len(masksStream))/3*64 {
-					// we are not hitting a newline delimiter, so we need to
-					// make the chunk larger (double) to try and find one
-					panic("Handle this case")
-				}
-			}
 
-			if !lastChunk {
-				for index := 3; index < len(masksStream); index += 3 {
-					tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
-					trailer += uint64(tr)
-					if tr < 64 {
-						break
+				if !lastChunk {
+					for index := 3; index < len(masksStream); index += 3 {
+						tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
+						trailer += uint64(tr)
+						if tr < 64 {
+							break
+						}
+					}
+					if trailer == uint64(len(masksStream))/3*64 {
+						// we are not hitting a newline delimiter, so we need to
+						// make the chunk larger (double) to try and find one
+						panic("Handle this case")
 					}
 				}
-				if trailer == uint64(len(masksStream))/3*64 {
-					// we are not hitting a newline delimiter, so we need to
-					// make the chunk larger (double) to try and find one
-					panic("Handle this case")
+
+				splitRow = append(splitRow, chunk[:header]...)
+
+				chunks <- ChunkInfo{chunk, masksStream, header, trailer, splitRow}
+
+				if lastChunk {
+					splitRow = buf[len(buf)-int(trailer):]
+				} else {
+					splitRow = buf[offset+chunkSize-int(trailer) : offset+chunkSize]
 				}
 			}
-
-			splitRow = append(splitRow, chunk[:header]...)
-
-			chunks = append(chunks, ChunkInfo{chunk, masksStream, header, trailer, splitRow})
-
-			if lastChunk {
-				splitRow = buf[len(buf)-int(trailer):]
-			} else {
-				splitRow = buf[offset+chunkSize-int(trailer) : offset+chunkSize]
-			}
-		}
+			close(chunks)
+		}()
 
 		rows = rows[:0]
 		columns = columns[:0]
@@ -935,34 +938,44 @@ func BenchmarkSimdCsvStreaming(b *testing.B) {
 		simdrecords = simdrecords[:0]
 		line := 0
 
-		for i, chunkInfo := range chunks {
-			outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
+		var wg sync.WaitGroup
+		wg.Add(1)
 
-			skip := chunkInfo.header >> 6
-			shift := chunkInfo.header & 0x3f
+		go func() {
 
-			chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
-			chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
-			chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
+			for chunkInfo := range chunks {
+				outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
 
-			skipTz := (chunkInfo.trailer >> 6) + 1
-			shiftTz := chunkInfo.trailer & 0x3f
+				skip := chunkInfo.header >> 6
+				shift := chunkInfo.header & 0x3f
 
-			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
-			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
-			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
+				chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
+				chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
+				chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
 
-			Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+				skipTz := (chunkInfo.trailer >> 6) + 1
+				shiftTz := chunkInfo.trailer & 0x3f
 
-			for ; line < outputStage2.line; line += 2 {
-				simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
+
+				Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+
+				for ; line < outputStage2.line; line += 2 {
+					simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+				}
+
+				//if i < len(chunks)-1 {
+				//	records := EncodingCsv(chunks[i+1].splitRow)
+				//	simdrecords = append(simdrecords, records...)
+				//}
 			}
 
-			if i < len(chunks)-1 {
-				records := EncodingCsv(chunks[i+1].splitRow)
-				simdrecords = append(simdrecords, records...)
-			}
-		}
+			wg.Done()
+		}()
+
+		wg.Wait()
 
 		columns = columns[:(outputStage2.index)/2]
 		rows = rows[:outputStage2.line]
