@@ -754,6 +754,11 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 					break
 				}
 			}
+			if header == uint64(len(masksStream))/3*64 {
+				// we are not hitting a newline delimiter, so we need to
+				// make the chunk larger (double) to try and find one
+				panic("Handle this case")
+			}
 		}
 
 		if !lastChunk {
@@ -763,6 +768,11 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 				if tr < 64 {
 					break
 				}
+			}
+			if trailer == uint64(len(masksStream))/3*64 {
+				// we are not hitting a newline delimiter, so we need to
+				// make the chunk larger (double) to try and find one
+				panic("Handle this case")
 			}
 		}
 
