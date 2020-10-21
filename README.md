@@ -6,7 +6,7 @@ A 2 stage design approach for speeding up CSV parsing (somewhat analoguous to [s
     
 ## Design goals
 
-- 1 GB/sec parsing performance for a single core
+- 1 GB/sec parsing performance
 - support arbitrarily large data sets (and beyond 4 GB)
 - drop-in replacement for `encoding/csv`
 - zero copy behaviour/memory efficient
@@ -18,6 +18,24 @@ The design of `simdcsv` consists of two stages:
 - stage 2: parse CSV
 
 Fundamentally `simdcsv` works on chunks of 64 bytes at a time which are loaded into a set of 2 YMM registers. Using AVX2 instructions the presence of characters such as separators, newline delimiters and quotes are detected and merged into a single 64-bit wide register.
+
+##  Performance compared to encoding/csv
+
+Below is a comparison between `encoding/csv` and `simdcsv` for a couple of popular CSV data sets.
+
+![encoding-csv_vs_simdcsv-comparison](charts/encoding-csv_vs_simdcsv.png)
+
+```
+benchmark                                     old MB/s     new MB/s     speedup
+BenchmarkSimdCsv/parking-citations-100K-8     182.36       1074.20      5.89x
+BenchmarkSimdCsv/worldcitiespop-100K-8        124.75       1036.12      8.31x
+BenchmarkSimdCsv/nyc-taxi-data-100K-8         183.91       1067.98      5.81x
+
+benchmark                                     old bytes     new bytes     delta
+BenchmarkSimdCsv/parking-citations-100K-8     58601189      1650567       -97.18%
+BenchmarkSimdCsv/worldcitiespop-100K-8        30822166      581103        -98.11%
+BenchmarkSimdCsv/nyc-taxi-data-100K-8         133772128     5554548       -95.85%
+```
 
 ## Stage 1: Preprocessing stage
 
@@ -210,24 +228,6 @@ func TestStage1PreprocessMasks(t *testing.T) {
 		testStage1PreprocessMasksFunc(t, stage1_preprocess_test)
 	})
 }
-```
-
-##  Performance compared to encoding/csv
-
-Below is a comparison between `encoding/csv` and `simdcsv` for a couple of popular CSV data sets.
-
-![encoding-csv_vs_simdcsv-comparison](charts/encoding-csv_vs_simdcsv.png)
-
-```
-benchmark                                     old MB/s     new MB/s     speedup
-BenchmarkSimdCsv/parking-citations-100K-8     182.36       1074.20      5.89x
-BenchmarkSimdCsv/worldcitiespop-100K-8        124.75       1036.12      8.31x
-BenchmarkSimdCsv/nyc-taxi-data-100K-8         183.91       1067.98      5.81x
-
-benchmark                                     old bytes     new bytes     delta
-BenchmarkSimdCsv/parking-citations-100K-8     58601189      1650567       -97.18%
-BenchmarkSimdCsv/worldcitiespop-100K-8        30822166      581103        -98.11%
-BenchmarkSimdCsv/nyc-taxi-data-100K-8         133772128     5554548       -95.85%
 ```
 
 ## Limitations
