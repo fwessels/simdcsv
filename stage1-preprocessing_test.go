@@ -9,6 +9,7 @@ import (
 	"math/bits"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -233,7 +234,7 @@ func TestStage1PartialLoad(t *testing.T) {
 		buf := []byte(data[:i])
 
 		masks := allocMasks(buf)
-		postProc := make([]uint64, ((len(buf)>>6)+1))
+		postProc := make([]uint64, ((len(buf) >> 6) + 1))
 		input, output := stage1Input{}, stage1Output{}
 
 		processed := stage1_preprocess_buffer(buf, ',', &input, &output, &postProc, 0, masks)
@@ -311,8 +312,8 @@ func testStage1PreprocessMasks(t *testing.T, data []byte, f func(input *stage1In
 	out := bytes.NewBufferString("")
 
 	fmt.Fprintln(out)
-	fmt.Fprintf(out,"            %s", string(bytes.ReplaceAll(bytes.ReplaceAll(data[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
-	fmt.Fprintf(out,"·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(data[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "            %s", string(bytes.ReplaceAll(bytes.ReplaceAll(data[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
+	fmt.Fprintf(out, "·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(data[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
 	fmt.Fprintf(out, diffBitmask(
 		fmt.Sprintf("     quote: %064b·%064b", bits.Reverse64(quoteMasksIn[0]), bits.Reverse64(quoteMasksIn[1])),
@@ -340,9 +341,9 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	masks, postProc := Stage1PreprocessBuffer(buf, uint64(','))
 
 	out := bytes.NewBufferString("")
-	fmt.Fprintf(out,"%064b%064b\n", bits.Reverse64(masks[0]), bits.Reverse64(masks[3+0]))
-	fmt.Fprintf(out,"%064b%064b\n", bits.Reverse64(masks[1]), bits.Reverse64(masks[3+1]))
-	fmt.Fprintf(out,"%064b%064b\n", bits.Reverse64(masks[2]), bits.Reverse64(masks[3+2]))
+	fmt.Fprintf(out, "%064b%064b\n", bits.Reverse64(masks[0]), bits.Reverse64(masks[3+0]))
+	fmt.Fprintf(out, "%064b%064b\n", bits.Reverse64(masks[1]), bits.Reverse64(masks[3+1]))
+	fmt.Fprintf(out, "%064b%064b\n", bits.Reverse64(masks[2]), bits.Reverse64(masks[3+2]))
 
 	//fmt.Println(out.String())
 
@@ -363,7 +364,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 	for _, ppr := range getPostProcRows(buf, postProc, simdrecords) {
 		for r := ppr.start; r < ppr.end; r++ {
-			for c := range  simdrecords[r] {
+			for c := range simdrecords[r] {
 				simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
 				simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
 			}
@@ -381,7 +382,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	}
 }
 
-func BenchmarkStage1PreprocessingMasks( b *testing.B) {
+func BenchmarkStage1PreprocessingMasks(b *testing.B) {
 
 	const data = `first_name,last_name,username
 RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
@@ -448,7 +449,7 @@ Ken,Thompson,ken
 "Robert","Grie""semer","gri"
 `
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
-		expected := []postProcRow{{2,4}}
+		expected := []postProcRow{{2, 4}}
 
 		if !reflect.DeepEqual(pprows, expected) {
 			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
@@ -462,7 +463,7 @@ Ken,Thompson,ken
 "Robert","Grie`+"\r\n"+`semer","gri"
 `
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
-		expected := []postProcRow{{2,4}}
+		expected := []postProcRow{{2, 4}}
 
 		if !reflect.DeepEqual(pprows, expected) {
 			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
@@ -485,7 +486,7 @@ Ken,Thompson,ken
 "Ro""bert","Griesemer","gri"
 `
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
-		expected := []postProcRow{{2,6}, {9, 13}}
+		expected := []postProcRow{{2, 6}, {9, 13}}
 
 		if !reflect.DeepEqual(pprows, expected) {
 			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
@@ -547,9 +548,9 @@ Ken,Thompson,ken
 		data := header
 
 		for i := 0; i < 250; i++ {
-			if i % 59 == 58 {
+			if i%59 == 58 {
 				data += strings.ReplaceAll(first, "Pike", `Pi""ke`) + second + third
-			} else if i % 97 == 96 {
+			} else if i%97 == 96 {
 				data += first + second + strings.ReplaceAll(third, "Griesemer", "Grie\r\nsemer")
 			} else {
 				data += first + second + third
@@ -557,7 +558,7 @@ Ken,Thompson,ken
 		}
 
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
-		expected := []postProcRow{{172, 176},  {288, 292}, {351, 355}, {528, 532}, {581, 585}, {704, 708}}
+		expected := []postProcRow{{172, 176}, {288, 292}, {351, 355}, {528, 532}, {581, 585}, {704, 708}}
 
 		if !reflect.DeepEqual(pprows, expected) {
 			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
@@ -569,10 +570,10 @@ Ken,Thompson,ken
 		data := ""
 
 		for i := 0; i < 50; i++ {
-			if i % 11 == 10 {
+			if i%11 == 10 {
 				data += strings.Repeat("a", 40) + `,"` + strings.Repeat("b", 20) + `""` + strings.Repeat("b", 20) + `",` + strings.Repeat("c", 40) + "\n"
-			} else if i %  17 == 16 {
-				data += strings.Repeat("a", 40) + "," + strings.Repeat("b", 40) + `,"` + strings.Repeat("c", 15) + "\r\n" + strings.Repeat("c", 25)+ `"` + "\n"
+			} else if i%17 == 16 {
+				data += strings.Repeat("a", 40) + "," + strings.Repeat("b", 40) + `,"` + strings.Repeat("c", 15) + "\r\n" + strings.Repeat("c", 25) + `"` + "\n"
 			} else {
 				data += strings.Repeat("a", 40) + "," + strings.Repeat("b", 40) + "," + strings.Repeat("c", 40) + "\n"
 			}
@@ -601,7 +602,7 @@ func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 	for _, ppr := range pprows {
 		foundAny := false
 		for r := ppr.start; r < ppr.end; r++ {
-			for c := range  simdrecords[r] {
+			for c := range simdrecords[r] {
 				foundAny = foundAny || strings.Index(simdrecords[r][c], "\"\"") != -1
 				foundAny = foundAny || strings.Index(simdrecords[r][c], "\r\n") != -1
 			}
@@ -642,7 +643,6 @@ func testStage1DynamicAllocation(t *testing.T) {
 }
 
 func TestStage1DynamicAllocation(t *testing.T) {
-
 	t.Run("grow-postproc", func(t *testing.T) {
 		testStage1DynamicAllocation(t)
 	})
@@ -710,14 +710,16 @@ type ChunkInfo struct {
 }
 
 func TestSimdCsvStreaming(t *testing.T) {
-	t.Run("parking", func(t *testing.T) {
-		testSimdCsvStreaming(t, 1024 * 30)
-	})
+	for i := 0; i < 32; i++ {
+		t.Run("parking", func(t *testing.T) {
+			testSimdCsvStreaming(t, "testdata/parking-citations-10K.csv",1024 * (32 + i))
+		})
+	}
 }
 
-func testSimdCsvStreaming(t *testing.T, chunkSize int) {
+func testSimdCsvStreaming(t *testing.T, filename string, chunkSize int) {
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations-10K.csv")
+	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
@@ -836,7 +838,6 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 		}
 	}
 }
-
 
 func BenchmarkSimdCsvStreaming(b *testing.B) {
 	b.Run("parking-streaming-512K", func(b *testing.B) {
