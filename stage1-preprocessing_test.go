@@ -779,7 +779,6 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 		splitRow = append(splitRow, chunk[:header]...)
 
-
 		chunks = append(chunks, ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk})
 
 		if lastChunk {
@@ -810,9 +809,9 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 		skipTz := (chunkInfo.trailer >> 6) + 1
 		shiftTz := chunkInfo.trailer & 0x3f
 
-		chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
-		chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
-		chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
+		chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (64 - shiftTz)) - 1)
+		chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (64 - shiftTz)) - 1)
+		chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (64 - shiftTz)) - 1)
 
 		Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 
@@ -831,10 +830,9 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 	records := EncodingCsv(buf)
 
-
 	for i := range records {
 		if !reflect.DeepEqual(simdrecords[i], records[i]) {
-			fmt.Printf("TestSimdCsvStreaming: got %v, want %v\n", simdrecords[i], records[i])
+			fmt.Printf("TestSimdCsvStreaming[%d]: got %v, want %v\n", i, simdrecords[i], records[i])
 		}
 	}
 }
