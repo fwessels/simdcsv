@@ -220,9 +220,9 @@ Below is a comparison between `encoding/csv` and `simdcsv` for a couple of popul
 
 ```
 benchmark                                     old MB/s     new MB/s     speedup
-BenchmarkSimdCsv/parking-citations-100K-8     182.36       781.97       4.29x
-BenchmarkSimdCsv/worldcitiespop-100K-8        124.75       796.06       6.38x
-BenchmarkSimdCsv/nyc-taxi-data-100K-8         183.91       722.00       3.93x
+BenchmarkSimdCsv/parking-citations-100K-8     182.36       1074.20      5.89x
+BenchmarkSimdCsv/worldcitiespop-100K-8        124.75       1036.12      8.31x
+BenchmarkSimdCsv/nyc-taxi-data-100K-8         183.91       1067.98      5.81x
 
 benchmark                                     old bytes     new bytes     delta
 BenchmarkSimdCsv/parking-citations-100K-8     58601189      1650567       -97.18%

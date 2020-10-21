@@ -842,16 +842,19 @@ func testSimdCsvStreaming(t *testing.T, chunkSize int) {
 
 func BenchmarkSimdCsvStreaming(b *testing.B) {
 	b.Run("parking-streaming-512K", func(b *testing.B) {
-		benchmarkSimdCsvStreaming(b, 1024*512)
+		benchmarkSimdCsvStreaming(b, "testdata/parking-citations-100K.csv", 100000, 1024*512)
 	})
-	b.Run("parking-streaming-1024K", func(b *testing.B) {
-		benchmarkSimdCsvStreaming(b, 1024*1024)
+	b.Run("worldcitiespop-streaming-512K", func(b *testing.B) {
+		benchmarkSimdCsvStreaming(b, "testdata/worldcitiespop-100K.csv", 100000, 1024*512)
+	})
+	b.Run("nyc-taxi-streaming-512K", func(b *testing.B) {
+		benchmarkSimdCsvStreaming(b, "testdata/nyc-taxi-data-100K.csv", 100000, 1024*512)
 	})
 }
 
-func benchmarkSimdCsvStreaming(b *testing.B, chunkSize int) {
+func benchmarkSimdCsvStreaming(b *testing.B, filename string, lines, chunkSize int) {
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
@@ -862,7 +865,7 @@ func benchmarkSimdCsvStreaming(b *testing.B, chunkSize int) {
 
 	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
 
-	rows := make([]uint64, 100000*3)
+	rows := make([]uint64, lines*3)
 	columns := make([]string, len(rows)*20)
 
 	simdrecords := make([][]string, 0, 1024)
