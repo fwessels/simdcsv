@@ -63,7 +63,7 @@ func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64,
 func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *Input, offset uint64, output *OutputAsm) (processed, masksRead uint64) {
 
 	lastCharIsDelimiter := uint64(0)
-	if len(buf) > 0 && buf[len(buf)-1] == byte(delimiterChar) {
+	if len(buf) > 0 && (buf[len(buf)-1] == byte(delimiterChar) || buf[len(buf)-1] == byte(0x0d)) {
 		lastCharIsDelimiter = 1
 	}
 
