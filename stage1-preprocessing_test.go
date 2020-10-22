@@ -724,6 +724,10 @@ func testSimdCsvStreaming(t *testing.T, filename string, chunkSize int) {
 		panic(err)
 	}
 
+	// round chunkSize to next multiple of 64
+	chunkSize = (chunkSize+63)&^63
+	masksSize := ((chunkSize>>6)+2)*3 // add 2 extra slots as safety for masks
+
 	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
 
 	quoted := uint64(0)
@@ -741,7 +745,7 @@ func testSimdCsvStreaming(t *testing.T, filename string, chunkSize int) {
 		}
 
 		// TODO: Use memory pool
-		masksStream := make([]uint64, ((chunkSize+63)>>6)*3)
+		masksStream := make([]uint64, masksSize)
 		masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
 
 		header, trailer := uint64(0), uint64(0)
@@ -783,11 +787,8 @@ func testSimdCsvStreaming(t *testing.T, filename string, chunkSize int) {
 
 		chunks = append(chunks, ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk})
 
-		if lastChunk {
-			splitRow = buf[len(buf)-int(trailer):]
-		} else {
-			splitRow = buf[offset+chunkSize-int(trailer) : offset+chunkSize]
-		}
+		splitRow = make([]byte, 0, 128)
+		splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
 	}
 
 	rows := make([]uint64, 100000*30)
