@@ -106,7 +106,7 @@ first_name,last_name,username123`
 	t.Run("single-carriage-return", func(t *testing.T) {
 
 		const data = `Rober,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
-"Robert","Griesemer","gr`+"\r"+`i"                             
+"Robert","Griesemer","gr` + "\r" + `i"                             
 first_name,last_name,username123`
 
 		result := testStage1PreprocessMasks(t, []byte(data), f)
@@ -132,7 +132,7 @@ first_name,last_name,username123`
 	t.Run("carriage-return-new-line-split-over-masks", func(t *testing.T) {
 
 		const data = `Rober,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
-"Robert","Griesemer","gr`+"\r\n"+`i"                            
+"Robert","Griesemer","gr` + "\r\n" + `i"                            
 first_name,last_name,username123`
 
 		result := testStage1PreprocessMasks(t, []byte(data), f)
@@ -460,7 +460,7 @@ Ken,Thompson,ken
 		const data = `first_name,last_name,username
 "Rob","Pike",rob
 Ken,Thompson,ken
-"Robert","Grie`+"\r\n"+`semer","gri"
+"Robert","Grie` + "\r\n" + `semer","gri"
 `
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
 		expected := []postProcRow{{2, 4}}
@@ -497,7 +497,7 @@ Ken,Thompson,ken
 		const data = `first_name,last_name,username
 "Rob","Pike",rob
 Ken,Thompson,ken
-"Rob`+"\r\n"+`ert","Griesemer","gri"
+"Rob` + "\r\n" + `ert","Griesemer","gri"
 "Rob","Pike",rob
 Ken,Thompson,ken
 "Robert","Griesemer","gri"
@@ -506,7 +506,7 @@ Ken,Thompson,ken
 "Robert","Griesemer","gri"
 "Rob","Pike",rob
 Ken,Thompson,ken
-"Robert","Griesemer","g`+"\r\n"+`ri"
+"Robert","Griesemer","g` + "\r\n" + `ri"
 `
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
 		expected := []postProcRow{{2, 6}, {12, 13}}
@@ -518,7 +518,7 @@ Ken,Thompson,ken
 
 	t.Run("mixed", func(t *testing.T) {
 		const data = `first_name,last_name,username
-"Rob","Pi`+"\r\n"+`ke",rob
+"Rob","Pi` + "\r\n" + `ke",rob
 Ken,Thompson,ken
 "Robert","Griesemer","gri"
 "Rob","Pike",rob
@@ -529,7 +529,7 @@ Ken,Thompson,ken
 "Robert","Griesemer","gri"
 "Rob","Pike",rob
 Ken,Thompson,ken
-"Robert","Griesemer","g`+"\r\n"+`ri"
+"Robert","Griesemer","g` + "\r\n" + `ri"
 `
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
 		expected := []postProcRow{{0, 3}, {5, 10}, {12, 13}}
