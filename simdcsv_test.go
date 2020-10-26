@@ -824,6 +824,21 @@ Ken,Thompson,ken
 	fmt.Println(out.String())
 }
 
+func TestReadAllStreaming(t *testing.T) {
+
+	r := NewReader(strings.NewReader("a,b,c,d"))
+
+	out := make(chan [][]string)
+	/*err :=*/ r.ReadAllStreaming(out)
+
+	simdrecords := make([][]string, 0)
+	for rows := range out {
+		simdrecords = append(simdrecords, rows...)
+	}
+
+	fmt.Println(len(simdrecords))
+}
+
 func BenchmarkSimdCsv(b *testing.B) {
 	b.Run("parking-citations-100K", func(b *testing.B) {
 		benchmarkSimdCsv(b, "testdata/parking-citations-100K.csv", 100000)
