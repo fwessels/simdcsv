@@ -1,14 +1,15 @@
 package simdcsv
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"bytes"
+	"io"
+	"math/bits"
 	"strings"
 	"unicode"
-	"bufio"
-	"io"
 	"unicode/utf8"
 )
 
@@ -144,21 +145,169 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	}
 }
 
-// ReadAll reads all the remaining records from r.
+type ChunkInfo struct {
+	chunk    []byte
+	masks    []uint64
+	header   uint64
+	trailer  uint64
+	splitRow []byte
+	lastChunk bool
+}
+
+// ReadAllStreaming reads all the remaining records from r.
 // Each record is a slice of fields.
 // A successful call returns err == nil, not err == io.EOF. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
 // reported.
-func (r *Reader) ReadAllStreaming(out chan [][]string) (error) {
+func (r *Reader) ReadAllStreaming(out chan [][]string) error {
 
-	close(out)
+	buf, err := r.r.ReadBytes(0)
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	chunkSize := 1024 * 256
+
+	// round chunkSize to next multiple of 64
+	chunkSize = (chunkSize + 63) &^ 63
+	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
+
+	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
+
+	rows := make([]uint64, chunkSize/256*3)
+	columns := make([]string, len(rows)*20)
+
+	postProcStream = postProcStream[:0]
+
+	quoted := uint64(0)
+
+	chunks := make(chan ChunkInfo)
+	splitRow := make([]byte, 0, 256)
+
+	go func() {
+
+		for offset := 0; offset < len(buf); offset += chunkSize {
+			var chunk []byte
+			lastChunk := offset+chunkSize >= len(buf)
+			if lastChunk {
+				chunk = buf[offset:]
+			} else {
+				chunk = buf[offset : offset+chunkSize]
+			}
+
+			// TODO: Use memory pool
+			masksStream := make([]uint64, masksSize)
+			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
+
+			header, trailer := uint64(0), uint64(0)
+
+			if offset > 0 {
+				for index := 0; index < len(masksStream); index += 3 {
+					hr := bits.TrailingZeros64(masksStream[index])
+					header += uint64(hr)
+					if hr < 64 {
+						// upon finding the first delimiter bit, we can break out
+						// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
+						//  are treated as empty lines anyways)
+						break
+					}
+				}
+				if header == uint64(len(masksStream))/3*64 {
+					// we are not hitting a newline delimiter, so we need to
+					// make the chunk larger (double) to try and find one
+					// TODO
+					panic("Handle this case")
+				}
+			}
+
+			if !lastChunk {
+				for index := 3; index < len(masksStream); index += 3 {
+					tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
+					trailer += uint64(tr)
+					if tr < 64 {
+						break
+					}
+				}
+				if trailer == uint64(len(masksStream))/3*64 {
+					// we are not hitting a newline delimiter, so we need to
+					// make the chunk larger (double) to try and find one
+					// TODO
+					panic("Handle this case")
+				}
+			}
+
+			splitRow = append(splitRow, chunk[:header]...)
+
+			chunks <- ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk}
+
+			splitRow = make([]byte, 0, 128)
+			splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
+		}
+		close(chunks)
+	}()
+
+	rows = rows[:0]
+	columns = columns[:0]
+
+	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+	line := 0
+
+	go func() {
+
+		splitRow := make([]byte, 0)
+
+		for chunkInfo := range chunks {
+			simdrecords := make([][]string, 0, 1024)
+
+			outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
+
+			skip := chunkInfo.header >> 6
+			shift := chunkInfo.header & 0x3f
+
+			chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
+			chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
+			chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
+
+			skipTz := (chunkInfo.trailer >> 6) + 1
+			shiftTz := chunkInfo.trailer & 0x3f
+
+			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
+			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
+			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
+
+			Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+
+			for ; line < outputStage2.line; line += 2 {
+				simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+			}
+
+			if len(splitRow) > 0 { // append row split between chunks
+				records := EncodingCsv(splitRow)
+				simdrecords = append(simdrecords, records...)
+				splitRow = splitRow[:0]
+			}
+
+			out <- simdrecords
+
+			if !chunkInfo.lastChunk {
+				splitRow = chunkInfo.splitRow
+			}
+		}
+
+		close(out)
+	}()
+
+	columns = columns[:(outputStage2.index)/2]
+	rows = rows[:outputStage2.line]
+
 	return nil
 }
 
 func FilterOutComments(records *[][]string, comment byte) {
 
 	// iterate in reverse so as to prevent starting over when removing element
-	for i := len(*records)-1; i >= 0; i-- {
+	for i := len(*records) - 1; i >= 0; i-- {
 		record := (*records)[i]
 		if len(record) > 0 && len(record[0]) > 0 && record[0][0] == comment {
 			*records = append((*records)[:i], (*records)[i+1:len(*records)]...)

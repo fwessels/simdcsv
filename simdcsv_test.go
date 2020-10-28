@@ -832,8 +832,8 @@ func TestReadAllStreaming(t *testing.T) {
 	/*err :=*/ r.ReadAllStreaming(out)
 
 	simdrecords := make([][]string, 0)
-	for rows := range out {
-		simdrecords = append(simdrecords, rows...)
+	for records := range out {
+		simdrecords = append(simdrecords, records...)
 	}
 
 	fmt.Println(len(simdrecords))
