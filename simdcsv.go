@@ -154,16 +154,55 @@ type ChunkInfo struct {
 	lastChunk bool
 }
 
+type ReadOutput struct {
+	records [][]string
+	err     error
+}
+
 // ReadAllStreaming reads all the remaining records from r.
 // Each record is a slice of fields.
 // A successful call returns err == nil, not err == io.EOF. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
 // reported.
-func (r *Reader) ReadAllStreaming(out chan [][]string) error {
+func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
+
+	fallback := func(ioReader io.Reader) ReadOutput {
+		rCsv := csv.NewReader(ioReader)
+		rCsv.LazyQuotes = r.LazyQuotes
+		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
+		rCsv.Comment = r.Comment
+		rCsv.Comma = r.Comma
+		rCsv.FieldsPerRecord = r.FieldsPerRecord
+		rCsv.ReuseRecord = r.ReuseRecord
+		rcds, err := rCsv.ReadAll()
+		return ReadOutput{rcds, err}
+	}
+
+	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
+		go func() {
+			out <- ReadOutput{nil, errInvalidDelim}
+			close(out)
+		}()
+		return
+	}
+
+	if r.LazyQuotes ||
+		r.Comma != 0 && r.Comma > unicode.MaxLatin1 ||
+		r.Comment != 0 && r.Comment > unicode.MaxLatin1 {
+		go func() {
+			out <- fallback(r.r)
+			close(out)
+		}()
+		return
+	}
 
 	buf, err := r.r.ReadBytes(0)
 	if err != nil && err != io.EOF {
-		return err
+		go func() {
+			out <- ReadOutput{nil, err}
+			close(out)
+		}()
+		return
 	}
 
 	chunkSize := 1024 * 256
@@ -173,11 +212,6 @@ func (r *Reader) ReadAllStreaming(out chan [][]string) error {
 	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
 
 	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
-
-	rows := make([]uint64, chunkSize/256*3)
-	columns := make([]string, len(rows)*20)
-
-	postProcStream = postProcStream[:0]
 
 	quoted := uint64(0)
 
@@ -197,7 +231,7 @@ func (r *Reader) ReadAllStreaming(out chan [][]string) error {
 
 			// TODO: Use memory pool
 			masksStream := make([]uint64, masksSize)
-			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
+			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, uint64(r.Comma), quoted, &masksStream, &postProcStream)
 
 			header, trailer := uint64(0), uint64(0)
 
@@ -276,11 +310,20 @@ func (r *Reader) ReadAllStreaming(out chan [][]string) error {
 			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
 			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
 
-			Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+			_, _, parsingError := Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+			if parsingError {
+				out <- fallback(bytes.NewReader(buf))
+				break
+			}
 
-			for ; line < outputStage2.line; line += 2 {
+			simdrecords := make([][]string, 0, 1024)
+
+			for line := 0; line < outputStage2.line; line += 2 {
 				simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
 			}
+
+			columns = columns[:(outputStage2.index)/2]
+			rows = rows[:outputStage2.line]
 
 			if len(splitRow) > 0 { // append row split between chunks
 				records := EncodingCsv(splitRow)
@@ -288,7 +331,31 @@ func (r *Reader) ReadAllStreaming(out chan [][]string) error {
 				splitRow = splitRow[:0]
 			}
 
-			out <- simdrecords
+			// TODO: Pass postProcStream along in channel too
+//			for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], postProcStream, simdrecords) {
+				for r := 0 /*ppr.start*/; r < len(simdrecords)/*ppr.end*/; r++ {
+					for c := range simdrecords[r] {
+						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
+						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
+					}
+				}
+//			}
+
+			if r.Comment != 0 {
+				FilterOutComments(&simdrecords, byte(r.Comment))
+			}
+			if r.TrimLeadingSpace {
+				TrimLeadingSpace(&simdrecords)
+			}
+
+			// create copy of fieldsPerRecord since it may be changed
+			fieldsPerRecord := r.FieldsPerRecord
+			if errSimd := EnsureFieldsPerRecord(&simdrecords, &fieldsPerRecord); errSimd != nil {
+				out <- fallback(bytes.NewReader(buf))
+				break
+			}
+
+			out <- ReadOutput{simdrecords, nil}
 
 			if !chunkInfo.lastChunk {
 				splitRow = chunkInfo.splitRow
@@ -298,10 +365,29 @@ func (r *Reader) ReadAllStreaming(out chan [][]string) error {
 		close(out)
 	}()
 
-	columns = columns[:(outputStage2.index)/2]
-	rows = rows[:outputStage2.line]
+	return
+}
 
-	return nil
+func (r *Reader) ReadAll2() ([][]string, error) {
+
+	out := make(chan ReadOutput)
+	r.ReadAllStreaming(out)
+
+	records := make([][]string, 0)
+	for rcrds := range out {
+		if rcrds.err != nil {
+			// drain channel
+			for _ = range out{}
+			return nil, rcrds.err
+		}
+		records = append(records, rcrds.records...)
+	}
+
+	if len(records) == 0 {
+		return nil, nil
+	} else {
+		return records, nil
+	}
 }
 
 func FilterOutComments(records *[][]string, comment byte) {
