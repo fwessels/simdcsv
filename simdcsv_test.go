@@ -390,6 +390,10 @@ x,,,
 		Comma:   'X',
 		Comment: 'X',
 		Error:   errInvalidDelim,
+	}, {
+		Name:   "Unicode",
+		Input:  "AB,C€,b,c\n",
+		Output: [][]string{{"AB","C€", "b", "c"}},
 	}}
 
 	for _, tt := range tests {
