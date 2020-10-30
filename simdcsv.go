@@ -148,6 +148,7 @@ func (r *Reader) ReadAll() ([][]string, error) {
 type ChunkInfo struct {
 	chunk    []byte
 	masks    []uint64
+	postProc []uint64
 	header   uint64
 	trailer  uint64
 	splitRow []byte
@@ -211,14 +212,12 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 	chunkSize = (chunkSize + 63) &^ 63
 	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
 
-	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
-
-	quoted := uint64(0)
-
 	chunks := make(chan ChunkInfo)
 	splitRow := make([]byte, 0, 256)
 
 	go func() {
+
+		quoted := uint64(0) // initialized quoted state to unquoted
 
 		for offset := 0; offset < len(buf); offset += chunkSize {
 			var chunk []byte
@@ -230,6 +229,7 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 			}
 
 			// TODO: Use memory pool
+			postProcStream := make([]uint64, 0, ((chunkSize>>6)+1)*2)
 			masksStream := make([]uint64, masksSize)
 			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, uint64(r.Comma), quoted, &masksStream, &postProcStream)
 
@@ -272,7 +272,7 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 
 			splitRow = append(splitRow, chunk[:header]...)
 
-			chunks <- ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk}
+			chunks <- ChunkInfo{chunk, masksStream, postProcStream, header, trailer, splitRow, lastChunk}
 
 			splitRow = make([]byte, 0, 128)
 			splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
@@ -327,15 +327,14 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 				splitRow = splitRow[:0]
 			}
 
-			// TODO: Pass postProcStream along in channel too
-//			for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], postProcStream, simdrecords) {
-				for r := 0 /*ppr.start*/; r < len(simdrecords)/*ppr.end*/; r++ {
+			for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
+				for r := ppr.start; r < ppr.end; r++ {
 					for c := range simdrecords[r] {
 						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
 						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
 					}
 				}
-//			}
+			}
 
 			if r.Comment != 0 {
 				FilterOutComments(&simdrecords, byte(r.Comment))
