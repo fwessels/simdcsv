@@ -280,19 +280,14 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 		close(chunks)
 	}()
 
-	rows = rows[:0]
-	columns = columns[:0]
-
-	inputStage2, outputStage2 := NewInput(), OutputAsm{}
-
-	line := 0
-
 	go func() {
 
 		splitRow := make([]byte, 0)
 
 		for chunkInfo := range chunks {
-			simdrecords := make([][]string, 0, 1024)
+			rows := make([]uint64, chunkSize/256*3*1)
+			columns := make([]string, len(rows)*20)
+			inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
 			outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
 
@@ -310,20 +305,21 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
 			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
 
-			_, _, parsingError := Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+			var parsingError bool
+			rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 			if parsingError {
 				out <- fallback(bytes.NewReader(buf))
 				break
 			}
+
+			columns = columns[:(outputStage2.index)/2]
+			rows = rows[:outputStage2.line]
 
 			simdrecords := make([][]string, 0, 1024)
 
 			for line := 0; line < outputStage2.line; line += 2 {
 				simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
 			}
-
-			columns = columns[:(outputStage2.index)/2]
-			rows = rows[:outputStage2.line]
 
 			if len(splitRow) > 0 { // append row split between chunks
 				records := EncodingCsv(splitRow)
