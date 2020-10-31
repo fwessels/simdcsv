@@ -86,15 +86,22 @@ type ChunkInfo struct {
 	lastChunk bool
 }
 
-type ReadOutput struct {
+type RecordsOutput struct {
 	records [][]string
 	err     error
 }
 
-// ReadAllStreaming reads all the remaining records from r.
-func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
+type ChunkIn struct {
+	buf []byte
+	last bool
+}
 
-	fallback := func(ioReader io.Reader) ReadOutput {
+// ReadAllStreaming reads all the remaining records from r.
+func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
+
+	out = make(chan RecordsOutput)
+
+	fallback := func(ioReader io.Reader) RecordsOutput {
 		rCsv := csv.NewReader(ioReader)
 		rCsv.LazyQuotes = r.LazyQuotes
 		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
@@ -103,12 +110,12 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 		rCsv.FieldsPerRecord = r.FieldsPerRecord
 		rCsv.ReuseRecord = r.ReuseRecord
 		rcds, err := rCsv.ReadAll()
-		return ReadOutput{rcds, err}
+		return RecordsOutput{rcds, err}
 	}
 
 	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
 		go func() {
-			out <- ReadOutput{nil, errInvalidDelim}
+			out <- RecordsOutput{nil, errInvalidDelim}
 			close(out)
 		}()
 		return
@@ -124,45 +131,84 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 		return
 	}
 
-	buf, err := r.r.ReadBytes(0)
-	if err != nil && err != io.EOF {
-		go func() {
-			out <- ReadOutput{nil, err}
-			close(out)
-		}()
-		return
-	}
-
 	chunkSize := 1024 * 256
 
 	// chunkSize must be a multiple of 64 bytes
 	chunkSize = (chunkSize + 63) &^ 63
 	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
 
-	chunks := make(chan ChunkInfo)
-	splitRow := make([]byte, 0, 256)
+	// channel with slices of input
+	bufchan := make(chan ChunkIn)
 
 	go func() {
 
-		quoted := uint64(0) // initialized quoted state to unquoted
+		defer close(bufchan)
 
-		for offset := 0; offset < len(buf); offset += chunkSize {
-			var chunk []byte
-			lastChunk := offset+chunkSize >= len(buf)
-			if lastChunk {
-				chunk = buf[offset:]
+		br := bufio.NewReader(r.r)
+		chunk := make([]byte, chunkSize)
+
+		n, err := br.Read(chunk)
+		if err == io.EOF {
+			return
+		} else if err != nil {
+			log.Printf("bufio.Read() encounterend error: %v", err)
+			return
+		} else {
+			chunk = chunk[:n]
+		}
+
+		for {
+			chunkNext := make([]byte, chunkSize)
+
+			n, err := br.Read(chunkNext)
+			if err == io.EOF {
+				if n > 0 {
+					panic("last buffer should be empty")
+				}
+				bufchan <- ChunkIn{chunk, true}
+				break
+			} else if err != nil {
+				log.Printf("bufio.Read() encounterend error: %v", err)
+				bufchan <- ChunkIn{chunk, true}
+				break
 			} else {
-				chunk = buf[offset : offset+chunkSize]
+				bufchan <- ChunkIn{chunk, false}
+				chunk = chunkNext[:n]
 			}
+		}
+	}()
 
-			// TODO: Use memory pool
-			postProcStream := make([]uint64, 0, ((chunkSize>>6)+1)*2)
-			masksStream := make([]uint64, masksSize)
-			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, uint64(r.Comma), quoted, &masksStream, &postProcStream)
+	// channel with preprocessed chunks
+	chunks := make(chan ChunkInfo)
+
+	go func() {
+
+		// create buffers upfront (that are reused while iterating over the channel
+		postProcStreams := make([][]uint64, 3)
+		masksStreams := make([][]uint64, 3)
+		for i := range postProcStreams {
+			postProcStreams[i] = make([]uint64, 0, ((chunkSize>>6)+1)*2)
+			masksStreams[i] = make([]uint64, masksSize)
+		}
+		index := 0
+
+		quoted := uint64(0) // initialized quoted state to unquoted
+		splitRow := make([]byte, 0, 256)
+		firstChunk := true
+
+		for chunk := range bufchan {
+
+			postProcStream := postProcStreams[index%len(postProcStreams)]
+			masksStream := masksStreams[index%len(masksStreams)]
+			index++
+
+			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
 
 			header, trailer := uint64(0), uint64(0)
 
-			if offset > 0 {
+			if firstChunk {
+				firstChunk = false
+			} else {
 				for index := 0; index < len(masksStream); index += 3 {
 					hr := bits.TrailingZeros64(masksStream[index])
 					header += uint64(hr)
@@ -176,11 +222,11 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 				if header == uint64(len(masksStream))/3*64 {
 					// we have not found a newline delimiter, so set
 					// header to size of chunk (meaning we will be skipping simd processing)
-					header = uint64(len(chunk))
+					header = uint64(len(chunk.buf))
 				}
 			}
 
-			if !lastChunk && header < uint64(len(chunk)) {
+			if !chunk.last && header < uint64(len(chunk.buf)) {
 				for index := 3; index < len(masksStream); index += 3 {
 					tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
 					trailer += uint64(tr)
@@ -190,21 +236,25 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 				}
 			}
 
-			splitRow = append(splitRow, chunk[:header]...)
+			splitRow = append(splitRow, chunk.buf[:header]...)
 
-			if header < uint64(len(chunk)) {
-				chunks <- ChunkInfo{chunk, masksStream, postProcStream, header, trailer, splitRow, lastChunk}
+			if header < uint64(len(chunk.buf)) {
+				chunks <- ChunkInfo{chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
 			} else {
-				chunks <- ChunkInfo{nil, nil, nil, 0, 0, splitRow, lastChunk}
+				chunks <- ChunkInfo{nil, nil, nil, 0, 0, splitRow, chunk.last}
 			}
 
-			splitRow = make([]byte, 0, 128)
-			splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
+			splitRow = make([]byte, 0, len(splitRow)*3/2)
+			splitRow = append(splitRow, chunk.buf[len(chunk.buf)-int(trailer):]...)
 		}
+
 		close(chunks)
 	}()
 
 	go func() {
+
+		rows := make([]uint64, chunkSize/256*3*1)
+		columns := make([]string, len(rows)*20)
 
 		for chunkInfo := range chunks {
 
@@ -216,8 +266,6 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 			}
 
 			if chunkInfo.chunk != nil {
-				rows := make([]uint64, chunkSize/256*3*1)
-				columns := make([]string, len(rows)*20)
 				inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
 				outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
@@ -282,11 +330,7 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 				break
 			}
 
-			out <- ReadOutput{simdrecords, nil}
-
-			if !chunkInfo.lastChunk {
-				splitRow = chunkInfo.splitRow
-			}
+			out <- RecordsOutput{simdrecords, nil}
 		}
 
 		close(out)
@@ -302,14 +346,15 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 // reported.
 func (r *Reader) ReadAll() ([][]string, error) {
 
-	out := make(chan ReadOutput)
-	r.ReadAllStreaming(out)
+	out := r.ReadAllStreaming()
 
 	records := make([][]string, 0)
 	for rcrds := range out {
 		if rcrds.err != nil {
+			fmt.Println("encountered error, draining channel")
 			// drain channel
-			for _ = range out{}
+			for _ = range out {
+			}
 			return nil, rcrds.err
 		}
 		records = append(records, rcrds.records...)
