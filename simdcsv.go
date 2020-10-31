@@ -76,7 +76,6 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
-// ReadAll reads all the remaining records from r.
 // Each record is a slice of fields.
 // A successful call returns err == nil, not err == io.EOF. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
