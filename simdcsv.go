@@ -56,7 +56,7 @@ type Reader struct {
 	// This is done even if the field delimiter, Comma, is white space.
 	TrimLeadingSpace bool
 
-	ReuseRecord bool   // Deprecated: Unused by simdcsv.
+	ReuseRecord   bool // Deprecated: Unused by simdcsv.
 	TrailingComma bool // Deprecated: No longer used.
 
 	r *bufio.Reader
@@ -92,10 +92,6 @@ type ReadOutput struct {
 }
 
 // ReadAllStreaming reads all the remaining records from r.
-// Each record is a slice of fields.
-// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
-// defined to read until EOF, it does not treat end of file as an error to be
-// reported.
 func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 
 	fallback := func(ioReader io.Reader) ReadOutput {
@@ -139,7 +135,7 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 
 	chunkSize := 1024 * 256
 
-	// round chunkSize to next multiple of 64
+	// chunkSize must be a multiple of 64 bytes
 	chunkSize = (chunkSize + 63) &^ 63
 	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
 
@@ -198,7 +194,7 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 
 			if header < uint64(len(chunk)) {
 				chunks <- ChunkInfo{chunk, masksStream, postProcStream, header, trailer, splitRow, lastChunk}
-			}  else {
+			} else {
 				chunks <- ChunkInfo{nil, nil, nil, 0, 0, splitRow, lastChunk}
 			}
 
@@ -299,7 +295,12 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 	return
 }
 
-func (r *Reader) ReadAll2() ([][]string, error) {
+// ReadAll reads all the remaining records from r.
+// Each record is a slice of fields.
+// A successful call returns err == nil, not err == io.EOF. Because ReadAll is
+// defined to read until EOF, it does not treat end of file as an error to be
+// reported.
+func (r *Reader) ReadAll() ([][]string, error) {
 
 	out := make(chan ReadOutput)
 	r.ReadAllStreaming(out)
