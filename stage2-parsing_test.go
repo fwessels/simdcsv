@@ -328,7 +328,7 @@ func TestStage2ParseBuffer(t *testing.T) {
 
 func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 
-	buf, err := ioutil.ReadFile("parking-citations-10K.csv")
+	buf, err := ioutil.ReadFile("testdata/parking-citations-10K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
