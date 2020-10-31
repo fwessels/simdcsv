@@ -347,7 +347,7 @@ notLastZWord:
 
 	ADDQ $3, R12
 	CMPQ R12, masks_len+32(FP)
-	JGE  done
+	JGT  done
 
 	CMPQ DX, buf_len+8(FP)
 	JLT  loop
