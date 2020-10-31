@@ -247,14 +247,13 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 					}
 				}
 				if header == uint64(len(masksStream))/3*64 {
-					// we are not hitting a newline delimiter, so we need to
-					// make the chunk larger (double) to try and find one
-					// TODO
-					panic("Handle this case")
+					// we have not found a newline delimiter, so set
+					// header to size of chunk (meaning we will be skipping simd processing)
+					header = uint64(len(chunk))
 				}
 			}
 
-			if !lastChunk {
+			if !lastChunk && header < uint64(len(chunk)) {
 				for index := 3; index < len(masksStream); index += 3 {
 					tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
 					trailer += uint64(tr)
@@ -262,17 +261,15 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 						break
 					}
 				}
-				if trailer == uint64(len(masksStream))/3*64 {
-					// we are not hitting a newline delimiter, so we need to
-					// make the chunk larger (double) to try and find one
-					// TODO
-					panic("Handle this case")
-				}
 			}
 
 			splitRow = append(splitRow, chunk[:header]...)
 
-			chunks <- ChunkInfo{chunk, masksStream, postProcStream, header, trailer, splitRow, lastChunk}
+			if header < uint64(len(chunk)) {
+				chunks <- ChunkInfo{chunk, masksStream, postProcStream, header, trailer, splitRow, lastChunk}
+			}  else {
+				chunks <- ChunkInfo{nil, nil, nil, 0, 0, splitRow, lastChunk}
+			}
 
 			splitRow = make([]byte, 0, 128)
 			splitRow = append(splitRow, chunk[len(chunk)-int(trailer):]...)
@@ -282,59 +279,67 @@ func (r *Reader) ReadAllStreaming(out chan ReadOutput) {
 
 	go func() {
 
-		splitRow := make([]byte, 0)
-
 		for chunkInfo := range chunks {
-			rows := make([]uint64, chunkSize/256*3*1)
-			columns := make([]string, len(rows)*20)
-			inputStage2, outputStage2 := NewInput(), OutputAsm{}
-
-			outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
-
-			skip := chunkInfo.header >> 6
-			shift := chunkInfo.header & 0x3f
-
-			chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
-			chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
-			chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
-
-			skipTz := (chunkInfo.trailer >> 6) + 1
-			shiftTz := chunkInfo.trailer & 0x3f
-
-			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
-			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
-			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
-
-			var parsingError bool
-			rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
-			if parsingError {
-				out <- fallback(bytes.NewReader(buf))
-				break
-			}
-
-			columns = columns[:(outputStage2.index)/2]
-			rows = rows[:outputStage2.line]
 
 			simdrecords := make([][]string, 0, 1024)
 
-			for line := 0; line < outputStage2.line; line += 2 {
-				simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
-			}
-
-			if len(splitRow) > 0 { // append row split between chunks
-				records := EncodingCsv(splitRow)
+			if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
+				records := EncodingCsv(chunkInfo.splitRow)
 				simdrecords = append(simdrecords, records...)
-				splitRow = splitRow[:0]
 			}
 
-			for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
-				for r := ppr.start; r < ppr.end; r++ {
-					for c := range simdrecords[r] {
-						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
-						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
-					}
+			if chunkInfo.chunk != nil {
+				rows := make([]uint64, chunkSize/256*3*1)
+				columns := make([]string, len(rows)*20)
+				inputStage2, outputStage2 := NewInput(), OutputAsm{}
+
+				outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
+
+				skip := chunkInfo.header >> 6
+				shift := chunkInfo.header & 0x3f
+
+				chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
+				chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
+				chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
+
+				skipTz := (chunkInfo.trailer >> 6) + 1
+				shiftTz := chunkInfo.trailer & 0x3f
+
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] <<= shiftTz
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] <<= shiftTz
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] <<= shiftTz
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] >>= shiftTz
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] >>= shiftTz
+				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] >>= shiftTz
+
+				var parsingError bool
+				rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+				if parsingError {
+					out <- fallback(bytes.NewReader(buf))
+					break
 				}
+
+				columns = columns[:(outputStage2.index)/2]
+				rows = rows[:outputStage2.line]
+
+				for line := 0; line < outputStage2.line; line += 2 {
+					simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+				}
+
+				// TODO: Check whether post processing array is in sync (with offset into buffer)
+				if chunkInfo.postProc != nil {
+//					for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
+						for r := 0/*ppr.start*/; r < len(simdrecords)/*ppr.end*/; r++ {
+							for c := range simdrecords[r] {
+								simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
+								simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
+							}
+						}
+//					}
+				}
+
 			}
+
 
 			if r.Comment != 0 {
 				FilterOutComments(&simdrecords, byte(r.Comment))
