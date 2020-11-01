@@ -2,13 +2,14 @@ package simdcsv
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"log"
 	"io"
 	"math/bits"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 )
@@ -77,6 +78,7 @@ func NewReader(r io.Reader) *Reader {
 }
 
 type ChunkInfo struct {
+	sequence int
 	chunk    []byte
 	masks    []uint64
 	postProc []uint64
@@ -87,8 +89,9 @@ type ChunkInfo struct {
 }
 
 type RecordsOutput struct {
-	records [][]string
-	err     error
+	sequence int
+	records  [][]string
+	err      error
 }
 
 type ChunkIn struct {
@@ -99,7 +102,7 @@ type ChunkIn struct {
 // ReadAllStreaming reads all the remaining records from r.
 func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 
-	out = make(chan RecordsOutput)
+	out = make(chan RecordsOutput, 20)
 
 	fallback := func(ioReader io.Reader) RecordsOutput {
 		rCsv := csv.NewReader(ioReader)
@@ -110,12 +113,12 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 		rCsv.FieldsPerRecord = r.FieldsPerRecord
 		rCsv.ReuseRecord = r.ReuseRecord
 		rcds, err := rCsv.ReadAll()
-		return RecordsOutput{rcds, err}
+		return RecordsOutput{-1, rcds, err}
 	}
 
 	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
 		go func() {
-			out <- RecordsOutput{nil, errInvalidDelim}
+			out <- RecordsOutput{-1, nil, errInvalidDelim}
 			close(out)
 		}()
 		return
@@ -131,14 +134,14 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 		return
 	}
 
-	chunkSize := 1024 * 256
+	chunkSize := 1024 * 300
 
 	// chunkSize must be a multiple of 64 bytes
 	chunkSize = (chunkSize + 63) &^ 63
 	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
 
 	// channel with slices of input
-	bufchan := make(chan ChunkIn)
+	bufchan := make(chan ChunkIn, cap(out))
 
 	go func() {
 
@@ -179,18 +182,18 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 	}()
 
 	// channel with preprocessed chunks
-	chunks := make(chan ChunkInfo)
+	chunks := make(chan ChunkInfo, cap(out))
 
 	go func() {
 
 		// create buffers upfront (that are reused while iterating over the channel
-		postProcStreams := make([][]uint64, 3)
-		masksStreams := make([][]uint64, 3)
+		postProcStreams := make([][]uint64, cap(chunks)+3)
+		masksStreams := make([][]uint64, cap(chunks)+3)
 		for i := range postProcStreams {
 			postProcStreams[i] = make([]uint64, 0, ((chunkSize>>6)+1)*2)
 			masksStreams[i] = make([]uint64, masksSize)
 		}
-		index := 0
+		index := -1
 
 		quoted := uint64(0) // initialized quoted state to unquoted
 		splitRow := make([]byte, 0, 256)
@@ -198,9 +201,9 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 
 		for chunk := range bufchan {
 
+			index++
 			postProcStream := postProcStreams[index%len(postProcStreams)]
 			masksStream := masksStreams[index%len(masksStreams)]
-			index++
 
 			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
 
@@ -239,9 +242,9 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 			splitRow = append(splitRow, chunk.buf[:header]...)
 
 			if header < uint64(len(chunk.buf)) {
-				chunks <- ChunkInfo{chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
+				chunks <- ChunkInfo{index,chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
 			} else {
-				chunks <- ChunkInfo{nil, nil, nil, 0, 0, splitRow, chunk.last}
+				chunks <- ChunkInfo{index,nil, nil, nil, 0, 0, splitRow, chunk.last}
 			}
 
 			splitRow = make([]byte, 0, len(splitRow)*3/2)
@@ -253,86 +256,107 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 
 	go func() {
 
-		rows := make([]uint64, chunkSize/256*3*1)
-		columns := make([]string, len(rows)*20)
+		var wg sync.WaitGroup
 
-		for chunkInfo := range chunks {
+		// Determine how many stages 2 run in parallel
+		const cores = 3
+		wg.Add(cores)
 
-			simdrecords := make([][]string, 0, 1024)
+		for parallel := 0; parallel < cores; parallel++ {
 
-			if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
-				records := EncodingCsv(chunkInfo.splitRow)
-				simdrecords = append(simdrecords, records...)
-			}
+			go func() {
+				defer wg.Done()
 
-			if chunkInfo.chunk != nil {
-				inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
-				outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
+				line, simdlines := 0, 1024
 
-				skip := chunkInfo.header >> 6
-				shift := chunkInfo.header & 0x3f
+				for chunkInfo := range chunks {
 
-				chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
-				chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
-				chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
+					simdrecords := make([][]string, 0, simdlines)
 
-				skipTz := (chunkInfo.trailer >> 6) + 1
-				shiftTz := chunkInfo.trailer & 0x3f
+					rows := make([]uint64, 2500*2)
+					columns := make([]string, len(rows)*10)
+					inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] <<= shiftTz
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] <<= shiftTz
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] <<= shiftTz
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] >>= shiftTz
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] >>= shiftTz
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] >>= shiftTz
+					if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
+						records := EncodingCsv(chunkInfo.splitRow)
+						simdrecords = append(simdrecords, records...)
+					}
 
-				var parsingError bool
-				rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
-				if parsingError {
-					out <- fallback(bytes.NewReader(buf))
-					break
-				}
+					if chunkInfo.chunk != nil {
 
-				columns = columns[:(outputStage2.index)/2]
-				rows = rows[:outputStage2.line]
+						outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
 
-				for line := 0; line < outputStage2.line; line += 2 {
-					simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
-				}
+						skip := chunkInfo.header >> 6
+						shift := chunkInfo.header & 0x3f
 
-				// TODO: Check whether post processing array is in sync (with offset into buffer)
-				if chunkInfo.postProc != nil {
-//					for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
-						for r := 0/*ppr.start*/; r < len(simdrecords)/*ppr.end*/; r++ {
-							for c := range simdrecords[r] {
-								simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
-								simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
-							}
+						chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
+						chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
+						chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
+
+						skipTz := (chunkInfo.trailer >> 6) + 1
+						shiftTz := chunkInfo.trailer & 0x3f
+
+						chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] <<= shiftTz
+						chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] <<= shiftTz
+						chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] <<= shiftTz
+						chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] >>= shiftTz
+						chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] >>= shiftTz
+						chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] >>= shiftTz
+
+						var parsingError bool
+						rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+						if parsingError {
+							out <- RecordsOutput{} // fallback(bytes.NewReader(buf))
+							break
 						}
-//					}
+
+						for line = 0; line < outputStage2.line; line += 2 {
+							simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
+						}
+
+						columns = columns[:(outputStage2.index)/2]
+						rows = rows[:outputStage2.line]
+
+
+						// TODO: *** Check whether post processing array is in sync (with offset into buffer)
+						if false && chunkInfo.postProc != nil {
+							// for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
+							for r := 0/*ppr.start*/; r < len(simdrecords)/*ppr.end*/; r++ {
+								for c := range simdrecords[r] {
+									simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
+									simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
+								}
+							}
+							// }
+						}
+					}
+
+					if r.Comment != 0 {
+						FilterOutComments(&simdrecords, byte(r.Comment))
+					}
+					if r.TrimLeadingSpace {
+						TrimLeadingSpace(&simdrecords)
+					}
+
+					// create copy of fieldsPerRecord since it may be changed
+					//fieldsPerRecord := r.FieldsPerRecord
+					//if errSimd := EnsureFieldsPerRecord(&simdrecords, &fieldsPerRecord); errSimd != nil {
+					//	fmt.Println("****** BREAKING OUT")
+					//	out <- RecordsOutput{} // fallback(bytes.NewReader(buf))
+					//	break
+					//}
+
+					if simdlines < len(simdrecords) {
+						simdlines = len(simdrecords)*9>>3
+					}
+					out <- RecordsOutput{chunkInfo.sequence, simdrecords, nil}
 				}
 
-			}
-
-
-			if r.Comment != 0 {
-				FilterOutComments(&simdrecords, byte(r.Comment))
-			}
-			if r.TrimLeadingSpace {
-				TrimLeadingSpace(&simdrecords)
-			}
-
-			// create copy of fieldsPerRecord since it may be changed
-			fieldsPerRecord := r.FieldsPerRecord
-			if errSimd := EnsureFieldsPerRecord(&simdrecords, &fieldsPerRecord); errSimd != nil {
-				out <- fallback(bytes.NewReader(buf))
-				break
-			}
-
-			out <- RecordsOutput{simdrecords, nil}
+			}()
 		}
 
+		wg.Wait()
 		close(out)
 	}()
 
@@ -349,6 +373,9 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	out := r.ReadAllStreaming()
 
 	records := make([][]string, 0)
+	hash := make(map[int][][]string)
+	sequence := 0
+
 	for rcrds := range out {
 		if rcrds.err != nil {
 			fmt.Println("encountered error, draining channel")
@@ -357,7 +384,26 @@ func (r *Reader) ReadAll() ([][]string, error) {
 			}
 			return nil, rcrds.err
 		}
+
+		// check whether number in sequence
+		if rcrds.sequence > sequence {
+			hash[rcrds.sequence] = rcrds.records
+			continue
+		}
+
 		records = append(records, rcrds.records...)
+		sequence++
+
+		// check if we already received higher sequence numbers
+		for {
+			if val, ok := hash[sequence]; ok {
+				records = append(records, val...)
+				delete(hash, sequence)
+				sequence++
+			} else {
+				break
+			}
+		}
 	}
 
 	if len(records) == 0 {
