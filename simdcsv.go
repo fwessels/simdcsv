@@ -186,32 +186,21 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 
 	go func() {
 
-		// create buffers upfront (that are reused while iterating over the channel
-		postProcStreams := make([][]uint64, cap(chunks)+3)
-		masksStreams := make([][]uint64, cap(chunks)+3)
-		for i := range postProcStreams {
-			postProcStreams[i] = make([]uint64, 0, ((chunkSize>>6)+1)*2)
-			masksStreams[i] = make([]uint64, masksSize)
-		}
-		index := -1
+		sequence := 0
 
 		quoted := uint64(0) // initialized quoted state to unquoted
 		splitRow := make([]byte, 0, 256)
-		firstChunk := true
 
 		for chunk := range bufchan {
 
-			index++
-			postProcStream := postProcStreams[index%len(postProcStreams)]
-			masksStream := masksStreams[index%len(masksStreams)]
+			postProcStream := make([]uint64, 0, ((chunkSize>>6)+1)*2)
+			masksStream := make([]uint64, masksSize)
 
 			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
 
 			header, trailer := uint64(0), uint64(0)
 
-			if firstChunk {
-				firstChunk = false
-			} else {
+			if sequence > 0 {
 				for index := 0; index < len(masksStream); index += 3 {
 					hr := bits.TrailingZeros64(masksStream[index])
 					header += uint64(hr)
@@ -242,13 +231,15 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 			splitRow = append(splitRow, chunk.buf[:header]...)
 
 			if header < uint64(len(chunk.buf)) {
-				chunks <- ChunkInfo{index,chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
+				chunks <- ChunkInfo{sequence,chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
 			} else {
-				chunks <- ChunkInfo{index,nil, nil, nil, 0, 0, splitRow, chunk.last}
+				chunks <- ChunkInfo{sequence,nil, nil, nil, 0, 0, splitRow, chunk.last}
 			}
 
 			splitRow = make([]byte, 0, len(splitRow)*3/2)
 			splitRow = append(splitRow, chunk.buf[len(chunk.buf)-int(trailer):]...)
+
+			sequence++
 		}
 
 		close(chunks)
