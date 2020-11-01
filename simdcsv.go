@@ -253,9 +253,9 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 		wg.Add(cores)
 
 		for parallel := 0; parallel < cores; parallel++ {
-			go stage2Streaming(chunks, &wg, out)
+			go r.stage2Streaming(chunks, &wg, out)
 		}
-``
+
 		wg.Wait()
 		close(out)
 	}()
@@ -263,7 +263,7 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 	return
 }
 
-func stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan RecordsOutput) {
+func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan RecordsOutput) {
 	defer wg.Done()
 
 	simdlines := 1024
@@ -306,7 +306,7 @@ func stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan Records
 			rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 			if parsingError {
 				// TODO: Fix
-				out <- RecordsOutput{} // fallback(bytes.NewReader(buf))
+				out <- RecordsOutput{} // fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
 				break
 			}
 
@@ -317,28 +317,25 @@ func stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan Records
 			columns = columns[:(outputStage2.index)/2]
 			rows = rows[:outputStage2.line]
 
-			//line = 0
-			//outputStage2.line =  0
-
 			// TODO: *** Check whether post processing array is in sync (with offset into buffer)
-			if false && chunkInfo.postProc != nil {
-				// for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
-				for r := 0/*ppr.start*/; r < len(simdrecords)/*ppr.end*/; r++ {
-					for c := range simdrecords[r] {
-						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
-						simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
+			if chunkInfo.postProc != nil {
+				for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
+					for r := ppr.start; r < ppr.end; r++ {
+						for c := range simdrecords[r] {
+							simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
+							simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
+						}
 					}
 				}
-				// }
 			}
 		}
 
-		//if false && r.Comment != 0 {
-		//	FilterOutComments(&simdrecords, byte(r.Comment))
-		//}
-		//if false && r.TrimLeadingSpace {
-		//	TrimLeadingSpace(&simdrecords)
-		//}
+		if r.Comment != 0 {
+			FilterOutComments(&simdrecords, byte(r.Comment))
+		}
+		if r.TrimLeadingSpace {
+			TrimLeadingSpace(&simdrecords)
+		}
 
 		// create copy of fieldsPerRecord since it may be changed
 		//fieldsPerRecord := r.FieldsPerRecord
@@ -351,10 +348,6 @@ func stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan Records
 		if simdlines < len(simdrecords) {
 			simdlines = len(simdrecords)*9>>3
 		}
-
-		//if hash[chunkInfo.sequence] != len(simdrecords) {
-		//	fmt.Printf("*** MISMATCH %d vs hash[%d] = %d\n", hash[chunkInfo.sequence], chunkInfo.sequence, len(simdrecords))
-		//}
 
 		out <- RecordsOutput{chunkInfo.sequence, simdrecords, nil}
 	}
