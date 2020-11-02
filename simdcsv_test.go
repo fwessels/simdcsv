@@ -480,43 +480,46 @@ func TestLosAngelesParkingCitations(t *testing.T) {
 		compareAgainstEncodingCsv(t, []byte(test))
 	})
 
-	t.Run("all", func(t *testing.T) {
-
+	t.Run("all-and-long", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip("skipping... too long")
 		}
 
-		if buf, err := ioutil.ReadFile("testdata/parking-citations.csv"); err != nil {
-			log.Fatalf("%v", err)
-		} else {
-			buf := bytes.ReplaceAll(buf, []byte{0x0d}, []byte{})
-			lines := bytes.Split(buf, []byte("\n"))
-			lines = lines[1:]
+		var buf []byte
+		var err error
+		if buf, err = ioutil.ReadFile("testdata/parking-citations.csv"); err != nil {
+			t.Skip("skipping... test dataset not found")
+		}
 
-			for len(lines) > 0 {
-				ln := 1000
-				if len(lines) < ln {
-					ln = len(lines)
-				}
+		buf = bytes.ReplaceAll(buf, []byte{0x0d}, []byte{})
+		lines := bytes.Split(buf, []byte("\n"))
+		lines = lines[1:]
 
-				test := bytes.Join(lines[:ln], []byte{0x0a})
-
-				compareAgainstEncodingCsv(t, test)
-
-				lines = lines[ln:]
-
-				runtime.GC()
+		for len(lines) > 0 {
+			ln := 10000
+			if len(lines) < ln {
+				ln = len(lines)
 			}
+
+			test := bytes.Join(lines[:ln], []byte{0x0a})
+			compareAgainstEncodingCsv(t, test)
+
+			lines = lines[ln:]
+
+			runtime.GC()
 		}
 	})
 }
 
 func TestSimdCsv(t *testing.T) {
 	t.Run("parking-citations-100K", func(t *testing.T) {
-		testSimdCsv(t, "parking-citations-100K.csv")
+		testSimdCsv(t, "testdata/parking-citations-100K.csv")
 	})
-	t.Run("worldcitiespop", func(t *testing.T) {
-		testSimdCsv(t, "worldcitiespop.csv")
+	t.Run("worldcitiespop-100K", func(t *testing.T) {
+		testSimdCsv(t, "testdata/worldcitiespop-100K.csv")
+	})
+	t.Run("nyc-taxi-100K", func(t *testing.T) {
+		testSimdCsv(t, "testdata/nyc-taxi-data-100K.csv")
 	})
 }
 
@@ -525,39 +528,24 @@ func testSimdCsv(t *testing.T, filename string) {
 	if err != nil {
 		t.Errorf("%v", err)
 	}
-
 	compareAgainstEncodingCsv(t, buf)
-}
-
-func TestFilterEmptyLines(t *testing.T) {
-	compareAgainstEncodingCsv(t, []byte("a,b,c\n\nd,e,f\n\n"))
-	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n\nd,e,f\n\n"))
-	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n\n\nd,e,f\n\n"))
-	compareAgainstEncodingCsv(t, []byte("a,b,c\n\n,,\n\n\nd,e,f\n\n"))
 }
 
 func compareAgainstEncodingCsv(t *testing.T, test []byte) {
 
+	records, err := encodingCsv(test)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 	r := NewReader(bytes.NewReader(test))
 	simdrecords, err := r.ReadAll()
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	records := EncodingCsv(test)
 
 	if !reflect.DeepEqual(simdrecords, records) {
-		t.Errorf("compareAgainstEncodingCsv: got: %v want: %v", simdrecords, records)
+		t.Errorf("compareAgainstEncodingCsv: got: %v want: %v", len(simdrecords), len(records))
 	}
-}
-
-func EncodingCsv(csvData []byte) (records [][]string) {
-
-	r := csv.NewReader(bytes.NewReader(csvData))
-	records, err := r.ReadAll()
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-	return
 }
 
 // filter out commented rows before returning to client

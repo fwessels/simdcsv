@@ -2,6 +2,7 @@ package simdcsv
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -277,7 +278,11 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out 
 		inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
 		if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
-			records := EncodingCsv(chunkInfo.splitRow)
+			records, err := encodingCsv(chunkInfo.splitRow)
+			if err != nil {
+				out <- RecordsOutput{-1, nil, err}
+				break
+			}
 			simdrecords = append(simdrecords, records...)
 		}
 
@@ -452,4 +457,9 @@ func TrimLeadingSpace(records *[][]string) {
 
 func allocMasks(buf []byte) []uint64 {
 	return make([]uint64, ((len(buf)>>6)+4)*3)
+}
+
+func encodingCsv(csvData []byte) ([][]string, error) {
+	r := csv.NewReader(bytes.NewReader(csvData))
+	return r.ReadAll()
 }
