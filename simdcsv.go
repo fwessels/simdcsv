@@ -266,14 +266,14 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan RecordsOutput) {
 	defer wg.Done()
 
-	simdlines := 1024
+	simdlines, rowsSize, columnsSize := 1024, 500, 50000
 
 	for chunkInfo := range chunks {
 
 		simdrecords := make([][]string, 0, simdlines)
 
-		rows := make([]uint64, 2500*2)
-		columns := make([]string, len(rows)*10)
+		rows := make([]uint64, rowsSize, rowsSize)
+		columns := make([]string, columnsSize, columnsSize)
 		inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
 		if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
@@ -347,6 +347,12 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out 
 
 		if simdlines < len(simdrecords) {
 			simdlines = len(simdrecords)*9>>3
+		}
+		if rowsSize < cap(rows) {
+			rowsSize = cap(rows)*3/4
+		}
+		if columnsSize < cap(columns) {
+			columnsSize = cap(columns)*3/4
 		}
 
 		out <- RecordsOutput{chunkInfo.sequence, simdrecords, nil}
