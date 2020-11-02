@@ -662,6 +662,10 @@ func TestTrimLeadingSpace(t *testing.T) {
 
 func TestExample(t *testing.T) {
 
+	if testing.Short() {
+		t.Skip("Skipping example")
+	}
+
 	// Example based on https://play.golang.org/p/XxthE8qqZtZ
 
 	// NB You are free to change this example, just make sure it does not extend beyond 128 bytes !

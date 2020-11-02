@@ -328,7 +328,7 @@ func TestStage2ParseBuffer(t *testing.T) {
 
 func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations-10K.csv")
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -360,13 +360,13 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 // Check that the buffers are increased dynamically
 func TestStage2DynamicAllocation(t *testing.T) {
 	t.Run("grow-rows", func(t *testing.T) {
-		testStage2DynamicAllocation(t, [3]int{128, 10000*20*2, 10000}, [3]int{32768, 10000*20*2, 10000})
+		testStage2DynamicAllocation(t, [3]int{128, 10000*20*2, 10000}, [3]int{262144,3200000, 100000})
 	})
 	t.Run("grow-columns", func(t *testing.T) {
-		testStage2DynamicAllocation(t, [3]int{10000*4, 1024, 10000}, [3]int{10000*4, 262144, 10000})
+		testStage2DynamicAllocation(t, [3]int{10000*4, 1024, 10000}, [3]int{320000, 2097152, 100000})
 	})
 	t.Run("grow-records", func(t *testing.T) {
-		testStage2DynamicAllocation(t, [3]int{10000*4, 10000*20*2, 100}, [3]int{10000*4, 10000*20*2, 10000})
+		testStage2DynamicAllocation(t, [3]int{10000*4, 10000*20*2, 100}, [3]int{320000, 3200000, 100000})
 	})
 }
 
