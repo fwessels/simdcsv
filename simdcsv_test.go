@@ -588,7 +588,7 @@ func TestIgnoreCommentedLines(t *testing.T) {
 	})
 }
 
-func testFieldsPerRecord(t *testing.T, csvData []byte, fieldsPerRecord int) {
+func testFieldsPerRecord(t *testing.T, csvData []byte, fieldsPerRecord int64) {
 
 	simdr := NewReader(bytes.NewReader(csvData))
 	simdrecords, err := simdr.ReadAll()
@@ -601,7 +601,7 @@ func testFieldsPerRecord(t *testing.T, csvData []byte, fieldsPerRecord int) {
 	errSimd := EnsureFieldsPerRecord(&simdrecords, &fieldsPerRecordSimd)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
-	r.FieldsPerRecord = fieldsPerRecord
+	r.FieldsPerRecord = int(fieldsPerRecord)
 	records, err := r.ReadAll()
 
 	// are both returning errors, then this test is a pass

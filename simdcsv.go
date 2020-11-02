@@ -11,6 +11,7 @@ import (
 	"math/bits"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 )
@@ -252,9 +253,10 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 		// Determine how many second stages to run in parallel
 		const cores = 3
 		wg.Add(cores)
+		fieldsPerRecord := int64(r.FieldsPerRecord)
 
 		for parallel := 0; parallel < cores; parallel++ {
-			go r.stage2Streaming(chunks, &wg, out)
+			go r.stage2Streaming(chunks, &wg, &fieldsPerRecord, fallback, out)
 		}
 
 		wg.Wait()
@@ -264,7 +266,7 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 	return
 }
 
-func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out chan RecordsOutput) {
+func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, fieldsPerRecord *int64, fallback func(ioReader io.Reader) RecordsOutput, out chan RecordsOutput) {
 	defer wg.Done()
 
 	simdlines, rowsSize, columnsSize := 1024, 500, 50000
@@ -310,8 +312,7 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out 
 			var parsingError bool
 			rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 			if parsingError {
-				// TODO: Fix
-				out <- RecordsOutput{} // fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
+				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
 				break
 			}
 
@@ -333,6 +334,11 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out 
 					}
 				}
 			}
+
+			if errSimd := EnsureFieldsPerRecord(&simdrecords, fieldsPerRecord); errSimd != nil {
+				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
+				break
+			}
 		}
 
 		if r.Comment != 0 {
@@ -341,14 +347,6 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, out 
 		if r.TrimLeadingSpace {
 			TrimLeadingSpace(&simdrecords)
 		}
-
-		// create copy of fieldsPerRecord since it may be changed
-		//fieldsPerRecord := r.FieldsPerRecord
-		//if errSimd := EnsureFieldsPerRecord(&simdrecords, &fieldsPerRecord); errSimd != nil {
-		//	fmt.Println("****** BREAKING OUT")
-		//	out <- RecordsOutput{} // fallback(bytes.NewReader(buf))
-		//	break
-		//}
 
 		if simdlines < len(simdrecords) {
 			simdlines = len(simdrecords)*9>>3
@@ -379,14 +377,14 @@ func (r *Reader) ReadAll() ([][]string, error) {
 
 	for rcrds := range out {
 		if rcrds.err != nil {
-			fmt.Println("encountered error, draining channel")
-			// drain channel
+			// upon encountering an error ...
 			for _ = range out {
+				// ... drain channel
 			}
 			return nil, rcrds.err
 		}
 
-		// check whether number in sequence
+		// check whether number is in sequence
 		if rcrds.sequence > sequence {
 			hash[rcrds.sequence] = rcrds.records
 			continue
@@ -425,17 +423,18 @@ func FilterOutComments(records *[][]string, comment byte) {
 	}
 }
 
-func EnsureFieldsPerRecord(records *[][]string, fieldsPerRecord *int) error {
+func EnsureFieldsPerRecord(records *[][]string, fieldsPerRecord *int64) error {
 
-	if *fieldsPerRecord == 0 {
+	if atomic.LoadInt64(fieldsPerRecord) == 0 {
 		if len(*records) > 0 {
-			*fieldsPerRecord = len((*records)[0])
+			atomic.StoreInt64(fieldsPerRecord, int64(len((*records)[0])))
 		}
 	}
 
-	if *fieldsPerRecord > 0 {
+	fpr := atomic.LoadInt64(fieldsPerRecord)
+	if fpr > 0 {
 		for i, record := range *records {
-			if len(record) != *fieldsPerRecord {
+			if int64(len(record)) != fpr {
 				*records = nil
 				return errors.New(fmt.Sprintf("record on line %d: wrong number of fields", i+1))
 			}
