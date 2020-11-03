@@ -617,9 +617,8 @@ func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 
 func testStage1DynamicAllocation(t *testing.T) {
 
-	// TODO: Check file path
-	buf, _ := ioutil.ReadFile("testdata/parking-citations-10K.csv")
-	bufSingleInvoc, err := ioutil.ReadFile("testdata/parking-citations-10K.csv")
+	buf, _ := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	bufSingleInvoc, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -651,7 +650,7 @@ func TestStage1DynamicAllocation(t *testing.T) {
 
 func TestStage1MasksBounds(t *testing.T) {
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations.csv")
+	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
 	if err != nil {
 		panic(err)
 	}
@@ -698,167 +697,6 @@ func TestStage1MasksBounds(t *testing.T) {
 		}
 
 		masksIndex += int(masksWritten)
-	}
-}
-
-func BenchmarkSimdCsvStreaming(b *testing.B) {
-	b.Run("parking-streaming-512K", func(b *testing.B) {
-		benchmarkSimdCsvStreaming(b, "testdata/parking-citations-100K.csv", 100000, 1024*512)
-	})
-	b.Run("worldcitiespop-streaming-512K", func(b *testing.B) {
-		benchmarkSimdCsvStreaming(b, "testdata/worldcitiespop-100K.csv", 100000, 1024*512)
-	})
-	b.Run("nyc-taxi-streaming-512K", func(b *testing.B) {
-		benchmarkSimdCsvStreaming(b, "testdata/nyc-taxi-data-100K.csv", 100000, 1024*512)
-	})
-}
-
-func benchmarkSimdCsvStreaming(b *testing.B, filename string, lines, chunkSize int) {
-
-	buf, err := ioutil.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-
-	b.SetBytes(int64(len(buf)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	postProcStream := make([]uint64, 0, ((len(buf)>>6)+1)*2)
-
-	rows := make([]uint64, lines*3)
-	columns := make([]string, len(rows)*20)
-
-	simdrecords := make([][]string, 0, 1024)
-
-	for i := 0; i < b.N; i++ {
-
-		postProcStream = postProcStream[:0]
-
-		quoted := uint64(0)
-
-		chunks := make(chan ChunkInfo)
-		splitRow := make([]byte, 0, 256)
-
-		go func() {
-
-			for offset := 0; offset < len(buf); offset += chunkSize {
-				var chunk []byte
-				lastChunk := offset+chunkSize >= len(buf)
-				if lastChunk {
-					chunk = buf[offset:]
-				} else {
-					chunk = buf[offset : offset+chunkSize]
-				}
-
-				// TODO: Use memory pool
-				masksStream := make([]uint64, ((chunkSize+63)>>6)*3)
-				masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk, ',', quoted, &masksStream, &postProcStream)
-
-				header, trailer := uint64(0), uint64(0)
-
-				if offset > 0 {
-					for index := 0; index < len(masksStream); index += 3 {
-						hr := bits.TrailingZeros64(masksStream[index])
-						header += uint64(hr)
-						if hr < 64 {
-							// upon finding the first delimiter bit, we can break out
-							// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
-							//  are treated as empty lines anyways)
-							break
-						}
-					}
-					if header == uint64(len(masksStream))/3*64 {
-						// we are not hitting a newline delimiter, so we need to
-						// make the chunk larger (double) to try and find one
-						panic("Handle this case")
-					}
-				}
-
-				if !lastChunk {
-					for index := 3; index < len(masksStream); index += 3 {
-						tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
-						trailer += uint64(tr)
-						if tr < 64 {
-							break
-						}
-					}
-					if trailer == uint64(len(masksStream))/3*64 {
-						// we are not hitting a newline delimiter, so we need to
-						// make the chunk larger (double) to try and find one
-						panic("Handle this case")
-					}
-				}
-
-				splitRow = append(splitRow, chunk[:header]...)
-
-				chunks <- ChunkInfo{chunk, masksStream, header, trailer, splitRow, lastChunk}
-
-				if lastChunk {
-					splitRow = buf[len(buf)-int(trailer):]
-				} else {
-					splitRow = buf[offset+chunkSize-int(trailer) : offset+chunkSize]
-				}
-			}
-			close(chunks)
-		}()
-
-		rows = rows[:0]
-		columns = columns[:0]
-
-		inputStage2, outputStage2 := NewInput(), OutputAsm{}
-
-		simdrecords = simdrecords[:0]
-		line := 0
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		go func() {
-
-			splitRow := make([]byte, 0)
-
-			for chunkInfo := range chunks {
-				outputStage2.strData = chunkInfo.header & 0x3f // reinit strData for every chunk (fields do not span chunks)
-
-				skip := chunkInfo.header >> 6
-				shift := chunkInfo.header & 0x3f
-
-				chunkInfo.masks[skip*3+0] &= ^uint64((1 << shift) - 1)
-				chunkInfo.masks[skip*3+1] &= ^uint64((1 << shift) - 1)
-				chunkInfo.masks[skip*3+2] &= ^uint64((1 << shift) - 1)
-
-				skipTz := (chunkInfo.trailer >> 6) + 1
-				shiftTz := chunkInfo.trailer & 0x3f
-
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+0] &= uint64((1 << (63 - shiftTz)) - 1)
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+1] &= uint64((1 << (63 - shiftTz)) - 1)
-				chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] &= uint64((1 << (63 - shiftTz)) - 1)
-
-				Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
-
-				for ; line < outputStage2.line; line += 2 {
-					simdrecords = append(simdrecords, columns[rows[line]:rows[line]+rows[line+1]])
-				}
-
-				if len(splitRow) > 0 { // append row split between chunks
-					records := EncodingCsv(splitRow)
-					simdrecords = append(simdrecords, records...)
-					splitRow = splitRow[:0]
-				}
-
-				if !chunkInfo.lastChunk {
-					splitRow = chunkInfo.splitRow
-				}
-			}
-
-			wg.Done()
-		}()
-
-		wg.Wait()
-
-		columns = columns[:(outputStage2.index)/2]
-		rows = rows[:outputStage2.line]
 	}
 }
 
