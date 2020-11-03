@@ -844,19 +844,19 @@ func benchmarkSimdCsv(b *testing.B, file string) {
 	}
 }
 
-func BenchmarkSimdCsvGo(b *testing.B) {
+func BenchmarkEncodingCsv(b *testing.B) {
 	b.Run("parking-citations-100K", func(b *testing.B) {
-		benchmarkSimdCsvGo(b, "testdata/parking-citations-100K.csv")
+		benchmarkEncodingCsv(b, "testdata/parking-citations-100K.csv")
 	})
 	b.Run("worldcitiespop-100K", func(b *testing.B) {
-		benchmarkSimdCsvGo(b, "testdata/worldcitiespop-100K.csv")
+		benchmarkEncodingCsv(b, "testdata/worldcitiespop-100K.csv")
 	})
 	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
-		benchmarkSimdCsvGo(b, "testdata/nyc-taxi-data-100K.csv")
+		benchmarkEncodingCsv(b, "testdata/nyc-taxi-data-100K.csv")
 	})
 }
 
-func benchmarkSimdCsvGo(b *testing.B, file string) {
+func benchmarkEncodingCsv(b *testing.B, file string) {
 
 	data, err := ioutil.ReadFile(file)
 	if err != nil {

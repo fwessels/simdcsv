@@ -186,72 +186,13 @@ func (r *Reader) readAllStreaming() (out chan recordsOutput) {
 	// channel with preprocessed chunks
 	chunks := make(chan chunkInfo, cap(out))
 
-	go func() {
-
-		sequence := 0
-
-		quoted := uint64(0) // initialized quoted state to unquoted
-		splitRow := make([]byte, 0, 256)
-
-		for chunk := range bufchan {
-
-			postProcStream := make([]uint64, 0, ((chunkSize>>6)+1)*2)
-			masksStream := make([]uint64, masksSize)
-
-			masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
-
-			header, trailer := uint64(0), uint64(0)
-
-			if sequence > 0 {
-				for index := 0; index < len(masksStream); index += 3 {
-					hr := bits.TrailingZeros64(masksStream[index])
-					header += uint64(hr)
-					if hr < 64 {
-						// upon finding the first delimiter bit, we can break out
-						// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
-						//  are treated as empty lines anyways)
-						break
-					}
-				}
-				if header == uint64(len(masksStream))/3*64 {
-					// we have not found a newline delimiter, so set
-					// header to size of chunk (meaning we will be skipping simd processing)
-					header = uint64(len(chunk.buf))
-				}
-			}
-
-			if !chunk.last && header < uint64(len(chunk.buf)) {
-				for index := 3; index < len(masksStream); index += 3 {
-					tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
-					trailer += uint64(tr)
-					if tr < 64 {
-						break
-					}
-				}
-			}
-
-			splitRow = append(splitRow, chunk.buf[:header]...)
-
-			if header < uint64(len(chunk.buf)) {
-				chunks <- chunkInfo{sequence,chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
-			} else {
-				chunks <- chunkInfo{sequence,nil, nil, nil, 0, 0, splitRow, chunk.last}
-			}
-
-			splitRow = make([]byte, 0, len(splitRow)*3/2)
-			splitRow = append(splitRow, chunk.buf[len(chunk.buf)-int(trailer):]...)
-
-			sequence++
-		}
-
-		close(chunks)
-	}()
+	go r.stage1Streaming(bufchan, chunkSize, masksSize, chunks)
 
 	go func() {
 		var wg sync.WaitGroup
 
 		// Determine how many second stages to run in parallel
-		const cores = 3
+		const cores = 2
 		wg.Add(cores)
 		fieldsPerRecord := int64(r.FieldsPerRecord)
 
@@ -264,6 +205,67 @@ func (r *Reader) readAllStreaming() (out chan recordsOutput) {
 	}()
 
 	return
+}
+
+func (r *Reader) stage1Streaming(bufchan chan chunkIn, chunkSize int, masksSize int, chunks chan chunkInfo) {
+
+	defer close(chunks)
+
+	sequence := 0
+	quoted := uint64(0) // initialized quoted state to unquoted
+
+	splitRow := make([]byte, 0, 256)
+
+	for chunk := range bufchan {
+
+		postProcStream := make([]uint64, 0, ((chunkSize>>6)+1)*2)
+		masksStream := make([]uint64, masksSize)
+
+		masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
+
+		header, trailer := uint64(0), uint64(0)
+
+		if sequence > 0 {
+			for index := 0; index < len(masksStream); index += 3 {
+				hr := bits.TrailingZeros64(masksStream[index])
+				header += uint64(hr)
+				if hr < 64 {
+					// upon finding the first delimiter bit, we can break out
+					// (since any adjacent delimiter bits, whether representing a newline or a carriage return,
+					//  are treated as empty lines anyways)
+					break
+				}
+			}
+			if header == uint64(len(masksStream))/3*64 {
+				// we have not found a newline delimiter, so set
+				// header to size of chunk (meaning we will be skipping simd processing)
+				header = uint64(len(chunk.buf))
+			}
+		}
+
+		if !chunk.last && header < uint64(len(chunk.buf)) {
+			for index := 3; index < len(masksStream); index += 3 {
+				tr := bits.LeadingZeros64(masksStream[len(masksStream)-index])
+				trailer += uint64(tr)
+				if tr < 64 {
+					break
+				}
+			}
+		}
+
+		splitRow = append(splitRow, chunk.buf[:header]...)
+
+		if header < uint64(len(chunk.buf)) {
+			chunks <- chunkInfo{sequence, chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
+		} else {
+			chunks <- chunkInfo{sequence, nil, nil, nil, 0, 0, splitRow, chunk.last}
+		}
+
+		splitRow = make([]byte, 0, len(splitRow)*3/2)
+		splitRow = append(splitRow, chunk.buf[len(chunk.buf)-int(trailer):]...)
+
+		sequence++
+	}
 }
 
 func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fieldsPerRecord *int64, fallback func(ioReader io.Reader) recordsOutput, out chan recordsOutput) {
