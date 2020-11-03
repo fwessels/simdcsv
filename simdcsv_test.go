@@ -559,7 +559,7 @@ func testIgnoreCommentedLines(t *testing.T, csvData []byte) {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	FilterOutComments(&simdrecords, comment)
+	filterOutComments(&simdrecords, comment)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
 	r.Comment = comment
@@ -634,7 +634,7 @@ func testTrimLeadingSpace(t *testing.T, csvData []byte) {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	TrimLeadingSpace(&simdrecords)
+	trimLeadingSpace(&simdrecords)
 
 	r := csv.NewReader(bytes.NewReader(csvData))
 	r.TrimLeadingSpace = true

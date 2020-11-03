@@ -335,17 +335,17 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, fiel
 				}
 			}
 
-			if errSimd := EnsureFieldsPerRecord(&simdrecords, fieldsPerRecord); errSimd != nil {
+			if errSimd := ensureFieldsPerRecord(&simdrecords, fieldsPerRecord); errSimd != nil {
 				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
 				break
 			}
 		}
 
 		if r.Comment != 0 {
-			FilterOutComments(&simdrecords, byte(r.Comment))
+			filterOutComments(&simdrecords, byte(r.Comment))
 		}
 		if r.TrimLeadingSpace {
-			TrimLeadingSpace(&simdrecords)
+			trimLeadingSpace(&simdrecords)
 		}
 
 		if simdlines < len(simdrecords) {
@@ -412,7 +412,7 @@ func (r *Reader) ReadAll() ([][]string, error) {
 	}
 }
 
-func FilterOutComments(records *[][]string, comment byte) {
+func filterOutComments(records *[][]string, comment byte) {
 
 	// iterate in reverse so as to prevent starting over when removing element
 	for i := len(*records) - 1; i >= 0; i-- {
@@ -423,7 +423,7 @@ func FilterOutComments(records *[][]string, comment byte) {
 	}
 }
 
-func EnsureFieldsPerRecord(records *[][]string, fieldsPerRecord *int64) error {
+func ensureFieldsPerRecord(records *[][]string, fieldsPerRecord *int64) error {
 
 	if atomic.LoadInt64(fieldsPerRecord) == 0 {
 		if len(*records) > 0 {
@@ -443,7 +443,7 @@ func EnsureFieldsPerRecord(records *[][]string, fieldsPerRecord *int64) error {
 	return nil
 }
 
-func TrimLeadingSpace(records *[][]string) {
+func trimLeadingSpace(records *[][]string) {
 
 	for i := 0; i < len(*records); i++ {
 		for j := range (*records)[i] {
