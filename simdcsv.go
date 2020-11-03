@@ -279,6 +279,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 		columns := make([]string, columnsSize, columnsSize)
 		inputStage2, outputStage2 := NewInput(), OutputAsm{}
 
+		skipRowsForPostProcessing := 0
 		if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
 			records, err := encodingCsv(chunkInfo.splitRow)
 			if err != nil {
@@ -286,6 +287,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 				break
 			}
 			simdrecords = append(simdrecords, records...)
+			skipRowsForPostProcessing = len(simdrecords)
 		}
 
 		if chunkInfo.chunk != nil {
@@ -323,10 +325,10 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 			columns = columns[:(outputStage2.index)/2]
 			rows = rows[:outputStage2.line]
 
-			// TODO: *** Check whether post processing array is in sync (with offset into buffer)
-			if chunkInfo.postProc != nil {
-				for _, ppr := range getPostProcRows(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.postProc, simdrecords) {
-					for r := ppr.start; r < ppr.end; r++ {
+			if len(chunkInfo.postProc) > 0 {
+				pprs := getPostProcRows(chunkInfo.chunk, chunkInfo.postProc, simdrecords[skipRowsForPostProcessing:])
+				for _, ppr := range pprs {
+					for r := ppr.start + skipRowsForPostProcessing; r < ppr.end + skipRowsForPostProcessing; r++ {
 						for c := range simdrecords[r] {
 							simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
 							simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")

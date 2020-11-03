@@ -108,9 +108,9 @@ type postProcRow struct {
 
 //
 // Determine which rows and columns need post processing
-// This is  need to replace both "" to " as well as
-// \r\n to \n in specific columns
-func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) (ppRows []postProcRow) {
+// This is needed to replace both "" to " as well as
+// \r\n to \n for specific fields
+func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) ([]postProcRow) {
 
 	// TODO: Crude implementation, make more refined/granular
 
@@ -121,7 +121,7 @@ func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) (ppR
 		return (*reflect.StringHeader)(unsafe.Pointer(&s)).Data
 	}
 
-	ppRows = make([]postProcRow, 0, 128)
+	ppRows := make([]postProcRow, 0, 128)
 
 	row, pbuf := 0, sliceptr(buf)
 	for ipp, pp := range postProc {
@@ -148,5 +148,24 @@ func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) (ppR
 
 		ppRows = append(ppRows, ppr)
 	}
-	return
+
+	if len(ppRows) <= 1 {
+		return ppRows
+	}
+
+	// merge overlapping ranges into a single range
+	ppRowsMerged := make([]postProcRow, 0, len(ppRows))
+
+	start, end := ppRows[0].start, ppRows[0].end
+	for _, pp := range ppRows[1:] {
+		if end < pp.start {
+			ppRowsMerged = append(ppRowsMerged, postProcRow{start, end})
+			start, end = pp.start, pp.end
+		} else {
+			end = pp.end
+		}
+	}
+	ppRowsMerged = append(ppRowsMerged, postProcRow{start, end})
+
+	return ppRowsMerged
 }
