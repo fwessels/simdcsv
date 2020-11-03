@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"io/ioutil"
 	"log"
+	_ "math/bits"
 	"reflect"
 	"runtime"
 	"strings"
@@ -270,7 +271,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 
-			masks, _ := Stage1PreprocessBuffer(buf, ',')
+			masks, _, _ := Stage1PreprocessBuffer(buf, ',')
 			simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n', nil)
 			if parsingError {
 				t.Errorf("TestStage2MissingLastDelimiter: got %v, want %v", parsingError, false)
@@ -311,7 +312,7 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < loops; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
-		masks, _ := Stage1PreprocessBuffer(buf, ',')
+		masks, _, _ := Stage1PreprocessBuffer(buf, ',')
 		simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n',nil)
 		if parsingError {
 			t.Errorf("TestStage2ParseBuffer: got %v, want %v", parsingError, false)
@@ -343,7 +344,7 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 	records := make([][]string, 0, init[2])
 	var parsingError bool
 
-	masks, _ := Stage1PreprocessBuffer(buf, ',')
+	masks, _, _ := Stage1PreprocessBuffer(buf, ',')
 	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
 
 	if cap(rows) != expected[0] {
@@ -375,91 +376,72 @@ func TestStage2DynamicAllocation(t *testing.T) {
 	})
 }
 
-func TestStage2MasksOffset(t *testing.T) {
-
-	buf, err := ioutil.ReadFile("chunk.bin")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	masksBytes, err2 := ioutil.ReadFile("masks.bin")
-	if err2 != nil {
-		log.Fatalln(err2)
-	}
-
-	masks := make([]uint64, 0, 10000)
-	for i := 0; i < len(masksBytes); i += 8 {
-		masks = append(masks, binary.LittleEndian.Uint64(masksBytes[i:]))
-	}
-
-	rows := make([]uint64, 10000)
-	columns := make([]string, len(rows)*20)
-	records := make([][]string, 0, len(rows))
-	var parsingError bool
-
-	// header: 62
-	// trailer: 12
-
-	// 00000040  45 45 54 20 43 4c 45 41  4e 2c 37 33 2c 36 34 35  |EET CLEAN,73,645|
-	// 00000050  39 39 30 31 2e 33 2c 31  38 36 30 35 33 33 2e 35  |9901.3,1860533.5|
-	// 00000060  0d 0a 31 31 31 32 37 31  36 36 33 36 2c 32 30 31  |..1112716636,201|
-	// 00000070  35 2d 31 32 2d 32 38 54  30 30 3a 30 30 3a 30 30  |5-12-28T00:00:00|
-
-
-
-	masks[3] = masks[3] & ^uint64((1 << 0x22)-1)
-	masks[4] = masks[4] & ^uint64((1 << 0x22)-1)
-	masks[5] = masks[5] & ^uint64((1 << 0x22)-1)
-
-	records, rows, columns, parsingError = Stage2ParseBufferEx(buf[0x40:len(buf)-0x12], masks[3:], '\n', &records, &rows, &columns)
-
-	fmt.Println(len(records))
-	fmt.Println(records[0])
-	fmt.Println()
-
-	fmt.Println(parsingError)
-
+func BenchmarkStage2Parsing(b *testing.B) {
+	b.Run("parking-citations-100K", func(b *testing.B) {
+		benchmarkStage2Parsing(b, "testdata/parking-citations-100K.csv", 100000, 20)
+	})
+	b.Run("worldcitiespop-100K", func(b *testing.B) {
+		benchmarkStage2Parsing(b, "testdata/worldcitiespop-100K.csv", 100000, 20)
+	})
+	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
+		benchmarkStage2Parsing(b, "testdata/nyc-taxi-data-100K.csv", 100000, 25)
+	})
 }
 
-func BenchmarkStage2ParseBuffer(b *testing.B) {
+func benchmarkStage2Parsing(b *testing.B, filename string, lines, fields int) {
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	rows := make([]uint64, 100000 * 2 * 1.5)
-	columns := make([]string, len(rows)*20)
+	rows := make([]uint64, (lines*17>>4) * 2)
+	columns := make([]string, len(rows)*fields)
 	simdrecords := make([][]string, 0, len(rows))
 
-	b.SetBytes(int64(len(buf)))
-	b.ReportAllocs()
-	b.ResetTimer()
+	masks, _, _ := Stage1PreprocessBuffer(buf, ',')
 
-	masks, _ := Stage1PreprocessBuffer(buf, ',')
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		Stage2ParseBufferEx(buf, masks,'\n', &simdrecords, &rows, &columns)
 	}
 }
 
-func BenchmarkStage2ParseBufferGolang(b *testing.B) {
+func BenchmarkStagesCombined(b *testing.B) {
+	b.Run("parking-citations-100K", func(b *testing.B) {
+		benchmarkStagesCombined(b, "testdata/parking-citations-100K.csv", 100000, 20)
+	})
+	b.Run("worldcitiespop-100K", func(b *testing.B) {
+		benchmarkStagesCombined(b, "testdata/worldcitiespop-100K.csv", 100000, 20)
+	})
+	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
+		benchmarkStagesCombined(b, "testdata/nyc-taxi-data-100K.csv", 100000, 25)
+	})
+}
 
-	buf, err := ioutil.ReadFile("testdata/parking-citations-100K.csv")
+func benchmarkStagesCombined(b *testing.B, filename string, lines, fields int) {
+
+	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	masks := allocMasks(buf)
+	postProc := make([]uint64, 0, len(buf)>>6)
+
 	b.SetBytes(int64(len(buf)))
-	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	rows := make([]uint64, (lines*17>>4) * 2)
+	columns := make([]string, len(rows)*fields)
+	simdrecords := make([][]string, 0, lines)
 
-		r := csv.NewReader(bytes.NewReader(buf))
-		_, err := r.ReadAll()
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
+	for i := 0; i < b.N; i++ {
+		input, output := stage1Input{}, stage1Output{}
+		postProc = postProc[:0]
+		stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks, 0)
+		Stage2ParseBufferEx(buf, masks, '\n', &simdrecords, &rows, &columns)
 	}
 }
