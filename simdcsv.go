@@ -87,7 +87,6 @@ type chunkInfo struct {
 	header   uint64
 	trailer  uint64
 	splitRow []byte
-	lastChunk bool
 }
 
 type recordsOutput struct {
@@ -256,9 +255,9 @@ func (r *Reader) stage1Streaming(bufchan chan chunkIn, chunkSize int, masksSize 
 		splitRow = append(splitRow, chunk.buf[:header]...)
 
 		if header < uint64(len(chunk.buf)) {
-			chunks <- chunkInfo{sequence, chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
+			chunks <- chunkInfo{sequence, chunk.buf, masksStream, postProcStream, header, trailer, splitRow}
 		} else {
-			chunks <- chunkInfo{sequence, nil, nil, nil, 0, 0, splitRow, chunk.last}
+			chunks <- chunkInfo{sequence, nil, nil, nil, 0, 0, splitRow}
 		}
 
 		splitRow = make([]byte, 0, len(splitRow)*3/2)
