@@ -3,13 +3,13 @@ package simdcsv
 import (
 	"bytes"
 	"encoding/csv"
+	_ "encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/bits"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -237,7 +237,7 @@ func TestStage1PartialLoad(t *testing.T) {
 		postProc := make([]uint64, ((len(buf) >> 6) + 1))
 		input, output := stage1Input{}, stage1Output{}
 
-		processed := stage1_preprocess_buffer(buf, ',', &input, &output, &postProc, 0, masks)
+		processed, _ := stage1_preprocess_buffer(buf, ',', &input, &output, &postProc, 0, masks, 0)
 
 		out := ""
 		if processed <= 64 {
@@ -247,9 +247,6 @@ func TestStage1PartialLoad(t *testing.T) {
 		}
 
 		expected := strings.Repeat("1", i) + strings.Repeat("0", int(processed)-i)
-
-		//fmt.Println(out)
-		//fmt.Println(expected)
 
 		if out != expected {
 			t.Errorf("TestStage1PartialLoad: got %v, want %v", out, expected)
@@ -276,7 +273,7 @@ func diffBitmask(diff1, diff2 string) (diff string) {
 func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
 
 	if len(buf)%64 != 0 {
-		panic("Input strings should be a multipe of 64")
+		panic("Input strings should be a multiple of 64")
 	}
 
 	masks = make([]uint64, 0)
@@ -295,7 +292,6 @@ func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
 
 func testStage1PreprocessMasks(t *testing.T, data []byte, f func(input *stage1Input, output *stage1Output)) string {
 
-	//fmt.Println(hex.Dump(data))
 	separatorMasksIn := getBitMasks(data, byte(','))
 	quoteMasksIn := getBitMasks(data, byte('"'))
 	carriageReturnMasksIn := getBitMasks(data, byte('\r'))
@@ -338,7 +334,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 	buf := []byte(data)
 
-	masks, postProc := Stage1PreprocessBuffer(buf, uint64(','))
+	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','))
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, "%064b%064b\n", bits.Reverse64(masks[0]), bits.Reverse64(masks[3+0]))
@@ -403,7 +399,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	for i := 0; i < b.N; i++ {
 
 		postProc = postProc[:0]
-		Stage1PreprocessBufferEx(buf, uint64(','), &masks, &postProc)
+		Stage1PreprocessBufferEx(buf, uint64(','), 0, &masks, &postProc)
 	}
 }
 
@@ -580,7 +576,7 @@ Ken,Thompson,ken
 		}
 
 		pprows := testStage1DeterminePostProcRows(t, []byte(data))
-		expected := []postProcRow{{10, 11}, {16, 18}, {21, 22}, {32, 33}, {33, 35}, {43, 44}}
+		expected := []postProcRow{{10, 11}, {16, 18}, {21, 22}, {32, 35}, {43, 44}}
 
 		if !reflect.DeepEqual(pprows, expected) {
 			log.Fatalf("TestStage1DeterminePostProcRows: got %v, want %v", pprows, expected)
@@ -590,7 +586,7 @@ Ken,Thompson,ken
 
 func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 
-	masks, postProc := Stage1PreprocessBuffer(buf, uint64(','))
+	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','))
 	simdrecords, parsingError := Stage2ParseBuffer(buf, masks, 0xa, nil)
 	if parsingError {
 		t.Errorf("testStage1DeterminePostProcRows: unexpected parsing error")
@@ -628,14 +624,14 @@ func testStage1DynamicAllocation(t *testing.T) {
 	{
 		input, output := stage1Input{}, stage1Output{}
 		// explicitly invoke stage 1 directly with single call
-		processed := stage1_preprocess_buffer(bufSingleInvoc, uint64(','), &input, &output, &postProcSingleInvoc, 0, masks)
+		processed, _ := stage1_preprocess_buffer(bufSingleInvoc, uint64(','), &input, &output, &postProcSingleInvoc, 0, masks, 0)
 		if processed < uint64(len(buf)) {
 			t.Errorf("testStage1DynamicAllocation: got %v, want %v", processed, len(buf))
 		}
 	}
 
 	postProc := make([]uint64, 0, 3) // small allocation, make sure we dynamically grow
-	masks, postProc = Stage1PreprocessBufferEx(buf, uint64(','), nil, &postProc)
+	masks, postProc, _ = Stage1PreprocessBufferEx(buf, uint64(','), 0, nil, &postProc)
 
 	if !reflect.DeepEqual(postProc, postProcSingleInvoc) {
 		t.Errorf("testStage1DynamicAllocation: got %v, want %v", postProc, postProcSingleInvoc)
@@ -661,7 +657,7 @@ func TestStage1MasksBounds(t *testing.T) {
 	{
 		input, output := stage1Input{}, stage1Output{}
 
-		processed, masksWritten := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks)
+		processed, masksWritten := stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks, 0)
 
 		if processed/64 != masksWritten/3 {
 			panic("Sanity check fails: processed/64 != masksWritten/3")
@@ -682,7 +678,7 @@ func TestStage1MasksBounds(t *testing.T) {
 		outputStage1 := stage1Output{}
 
 		index := processed
-		processed, masksWritten = stage1_preprocess_buffer(buf, uint64(','), &inputStage1, &outputStage1, &postProcLoop, index, masksLoop)
+		processed, masksWritten = stage1_preprocess_buffer(buf, uint64(','), &inputStage1, &outputStage1, &postProcLoop, index, masksLoop, 0)
 
 		if (processed-index)/64 != masksWritten/3 {
 			panic("Sanity check fails: (processed-index)/64 != masksWritten/3")
@@ -721,13 +717,13 @@ func TestStage1MasksLoop(t *testing.T) {
 
 	for {
 		index := processed
-		processed, masksWritten = stage1_preprocess_buffer(buf, uint64(','), &inputStage1, &outputStage1, &postProcLoop, index, masksLoop)
+		processed, masksWritten = stage1_preprocess_buffer(buf, uint64(','), &inputStage1, &outputStage1, &postProcLoop, index, masksLoop, 0)
 
 		if (processed-index)/64 != masksWritten/3 {
 			panic("Sanity check fails: (processed-index)/64 != masksWritten/3")
 		}
 
-		/*processed =*/ stage2_parse_masks(buf, masksLoop[:masksWritten], rows, columns, ',', &inputStage2, index, &outputStage2)
+		stage2_parse_masks(buf, masksLoop[:masksWritten], rows, columns, ',', &inputStage2, index, &outputStage2)
 
 		if processed >= uint64(len(buf)) {
 			break
@@ -743,7 +739,7 @@ func TestStage1MasksLoop(t *testing.T) {
 		simdrecords = append(simdrecords, columns[rows[i]:rows[i]+rows[i+1]])
 	}
 
-	records := EncodingCsv(buf)
+	records, _ := encodingCsv(buf)
 
 	if !reflect.DeepEqual(simdrecords, records) {
 		t.Errorf("TestStage1MasksLoop: got %v, want %v", simdrecords, records)
