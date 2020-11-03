@@ -271,7 +271,7 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 
-			masks, _, _ := Stage1PreprocessBuffer(buf, ',')
+			masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
 			simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n', nil)
 			if parsingError {
 				t.Errorf("TestStage2MissingLastDelimiter: got %v, want %v", parsingError, false)
@@ -312,7 +312,7 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < loops; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
-		masks, _, _ := Stage1PreprocessBuffer(buf, ',')
+		masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
 		simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n',nil)
 		if parsingError {
 			t.Errorf("TestStage2ParseBuffer: got %v, want %v", parsingError, false)
@@ -344,7 +344,7 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 	records := make([][]string, 0, init[2])
 	var parsingError bool
 
-	masks, _, _ := Stage1PreprocessBuffer(buf, ',')
+	masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
 	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
 
 	if cap(rows) != expected[0] {
@@ -399,7 +399,7 @@ func benchmarkStage2Parsing(b *testing.B, filename string, lines, fields int) {
 	columns := make([]string, len(rows)*fields)
 	simdrecords := make([][]string, 0, len(rows))
 
-	masks, _, _ := Stage1PreprocessBuffer(buf, ',')
+	masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
 
 	b.SetBytes(int64(len(buf)))
 	b.ResetTimer()

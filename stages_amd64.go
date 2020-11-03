@@ -16,9 +16,9 @@ func stage1_preprocess()
 //go:noescape
 func partialLoad()
 
-func Stage1PreprocessBuffer(buf []byte, separatorChar uint64) ([]uint64, []uint64, uint64) {
+func Stage1PreprocessBuffer(buf []byte, separatorChar, quoted uint64) ([]uint64, []uint64, uint64) {
 
-	return Stage1PreprocessBufferEx(buf, separatorChar, nil, nil)
+	return Stage1PreprocessBufferEx(buf, separatorChar, quoted, nil, nil)
 }
 
 func Stage1PreprocessBufferEx(buf []byte, separatorChar, quoted uint64, masks *[]uint64, postProc *[]uint64) ([]uint64, []uint64, uint64) {

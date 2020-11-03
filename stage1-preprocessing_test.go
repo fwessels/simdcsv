@@ -334,7 +334,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 	buf := []byte(data)
 
-	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','))
+	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','), 0)
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, "%064b%064b\n", bits.Reverse64(masks[0]), bits.Reverse64(masks[3+0]))
@@ -561,7 +561,7 @@ Ken,Thompson,ken
 
 func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 
-	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','))
+	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','), 0)
 	simdrecords, parsingError := Stage2ParseBuffer(buf, masks, 0xa, nil)
 	if parsingError {
 		t.Errorf("testStage1DeterminePostProcRows: unexpected parsing error")
