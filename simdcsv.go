@@ -79,7 +79,7 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
-type ChunkInfo struct {
+type chunkInfo struct {
 	sequence int
 	chunk    []byte
 	masks    []uint64
@@ -90,23 +90,23 @@ type ChunkInfo struct {
 	lastChunk bool
 }
 
-type RecordsOutput struct {
+type recordsOutput struct {
 	sequence int
 	records  [][]string
 	err      error
 }
 
-type ChunkIn struct {
+type chunkIn struct {
 	buf []byte
 	last bool
 }
 
-// ReadAllStreaming reads all the remaining records from r.
-func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
+// readAllStreaming reads all the remaining records from r.
+func (r *Reader) readAllStreaming() (out chan recordsOutput) {
 
-	out = make(chan RecordsOutput, 20)
+	out = make(chan recordsOutput, 20)
 
-	fallback := func(ioReader io.Reader) RecordsOutput {
+	fallback := func(ioReader io.Reader) recordsOutput {
 		rCsv := csv.NewReader(ioReader)
 		rCsv.LazyQuotes = r.LazyQuotes
 		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
@@ -115,12 +115,12 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 		rCsv.FieldsPerRecord = r.FieldsPerRecord
 		rCsv.ReuseRecord = r.ReuseRecord
 		rcds, err := rCsv.ReadAll()
-		return RecordsOutput{-1, rcds, err}
+		return recordsOutput{-1, rcds, err}
 	}
 
 	if r.Comma == r.Comment || !validDelim(r.Comma) || (r.Comment != 0 && !validDelim(r.Comment)) {
 		go func() {
-			out <- RecordsOutput{-1, nil, errInvalidDelim}
+			out <- recordsOutput{-1, nil, errInvalidDelim}
 			close(out)
 		}()
 		return
@@ -143,7 +143,7 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 	masksSize := ((chunkSize >> 6) + 2) * 3 // add 2 extra slots as safety for masks
 
 	// channel with slices of input
-	bufchan := make(chan ChunkIn, cap(out))
+	bufchan := make(chan chunkIn, cap(out))
 
 	go func() {
 
@@ -170,21 +170,21 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 				if n > 0 {
 					panic("last buffer should be empty")
 				}
-				bufchan <- ChunkIn{chunk, true}
+				bufchan <- chunkIn{chunk, true}
 				break
 			} else if err != nil {
 				log.Printf("bufio.Read() encounterend error: %v", err)
-				bufchan <- ChunkIn{chunk, true}
+				bufchan <- chunkIn{chunk, true}
 				break
 			} else {
-				bufchan <- ChunkIn{chunk, false}
+				bufchan <- chunkIn{chunk, false}
 				chunk = chunkNext[:n]
 			}
 		}
 	}()
 
 	// channel with preprocessed chunks
-	chunks := make(chan ChunkInfo, cap(out))
+	chunks := make(chan chunkInfo, cap(out))
 
 	go func() {
 
@@ -233,9 +233,9 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 			splitRow = append(splitRow, chunk.buf[:header]...)
 
 			if header < uint64(len(chunk.buf)) {
-				chunks <- ChunkInfo{sequence,chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
+				chunks <- chunkInfo{sequence,chunk.buf, masksStream, postProcStream, header, trailer, splitRow, chunk.last}
 			} else {
-				chunks <- ChunkInfo{sequence,nil, nil, nil, 0, 0, splitRow, chunk.last}
+				chunks <- chunkInfo{sequence,nil, nil, nil, 0, 0, splitRow, chunk.last}
 			}
 
 			splitRow = make([]byte, 0, len(splitRow)*3/2)
@@ -266,7 +266,7 @@ func (r *Reader) ReadAllStreaming() (out chan RecordsOutput) {
 	return
 }
 
-func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, fieldsPerRecord *int64, fallback func(ioReader io.Reader) RecordsOutput, out chan RecordsOutput) {
+func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fieldsPerRecord *int64, fallback func(ioReader io.Reader) recordsOutput, out chan recordsOutput) {
 	defer wg.Done()
 
 	simdlines, rowsSize, columnsSize := 1024, 500, 50000
@@ -282,7 +282,7 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, fiel
 		if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
 			records, err := encodingCsv(chunkInfo.splitRow)
 			if err != nil {
-				out <- RecordsOutput{-1, nil, err}
+				out <- recordsOutput{-1, nil, err}
 				break
 			}
 			simdrecords = append(simdrecords, records...)
@@ -358,7 +358,7 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, fiel
 			columnsSize = cap(columns)*3/4
 		}
 
-		out <- RecordsOutput{chunkInfo.sequence, simdrecords, nil}
+		out <- recordsOutput{chunkInfo.sequence, simdrecords, nil}
 	}
 }
 
@@ -369,7 +369,7 @@ func (r *Reader) stage2Streaming(chunks chan ChunkInfo, wg *sync.WaitGroup, fiel
 // reported.
 func (r *Reader) ReadAll() ([][]string, error) {
 
-	out := r.ReadAllStreaming()
+	out := r.readAllStreaming()
 
 	records := make([][]string, 0)
 	hash := make(map[int][][]string)
