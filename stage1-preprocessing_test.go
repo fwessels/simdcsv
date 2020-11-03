@@ -378,31 +378,6 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 	}
 }
 
-func BenchmarkStage1PreprocessingMasks(b *testing.B) {
-
-	const data = `first_name,last_name,username
-RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
-"Robert","Grie                           semer","gr""i"
-`
-
-	const repeat = 500
-	buf := make([]byte, 128*repeat)
-	buf = bytes.Repeat([]byte(data), repeat)
-
-	b.SetBytes(int64(len(buf)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	postProc := make([]uint64, 0, len(buf)>>6)
-	masks := allocMasks(buf)
-
-	for i := 0; i < b.N; i++ {
-
-		postProc = postProc[:0]
-		Stage1PreprocessBufferEx(buf, uint64(','), 0, &masks, &postProc)
-	}
-}
-
 func TestTrailingCRs(t *testing.T) {
 
 	for cnt := 1; cnt <= 1500; cnt++ {
@@ -743,5 +718,36 @@ func TestStage1MasksLoop(t *testing.T) {
 
 	if !reflect.DeepEqual(simdrecords, records) {
 		t.Errorf("TestStage1MasksLoop: got %v, want %v", simdrecords, records)
+	}
+}
+
+func BenchmarkStage1Preprocessing(b *testing.B) {
+	b.Run("parking-citations-100K", func(b *testing.B) {
+		benchmarkStage1Preprocessing(b, "testdata/parking-citations-100K.csv")
+	})
+	b.Run("worldcitiespop-100K", func(b *testing.B) {
+		benchmarkStage1Preprocessing(b, "testdata/worldcitiespop-100K.csv")
+	})
+	b.Run("nyc-taxi-data-100K", func(b *testing.B) {
+		benchmarkStage1Preprocessing(b, "testdata/nyc-taxi-data-100K.csv")
+	})
+}
+
+func benchmarkStage1Preprocessing(b *testing.B, filename string) {
+
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+
+	postProc := make([]uint64, 0, len(buf)>>6)
+	masks := allocMasks(buf)
+
+	for i := 0; i < b.N; i++ {
+		postProc = postProc[:0]
+		Stage1PreprocessBufferEx(buf, uint64(','), 0, &masks, &postProc)
 	}
 }
