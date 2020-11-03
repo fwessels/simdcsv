@@ -202,7 +202,7 @@ func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint
 			break
 		}
 
-		// Sanity checks
+		// sanity checks
 		if offset == processed {
 			log.Fatalf("failed to process anything")
 		} else if masksOffset + masksRead > uint64(len(masks)) {
@@ -211,16 +211,16 @@ func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint
 		offset = processed
 		masksOffset += masksRead
 
-		// Check whether we need to double columns slice capacity
-		if outputStage2.index / 2 >= cap(*columns) / 2 {
-			_columns := make([]string, cap(*columns)*2)
+		// check whether we need to double columns slice capacity
+		if outputStage2.index / 2 >= cap(*columns)*4/5 {
+			_columns := make([]string, cap(*columns)*3/2)
 			copy(_columns, (*columns)[:outputStage2.index/2])
 			columns = &_columns
 		}
 
-		// Check whether we need to double rows slice capacity
-		if outputStage2.line >= cap(*rows) / 2 {
-			_rows := make([]uint64, cap(*rows)*2)
+		// check whether we need to double rows slice capacity
+		if outputStage2.line >= cap(*rows)*4/5 {
+			_rows := make([]uint64, cap(*rows)*3/2)
 			copy(_rows, (*rows)[:outputStage2.line])
 			rows = &_rows
 		}

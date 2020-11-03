@@ -303,7 +303,12 @@ func TestStage2ParseBuffer(t *testing.T) {
 1106506413,2015-12-22T00:00:00,1100,,,CA,201701,,NISS,PA,SI,1159 HUNTLEY DR,2A75,1,8069AA,NO STOP/STAND AM,93,99999,99999
 `
 
-	for count := 1; count < 250; count++ {
+	loops := 25
+	if !testing.Short() {
+		loops *= 10
+	}
+
+	for count := 1; count < loops; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
 		masks, _ := Stage1PreprocessBuffer(buf, ',')
