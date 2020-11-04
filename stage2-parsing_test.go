@@ -271,8 +271,8 @@ eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,gggggggggggggggg
 		for i := 1; i <= len(file); i++ {
 			buf := []byte(file[:i])
 
-			masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
-			simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n', nil)
+			masks, _, _ := stage1PreprocessBuffer(buf, ',', 0)
+			simdrecords, parsingError := stage2ParseBuffer(buf, masks, '\n', nil)
 			if parsingError {
 				t.Errorf("TestStage2MissingLastDelimiter: got %v, want %v", parsingError, false)
 			}
@@ -312,8 +312,8 @@ func TestStage2ParseBuffer(t *testing.T) {
 	for count := 1; count < loops; count++ {
 
 		buf := []byte(strings.Repeat(vector, count))
-		masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
-		simdrecords, parsingError := Stage2ParseBuffer(buf, masks, '\n',nil)
+		masks, _, _ := stage1PreprocessBuffer(buf, ',', 0)
+		simdrecords, parsingError := stage2ParseBuffer(buf, masks, '\n',nil)
 		if parsingError {
 			t.Errorf("TestStage2ParseBuffer: got %v, want %v", parsingError, false)
 		}
@@ -344,8 +344,8 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 	records := make([][]string, 0, init[2])
 	var parsingError bool
 
-	masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
-	records, rows, columns, parsingError = Stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
+	masks, _, _ := stage1PreprocessBuffer(buf, ',', 0)
+	records, rows, columns, parsingError = stage2ParseBufferEx(buf, masks, '\n', &records, &rows, &columns)
 
 	if cap(rows) != expected[0] {
 		t.Errorf("testStage2DynamicAllocation: got %d, want %d", cap(rows), expected[0])
@@ -399,13 +399,13 @@ func benchmarkStage2Parsing(b *testing.B, filename string, lines, fields int) {
 	columns := make([]string, len(rows)*fields)
 	simdrecords := make([][]string, 0, len(rows))
 
-	masks, _, _ := Stage1PreprocessBuffer(buf, ',', 0)
+	masks, _, _ := stage1PreprocessBuffer(buf, ',', 0)
 
 	b.SetBytes(int64(len(buf)))
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		Stage2ParseBufferEx(buf, masks,'\n', &simdrecords, &rows, &columns)
+		stage2ParseBufferEx(buf, masks,'\n', &simdrecords, &rows, &columns)
 	}
 }
 
@@ -442,6 +442,6 @@ func benchmarkStagesCombined(b *testing.B, filename string, lines, fields int) {
 		input, output := stage1Input{}, stage1Output{}
 		postProc = postProc[:0]
 		stage1_preprocess_buffer(buf, uint64(','), &input, &output, &postProc, 0, masks, 0)
-		Stage2ParseBufferEx(buf, masks, '\n', &simdrecords, &rows, &columns)
+		stage2ParseBufferEx(buf, masks, '\n', &simdrecords, &rows, &columns)
 	}
 }

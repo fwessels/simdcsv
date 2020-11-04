@@ -740,16 +740,16 @@ Ken,Thompson,ken
 	// Stage 2: parsing
 	//
 
-	input2 := NewInput()
+	input2 := newInputStage2()
 	input2.quoteMask = output1_0.quoteMaskOut
 	input2.separatorMask = output1_0.separatorMaskOut
 	input2.delimiterMask = newlineMasksIn[0] | output1_0.carriageReturnMaskOut
 
-	output2 := Output{}
+	output2 := outputStage2{}
 	output2.columns = &[128]uint64{}
 	output2.rows = &[128]uint64{}
 
-	Stage2ParseMasks(&input2, 0, &output2)
+	stage2ParseMasks(&input2, 0, &output2)
 
 	input2.quoteMask = output1_1.quoteMaskOut
 	input2.separatorMask = output1_1.separatorMaskOut
@@ -764,7 +764,7 @@ Ken,Thompson,ken
 	fmt.Fprintf(out, "         input: %s", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[:64], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 	fmt.Fprintf(out, "·%s\n", string(bytes.ReplaceAll(bytes.ReplaceAll(buf[64:], []byte{0xd}, []byte{0x20}), []byte{0xa}, []byte{0x20})))
 
-	Stage2ParseMasks(&input2, 64, &output2)
+	stage2ParseMasks(&input2, 64, &output2)
 
 	splitAt64 := func(str string) string {
 		if len(str) >= 64 {

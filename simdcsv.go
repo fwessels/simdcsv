@@ -220,7 +220,7 @@ func (r *Reader) stage1Streaming(bufchan chan chunkIn, chunkSize int, masksSize 
 		postProcStream := make([]uint64, 0, ((chunkSize>>6)+1)*2)
 		masksStream := make([]uint64, masksSize)
 
-		masksStream, postProcStream, quoted = Stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
+		masksStream, postProcStream, quoted = stage1PreprocessBufferEx(chunk.buf, uint64(r.Comma), quoted, &masksStream, &postProcStream)
 
 		header, trailer := uint64(0), uint64(0)
 
@@ -278,7 +278,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 
 		rows := make([]uint64, rowsSize, rowsSize)
 		columns := make([]string, columnsSize, columnsSize)
-		inputStage2, outputStage2 := NewInput(), OutputAsm{}
+		inputStage2, outputStage2 := newInputStage2(), outputAsm{}
 
 		skipRowsForPostProcessing := 0
 		if len(chunkInfo.splitRow) > 0 { // first append the row split between chunks
@@ -313,7 +313,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 			chunkInfo.masks[len(chunkInfo.masks)-int(skipTz)*3+2] >>= shiftTz
 
 			var parsingError bool
-			rows, columns, parsingError = Stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
+			rows, columns, parsingError = stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 			if parsingError {
 				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
 				break

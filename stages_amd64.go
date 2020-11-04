@@ -10,18 +10,12 @@ func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1In
 //go:noescape
 func stage1_preprocess_test(input *stage1Input, output *stage1Output)
 
-//go:noescape
-func stage1_preprocess()
+func stage1PreprocessBuffer(buf []byte, separatorChar, quoted uint64) ([]uint64, []uint64, uint64) {
 
-//go:noescape
-func partialLoad()
-
-func Stage1PreprocessBuffer(buf []byte, separatorChar, quoted uint64) ([]uint64, []uint64, uint64) {
-
-	return Stage1PreprocessBufferEx(buf, separatorChar, quoted, nil, nil)
+	return stage1PreprocessBufferEx(buf, separatorChar, quoted, nil, nil)
 }
 
-func Stage1PreprocessBufferEx(buf []byte, separatorChar, quoted uint64, masks *[]uint64, postProc *[]uint64) ([]uint64, []uint64, uint64) {
+func stage1PreprocessBufferEx(buf []byte, separatorChar, quoted uint64, masks *[]uint64, postProc *[]uint64) ([]uint64, []uint64, uint64) {
 
 	if postProc == nil {
 		_postProc := make([]uint64, 0, 128)
@@ -75,14 +69,14 @@ func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []str
 //
 // `records` may be passed in, if non-nil it will be reused
 // and grown accordingly
-func Stage2ParseBuffer(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string) ([][]string, bool) {
+func stage2ParseBuffer(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string) ([][]string, bool) {
 
-	r, _, _, parseError := Stage2ParseBufferEx(buf, masks, delimiterChar, records, nil, nil)
+	r, _, _, parseError := stage2ParseBufferEx(buf, masks, delimiterChar, records, nil, nil)
 	return r, parseError
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
+func stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
 
 	errorOut := func() ([][]string, []uint64, []string, /*parsingError*/ bool) {
 		*columns = (*columns)[:0]
@@ -171,7 +165,7 @@ func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *inputStage2, outputStage2 *outputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, /*parsingError*/ bool) {
+func stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *inputStage2, outputStage2 *outputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, /*parsingError*/ bool) {
 
 	errorOut := func() ([]uint64, []string, /*parsingError*/ bool) {
 		*columns = (*columns)[:0]
@@ -236,6 +230,3 @@ func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint
 
 //go:noescape
 func stage2_parse_test(input *inputStage2, offset uint64, output *outputStage2)
-
-//go:noescape
-func stage2_parse()

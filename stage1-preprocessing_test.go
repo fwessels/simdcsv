@@ -314,7 +314,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 
 	buf := []byte(data)
 
-	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','), 0)
+	masks, postProc, _ := stage1PreprocessBuffer(buf, uint64(','), 0)
 
 	out := bytes.NewBufferString("")
 	fmt.Fprintf(out, "%064b%064b\n", bits.Reverse64(masks[0]), bits.Reverse64(masks[3+0]))
@@ -333,7 +333,7 @@ RRobertt,"Pi,e",rob` + "\r\n" + `Kenny,"ho` + "\r\n" + `so",kenny
 		t.Errorf("TestStage1MaskingOut: got %v, want %v", out.String(), expected)
 	}
 
-	simdrecords, parsingError := Stage2ParseBuffer(buf, masks, 0xa, nil)
+	simdrecords, parsingError := stage2ParseBuffer(buf, masks, 0xa, nil)
 	if parsingError {
 		t.Errorf("TestStage1MaskingOut: unexpected parsing error")
 	}
@@ -541,8 +541,8 @@ Ken,Thompson,ken
 
 func testStage1DeterminePostProcRows(t *testing.T, buf []byte) []postProcRow {
 
-	masks, postProc, _ := Stage1PreprocessBuffer(buf, uint64(','), 0)
-	simdrecords, parsingError := Stage2ParseBuffer(buf, masks, 0xa, nil)
+	masks, postProc, _ := stage1PreprocessBuffer(buf, uint64(','), 0)
+	simdrecords, parsingError := stage2ParseBuffer(buf, masks, 0xa, nil)
 	if parsingError {
 		t.Errorf("testStage1DeterminePostProcRows: unexpected parsing error")
 	}
@@ -586,7 +586,7 @@ func testStage1DynamicAllocation(t *testing.T) {
 	}
 
 	postProc := make([]uint64, 0, 3) // small allocation, make sure we dynamically grow
-	masks, postProc, _ = Stage1PreprocessBufferEx(buf, uint64(','), 0, nil, &postProc)
+	masks, postProc, _ = stage1PreprocessBufferEx(buf, uint64(','), 0, nil, &postProc)
 
 	if !reflect.DeepEqual(postProc, postProcSingleInvoc) {
 		t.Errorf("testStage1DynamicAllocation: got %v, want %v", postProc, postProcSingleInvoc)
@@ -668,7 +668,7 @@ func TestStage1MasksLoop(t *testing.T) {
 	rows := make([]uint64, 100000*30)
 	columns := make([]string, len(rows)*20)
 
-	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+	inputStage2, outputStage2 := newInputStage2(), outputAsm{}
 
 	for {
 		index := processed
@@ -731,6 +731,6 @@ func benchmarkStage1Preprocessing(b *testing.B, filename string) {
 
 	for i := 0; i < b.N; i++ {
 		postProc = postProc[:0]
-		Stage1PreprocessBufferEx(buf, uint64(','), 0, &masks, &postProc)
+		stage1PreprocessBufferEx(buf, uint64(','), 0, &masks, &postProc)
 	}
 }
