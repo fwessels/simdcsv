@@ -6,28 +6,8 @@ import (
 	"unsafe"
 )
 
-func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
-
-	if len(buf)%64 != 0 {
-		panic("Input strings should be a multiple of 64")
-	}
-
-	masks = make([]uint64, 0)
-
-	for i := 0; i < len(buf); i += 64 {
-		mask := uint64(0)
-		for b, c := range buf[i : i+64] {
-			if c == cmp {
-				mask = mask | (1 << b)
-			}
-		}
-		masks = append(masks, mask)
-	}
-	return
-}
-
-func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
-	f func(input *Input, offset uint64, output *Output)) ([]uint64, []uint64, uint64) {
+func stage2Parse(buffer []byte, delimiter, separator, quote rune,
+	f func(input *inputStage2, offset uint64, output *outputStage2)) ([]uint64, []uint64, uint64) {
 
 	separatorMasks := getBitMasks([]byte(buffer), byte(separator))
 	delimiterMasks := getBitMasks([]byte(buffer), byte(delimiter))
@@ -41,8 +21,8 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	columns[0] = 0
 	offset := uint64(0)
 
-	input := NewInput()
-	output := Output{columns: &columns, rows: &rows}
+	input := newInputStage2()
+	output := outputStage2{columns: &columns, rows: &rows}
 
 	for maskIndex := 0; maskIndex < len(separatorMasks); maskIndex++ {
 		input.separatorMask = separatorMasks[maskIndex]
@@ -63,7 +43,7 @@ func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 //
 // Make sure references to struct from assembly stay in sync
 //
-type Input struct {
+type inputStage2 struct {
 	separatorMask            uint64
 	delimiterMask            uint64
 	quoteMask                uint64
@@ -74,16 +54,16 @@ type Input struct {
 	base					 unsafe.Pointer	// #define INPUT_BASE 0x38
 }
 
-// Create new Input
-func NewInput() (input Input) {
-	input = Input{lastSeparatorOrDelimiter: ^uint64(0)}
+// Create new inputStage2
+func newInputStage2() (input inputStage2) {
+	input = inputStage2{lastSeparatorOrDelimiter: ^uint64(0)}
 	return
 }
 
 //
 // Make sure references to struct from assembly stay in sync
 //
-type Output struct {
+type outputStage2 struct {
 	columns   *[128]uint64  // #define COLUMNS_BASE 0x0
 	index     int			// #define INDEX_OFFSET 0x8
 	rows      *[128]uint64  // #define ROWS_BASE    0x10
@@ -94,7 +74,7 @@ type Output struct {
 }
 
 // Equivalent for invoking from Assembly
-type OutputAsm struct {
+type outputAsm struct {
 	columns   unsafe.Pointer // #define COLUMNS_BASE 0x0
 	index     int			 // #define INDEX_OFFSET 0x8
 	rows      unsafe.Pointer // #define ROWS_BASE    0x10
@@ -104,7 +84,7 @@ type OutputAsm struct {
 	indexPrev uint64
 }
 
-func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
+func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 
 	const clearMask = 0xfffffffffffffffe
 
@@ -210,4 +190,24 @@ func Stage2ParseMasks(input *Input, offset uint64, output *Output) {
 			break
 		}
 	}
+}
+
+func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
+
+	if len(buf)%64 != 0 {
+		panic("Input strings should be a multiple of 64")
+	}
+
+	masks = make([]uint64, 0)
+
+	for i := 0; i < len(buf); i += 64 {
+		mask := uint64(0)
+		for b, c := range buf[i : i+64] {
+			if c == cmp {
+				mask = mask | (1 << b)
+			}
+		}
+		masks = append(masks, mask)
+	}
+	return
 }

@@ -12,13 +12,13 @@ import (
 	"testing"
 )
 
-func testStage2ParseUnquoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseUnquoted(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	const file = `a,bb,,ddd,eeee,,,hhhhh,,,,jjjjjj,,,,,ooooooo,,,,,,uuuuuuuu,,,,,
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _, _ := Stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
+	output, _, _ := stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
 	expected := []uint64{0, 1, 2, 2, 5, 0, 6, 3, 10, 4, 15, 0, 16, 0, 17, 5, 23, 0, 24, 0, 25, 0, 26, 6, 33, 0, 34, 0, 35, 0, 36, 0, 37, 7, 45, 0, 46, 0, 47, 0, 48, 0, 49, 0, 50, 8, 59, 0, 60, 0, 61, 0, 62, 0, 0, 0}
 	if !reflect.DeepEqual(output, expected) {
 		t.Errorf("testStage2ParseUnquoted: got: %v want: %v", output, expected)
@@ -27,20 +27,20 @@ func testStage2ParseUnquoted(t *testing.T, f func(input *Input, offset uint64, o
 
 func TestStage2ParseUnquoted(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testStage2ParseUnquoted(t, Stage2ParseMasks)
+		testStage2ParseUnquoted(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testStage2ParseUnquoted(t, stage2_parse_test)
 	})
 }
 
-func testStage2ParseQuoted(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseQuoted(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	const file = `A,"A",BB,,"DDD","EEEE","",,HHHHH,,,,JJJJJJ,,,,,OOOOOOO,,,,,,UUU
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _, _ := Stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
+	output, _, _ := stage2Parse([]byte(file)[:64], '\n', ',', '"', f)
 	expected := []uint64{0, 1, 3, 1, 6, 2, 9, 0, 11, 3, 17, 4, 24, 0, 26, 0, 27, 5, 33, 0, 34, 0, 35, 0, 36, 6, 43, 0, 44, 0, 45, 0, 46, 0, 47, 7, 55, 0, 56, 0, 57, 0, 58, 0, 59, 0, 60, 3}
 
 	if !reflect.DeepEqual(output, expected) {
@@ -50,20 +50,20 @@ func testStage2ParseQuoted(t *testing.T, f func(input *Input, offset uint64, out
 
 func TestStage2ParseQuoted(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testStage2ParseQuoted(t, Stage2ParseMasks)
+		testStage2ParseQuoted(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testStage2ParseQuoted(t, stage2_parse_test)
 	})
 }
 
-func testStage2ParseMultipleMasks(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseMultipleMasks(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	output, _, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
+	output, _, _ := stage2Parse([]byte(file), '\n', ',', '"', f)
 	expected := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f}
 
 	if !reflect.DeepEqual(output, expected) {
@@ -73,14 +73,14 @@ func testStage2ParseMultipleMasks(t *testing.T, f func(input *Input, offset uint
 
 func TestStage2ParseMultipleMasks(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testStage2ParseMultipleMasks(t, Stage2ParseMasks)
+		testStage2ParseMultipleMasks(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testStage2ParseMultipleMasks(t, stage2_parse_test)
 	})
 }
 
-func testStage2ParseMultipleRows(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2ParseMultipleRows(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 eeeeeeeeeeeeeeeeeeeeeeeeeeeeeee,fffffffffffffffffffffffffffffff,ggggggggggggggggggggggggggggggg,hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
@@ -89,7 +89,7 @@ lllllllllllllllllllllllllllllll
 `
 	//fmt.Println(hex.Dump([]byte(file)))
 
-	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
+	columns, rows, _ := stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x80, 0x1f, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x100, 0x1f, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
 	expectedRows := []uint64{0, 4, 4, 4, 8, 3, 11, 1}
 
@@ -104,14 +104,14 @@ lllllllllllllllllllllllllllllll
 
 func TestStage2ParseMultipleRows(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testStage2ParseMultipleRows(t, Stage2ParseMasks)
+		testStage2ParseMultipleRows(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testStage2ParseMultipleRows(t, stage2_parse_test)
 	})
 }
 
-func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testBareQuoteInNonQuotedField(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	bareQuoteInNonQuotedFields := []struct {
 		input    string
@@ -136,7 +136,7 @@ func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uin
 
 		in := [64]byte{}
 		copy(in[:], bareQuoteInNonQuotedField.input)
-		_, _, errorOffset := Stage2Parse(in[:], '\n', ',', '"', f)
+		_, _, errorOffset := stage2Parse(in[:], '\n', ',', '"', f)
 
 		if errorOffset != bareQuoteInNonQuotedField.expected {
 			t.Errorf("testBareQuoteInNonQuotedField: got: %d want: %d", errorOffset, bareQuoteInNonQuotedField.expected)
@@ -147,14 +147,14 @@ func testBareQuoteInNonQuotedField(t *testing.T, f func(input *Input, offset uin
 // Opening quote can only start after either , or delimiter
 func TestBareQuoteInNonQuotedField(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testBareQuoteInNonQuotedField(t, Stage2ParseMasks)
+		testBareQuoteInNonQuotedField(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testBareQuoteInNonQuotedField(t, stage2_parse_test)
 	})
 }
 
-func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	extraneousOrMissingQuoteInQuotedFields := []struct {
 		input    string
@@ -201,7 +201,7 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input
 			in[len(extraneousOrMissingQuoteInQuotedField.input)] = '\n'
 		}
 
-		_, _, errorOffset := Stage2Parse(in[:], '\n', ',', '"', f)
+		_, _, errorOffset := stage2Parse(in[:], '\n', ',', '"', f)
 
 		if errorOffset != extraneousOrMissingQuoteInQuotedField.expected {
 			t.Errorf("TestExtraneousOrMissingQuoteInQuotedField: got: %d want: %d", errorOffset, extraneousOrMissingQuoteInQuotedField.expected)
@@ -212,14 +212,14 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *Input
 // Closing quote needs to be followed immediately by either a , or delimiter
 func TestExtraneousOrMissingQuoteInQuotedField(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testExtraneousOrMissingQuoteInQuotedField(t, Stage2ParseMasks)
+		testExtraneousOrMissingQuoteInQuotedField(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testExtraneousOrMissingQuoteInQuotedField(t, stage2_parse_test)
 	})
 }
 
-func testStage2SkipEmptyLines(t *testing.T, f func(input *Input, offset uint64, output *Output)) {
+func testStage2SkipEmptyLines(t *testing.T, f func(input *inputStage2, offset uint64, output *outputStage2)) {
 
 	const file = `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,ccccccccccccccccccccccccccccccc,ddddddddddddddddddddddddddddddd
 
@@ -230,7 +230,7 @@ iiiiiiiiiiiiiiiiiiiiiiiiiiiii,jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj,kkkkkkkkkkkkkkkkkk
 lllllllllllllllllllllllllllllll
 `
 
-	columns, rows, _ := Stage2Parse([]byte(file), '\n', ',', '"', f)
+	columns, rows, _ := stage2Parse([]byte(file), '\n', ',', '"', f)
 	expectedCols := []uint64{0, 0x1f, 0x20, 0x1f, 0x40, 0x1f, 0x60, 0x1f, 0x0, 0x0, 0x81, 0x1e, 0xa0, 0x1f, 0xc0, 0x1f, 0xe0, 0x1f, 0x0, 0x0, 0x0, 0x0, 0x102, 0x1d, 0x120, 0x1f, 0x140, 0x1f, 0x160, 0x1f}
 	expectedRows := []uint64{0, 4,
 		// single line skipped
@@ -250,7 +250,7 @@ lllllllllllllllllllllllllllllll
 
 func TestStage2SkipEmptyLines(t *testing.T) {
 	t.Run("go", func(t *testing.T) {
-		testStage2SkipEmptyLines(t, Stage2ParseMasks)
+		testStage2SkipEmptyLines(t, stage2ParseMasks)
 	})
 	t.Run("avx2", func(t *testing.T) {
 		testStage2SkipEmptyLines(t, stage2_parse_test)

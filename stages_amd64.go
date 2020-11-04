@@ -58,9 +58,9 @@ func Stage1PreprocessBufferEx(buf []byte, separatorChar, quoted uint64, masks *[
 }
 
 //go:noescape
-func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64, rows []uint64, columns []string, input2 *Input, offset uint64, output2 *OutputAsm) (processed, masksRead uint64)
+func _stage2_parse_masks(buf []byte, masks []uint64, lastCharIsDelimiter uint64, rows []uint64, columns []string, input2 *inputStage2, offset uint64, output2 *outputAsm) (processed, masksRead uint64)
 
-func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *Input, offset uint64, output *OutputAsm) (processed, masksRead uint64) {
+func stage2_parse_masks(buf []byte, masks []uint64, rows []uint64, columns []string, delimiterChar uint64, input *inputStage2, offset uint64, output *outputAsm) (processed, masksRead uint64) {
 
 	lastCharIsDelimiter := uint64(0)
 	if len(buf) > 0 && (buf[len(buf)-1] == byte(delimiterChar) || buf[len(buf)-1] == byte(0x0d)) {
@@ -110,7 +110,7 @@ func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 
 	*records = (*records)[:0]
 
-	inputStage2, outputStage2 := NewInput(), OutputAsm{}
+	inputStage2, outputStage2 := newInputStage2(), outputAsm{}
 
 	offset, masksOffset := uint64(0), uint64(0)
 	for {
@@ -171,7 +171,7 @@ func Stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *Input, outputStage2 *OutputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, /*parsingError*/ bool) {
+func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *inputStage2, outputStage2 *outputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, /*parsingError*/ bool) {
 
 	errorOut := func() ([]uint64, []string, /*parsingError*/ bool) {
 		*columns = (*columns)[:0]
@@ -235,7 +235,7 @@ func Stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint
 }
 
 //go:noescape
-func stage2_parse_test(input *Input, offset uint64, output *Output)
+func stage2_parse_test(input *inputStage2, offset uint64, output *outputStage2)
 
 //go:noescape
 func stage2_parse()
