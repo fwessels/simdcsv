@@ -1,8 +1,28 @@
+//+build !appengine
+//+build !noasm
+//+build gc
+
 package simdcsv
 
 import (
+	"github.com/klauspost/cpuid"
 	"log"
 )
+
+// Skeleton assembly routines
+//
+//go:noescape
+func stage1_preprocess()
+//go:noescape
+func partialLoad()
+//go:noescape
+func stage2_parse()
+
+// SupportedCPU will return whether the CPU is supported.
+func SupportedCPU() bool {
+	const want = cpuid.AVX2
+	return cpuid.CPU.Features&want == want
+}
 
 //go:noescape
 func stage1_preprocess_buffer(buf []byte, separatorChar uint64, input1 *stage1Input, output1 *stage1Output, postProc *[]uint64, offset uint64, masks []uint64, masksOffset uint64) (processed, masksWritten uint64)

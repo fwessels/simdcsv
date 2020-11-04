@@ -195,6 +195,7 @@ func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
 
 	if len(buf)%64 != 0 {
+		// NB code is not used during normal usage
 		panic("Input strings should be a multiple of 64")
 	}
 

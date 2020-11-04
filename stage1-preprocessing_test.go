@@ -659,7 +659,7 @@ func TestStage1MasksLoop(t *testing.T) {
 	}
 
 	postProcLoop := make([]uint64, 0, ((len(buf)>>6)+1)*2)
-	masksLoop := make([]uint64, ((len(buf) >> 6) + 2) * 3) // add 2 extra slots as safety for masks
+	masksLoop := allocMasks(buf)
 
 	processed, masksWritten := uint64(0), uint64(0)
 	inputStage1 := stage1Input{}
