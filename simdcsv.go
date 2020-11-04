@@ -135,7 +135,7 @@ func (r *Reader) readAllStreaming() (out chan recordsOutput) {
 		return
 	}
 
-	chunkSize := 1024 * 300
+	chunkSize := 320000
 
 	// chunkSize must be a multiple of 64 bytes
 	chunkSize = (chunkSize + 63) &^ 63
@@ -191,7 +191,7 @@ func (r *Reader) readAllStreaming() (out chan recordsOutput) {
 		var wg sync.WaitGroup
 
 		// Determine how many second stages to run in parallel
-		const cores = 2
+		const cores = 3
 		wg.Add(cores)
 		fieldsPerRecord := int64(r.FieldsPerRecord)
 

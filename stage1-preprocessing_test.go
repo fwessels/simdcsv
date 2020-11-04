@@ -270,26 +270,6 @@ func diffBitmask(diff1, diff2 string) (diff string) {
 	return diff1 + "\n" + diff2 + "\n" + diff + "\n"
 }
 
-func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
-
-	if len(buf)%64 != 0 {
-		panic("Input strings should be a multiple of 64")
-	}
-
-	masks = make([]uint64, 0)
-
-	for i := 0; i < len(buf); i += 64 {
-		mask := uint64(0)
-		for b, c := range buf[i : i+64] {
-			if c == cmp {
-				mask = mask | (1 << b)
-			}
-		}
-		masks = append(masks, mask)
-	}
-	return
-}
-
 func testStage1PreprocessMasks(t *testing.T, data []byte, f func(input *stage1Input, output *stage1Output)) string {
 
 	separatorMasksIn := getBitMasks(data, byte(','))

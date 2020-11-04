@@ -6,6 +6,25 @@ import (
 	"unsafe"
 )
 
+func getBitMasks(buf []byte, cmp byte) (masks []uint64) {
+
+	if len(buf)%64 != 0 {
+		panic("Input strings should be a multiple of 64")
+	}
+
+	masks = make([]uint64, 0)
+
+	for i := 0; i < len(buf); i += 64 {
+		mask := uint64(0)
+		for b, c := range buf[i : i+64] {
+			if c == cmp {
+				mask = mask | (1 << b)
+			}
+		}
+		masks = append(masks, mask)
+	}
+	return
+}
 
 func Stage2Parse(buffer []byte, delimiter, separator, quote rune,
 	f func(input *Input, offset uint64, output *Output)) ([]uint64, []uint64, uint64) {
