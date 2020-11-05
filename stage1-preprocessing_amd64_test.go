@@ -254,22 +254,6 @@ func TestStage1PartialLoad(t *testing.T) {
 	}
 }
 
-func diffBitmask(diff1, diff2 string) (diff string) {
-	if len(diff1) != len(diff2) {
-		log.Fatalf("sizes don't match")
-	}
-
-	for i := range diff1 {
-		if diff1[i] != diff2[i] {
-			diff += "^"
-		} else {
-			diff += " "
-		}
-	}
-
-	return diff1 + "\n" + diff2 + "\n" + diff + "\n"
-}
-
 func testStage1PreprocessMasks(t *testing.T, data []byte, f func(input *stage1Input, output *stage1Output)) string {
 
 	separatorMasksIn := getBitMasks(data, byte(','))
