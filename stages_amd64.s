@@ -74,7 +74,7 @@ TEXT ·stage1_preprocess_buffer(SB), 7, $0
 	MOVQ offset+56(FP), DX
 	MOVQ masks_base+64(FP), R11
 	MOVQ masksOffset+88(FP), R12
-	ADDQ $6, R12                // advance indexing register by 6, for easy comparisons to max length of slice
+	ADDQ $6, R12                 // advance indexing register by 6, for easy comparisons to max length of slice
 
 	MOVQ DX, CX
 	ADDQ $0x40, CX
