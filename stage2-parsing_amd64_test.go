@@ -167,7 +167,7 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *input
 		//
 		// 00000000  22 61 61 61 61 22 20 0a  22 62 62 62 62 22 00 00  |"aaaa" ."bbbb"..|
 		//                             ^^
-		{`"aaaa" `+`
+		{`"aaaa" ` + `
 "bbbb"`, 7},
 		//
 		//
@@ -179,7 +179,7 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *input
 		// Name:  "StartLine2"
 		// 00000000  61 2c 62 0a 22 64 0a 0a  2c 65 00 00 00 00 00 00  |a,b."d..,e......|
 		//                                          ^^
-		{ "a,b\n\"d\n\n,e", 64},
+		{"a,b\n\"d\n\n,e", 64},
 	}
 
 	for _, extraneousOrMissingQuoteInQuotedField := range extraneousOrMissingQuoteInQuotedFields {
@@ -197,7 +197,7 @@ func testExtraneousOrMissingQuoteInQuotedField(t *testing.T, f func(input *input
 		copy(in[:], extraneousOrMissingQuoteInQuotedField.input)
 
 		// TODO: Fix this hack: make sure we always end with a delimiter
-		if in[len(extraneousOrMissingQuoteInQuotedField.input)- 1] != '\n' {
+		if in[len(extraneousOrMissingQuoteInQuotedField.input)-1] != '\n' {
 			in[len(extraneousOrMissingQuoteInQuotedField.input)] = '\n'
 		}
 
@@ -313,7 +313,7 @@ func TestStage2ParseBuffer(t *testing.T) {
 
 		buf := []byte(strings.Repeat(vector, count))
 		masks, _, _ := stage1PreprocessBuffer(buf, ',', 0)
-		simdrecords, parsingError := stage2ParseBuffer(buf, masks, '\n',nil)
+		simdrecords, parsingError := stage2ParseBuffer(buf, masks, '\n', nil)
 		if parsingError {
 			t.Errorf("TestStage2ParseBuffer: got %v, want %v", parsingError, false)
 		}
@@ -366,13 +366,13 @@ func testStage2DynamicAllocation(t *testing.T, init [3]int, expected [3]int) {
 // Check that the buffers are increased dynamically
 func TestStage2DynamicAllocation(t *testing.T) {
 	t.Run("grow-rows", func(t *testing.T) {
-		testStage2DynamicAllocation(t, [3]int{128, 10000*20*2, 10000}, [3]int{262144,3200000, 100000})
+		testStage2DynamicAllocation(t, [3]int{128, 10000 * 20 * 2, 10000}, [3]int{262144, 3200000, 100000})
 	})
 	t.Run("grow-columns", func(t *testing.T) {
-		testStage2DynamicAllocation(t, [3]int{10000*4, 1024, 10000}, [3]int{320000, 2097152, 100000})
+		testStage2DynamicAllocation(t, [3]int{10000 * 4, 1024, 10000}, [3]int{320000, 2097152, 100000})
 	})
 	t.Run("grow-records", func(t *testing.T) {
-		testStage2DynamicAllocation(t, [3]int{10000*4, 10000*20*2, 100}, [3]int{320000, 3200000, 100000})
+		testStage2DynamicAllocation(t, [3]int{10000 * 4, 10000 * 20 * 2, 100}, [3]int{320000, 3200000, 100000})
 	})
 }
 
@@ -395,7 +395,7 @@ func benchmarkStage2Parsing(b *testing.B, filename string, lines, fields int) {
 		log.Fatalln(err)
 	}
 
-	rows := make([]uint64, (lines*17>>4) * 2)
+	rows := make([]uint64, (lines*17>>4)*2)
 	columns := make([]string, len(rows)*fields)
 	simdrecords := make([][]string, 0, len(rows))
 
@@ -405,7 +405,7 @@ func benchmarkStage2Parsing(b *testing.B, filename string, lines, fields int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		stage2ParseBufferEx(buf, masks,'\n', &simdrecords, &rows, &columns)
+		stage2ParseBufferEx(buf, masks, '\n', &simdrecords, &rows, &columns)
 	}
 }
 
@@ -434,7 +434,7 @@ func benchmarkStagesCombined(b *testing.B, filename string, lines, fields int) {
 	b.SetBytes(int64(len(buf)))
 	b.ResetTimer()
 
-	rows := make([]uint64, (lines*17>>4) * 2)
+	rows := make([]uint64, (lines*17>>4)*2)
 	columns := make([]string, len(rows)*fields)
 	simdrecords := make([][]string, 0, lines)
 

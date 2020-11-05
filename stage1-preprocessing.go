@@ -1,8 +1,8 @@
 package simdcsv
 
 import (
-	"math/bits"
 	"log"
+	"math/bits"
 	"reflect"
 	"unsafe"
 )
@@ -111,14 +111,14 @@ type postProcRow struct {
 // Determine which rows and columns need post processing
 // This is needed to replace both "" to " as well as
 // \r\n to \n for specific fields
-func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) ([]postProcRow) {
+func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) []postProcRow {
 
 	// TODO: Crude implementation, make more refined/granular
 
 	sliceptr := func(slc []byte) uintptr {
 		return (*reflect.SliceHeader)(unsafe.Pointer(&slc)).Data
 	}
-	stringptr := func (s string) uintptr {
+	stringptr := func(s string) uintptr {
 		return (*reflect.StringHeader)(unsafe.Pointer(&s)).Data
 	}
 
@@ -127,7 +127,7 @@ func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) ([]p
 	row, pbuf := 0, sliceptr(buf)
 	for ipp, pp := range postProc {
 
-		if ipp < len(postProc) - 1 && pp == postProc[ipp+1]  {
+		if ipp < len(postProc)-1 && pp == postProc[ipp+1] {
 			continue // if offset occurs multiple times, process only last one
 		}
 
@@ -138,7 +138,7 @@ func getPostProcRows(buf []byte, postProc []uint64, simdrecords [][]string) ([]p
 
 		ppr := postProcRow{}
 		if row > 0 {
-			ppr.start = row-1
+			ppr.start = row - 1
 		}
 
 		// find end row to process

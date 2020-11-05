@@ -50,8 +50,8 @@ type inputStage2 struct {
 	quoted                   uint64
 	lastSeparatorOrDelimiter uint64
 	lastClosingQuote         uint64
-	errorOffset				 uint64
-	base					 unsafe.Pointer	// #define INPUT_BASE 0x38
+	errorOffset              uint64
+	base                     unsafe.Pointer // #define INPUT_BASE 0x38
 }
 
 // Create new inputStage2
@@ -64,10 +64,10 @@ func newInputStage2() (input inputStage2) {
 // Make sure references to struct from assembly stay in sync
 //
 type outputStage2 struct {
-	columns   *[128]uint64  // #define COLUMNS_BASE 0x0
-	index     int			// #define INDEX_OFFSET 0x8
-	rows      *[128]uint64  // #define ROWS_BASE    0x10
-	line      int			// #define LINE_OFFSET  0x18
+	columns   *[128]uint64 // #define COLUMNS_BASE 0x0
+	index     int          // #define INDEX_OFFSET 0x8
+	rows      *[128]uint64 // #define ROWS_BASE    0x10
+	line      int          // #define LINE_OFFSET  0x18
 	strData   uint64
 	strLen    uint64
 	indexPrev uint64
@@ -76,9 +76,9 @@ type outputStage2 struct {
 // Equivalent for invoking from Assembly
 type outputAsm struct {
 	columns   unsafe.Pointer // #define COLUMNS_BASE 0x0
-	index     int			 // #define INDEX_OFFSET 0x8
+	index     int            // #define INDEX_OFFSET 0x8
 	rows      unsafe.Pointer // #define ROWS_BASE    0x10
-	line      int			 // #define LINE_OFFSET  0x18
+	line      int            // #define LINE_OFFSET  0x18
 	strData   uint64
 	strLen    uint64
 	indexPrev uint64
@@ -97,8 +97,8 @@ func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 
 			if input.quoted == 0 {
 				// verify that last closing quote is immediately followed by either a separator or delimiter
-				if  input.lastClosingQuote > 0 &&
-					input.lastClosingQuote + 1 != uint64(separatorPos) + offset {
+				if input.lastClosingQuote > 0 &&
+					input.lastClosingQuote+1 != uint64(separatorPos)+offset {
 					if input.errorOffset == 0 {
 						input.errorOffset = uint64(separatorPos) + offset // mark first error position
 					}
@@ -122,8 +122,8 @@ func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 
 			if input.quoted == 0 {
 				// verify that last closing quote is immediately followed by either a separator or delimiter
-				if  input.lastClosingQuote > 0 &&
-					input.lastClosingQuote + 1 != uint64(delimiterPos) + offset {
+				if input.lastClosingQuote > 0 &&
+					input.lastClosingQuote+1 != uint64(delimiterPos)+offset {
 					if input.errorOffset == 0 {
 						input.errorOffset = uint64(delimiterPos) + offset // mark first error position
 					}
@@ -133,7 +133,7 @@ func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 				// for delimiters, we may end exactly on a separator (without a delimiter following),
 				// this leads to a length of zero for the string, so we nil out the pointer value
 				// (to avoid potentially pointing exactly at the first available byte after the buffer)
-				if (-output.strLen + uint64(delimiterPos) + offset) - output.strData == 0 {
+				if (-output.strLen+uint64(delimiterPos)+offset)-output.strData == 0 {
 					output.columns[output.index] = 0 // pointer to start of element
 				} else {
 					output.columns[output.index] = uint64(uintptr(input.base)) + output.strData // pointer to start of element
@@ -144,18 +144,18 @@ func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 				output.strData = uint64(delimiterPos) + offset + 1 // start of next element
 				output.strLen = 0
 
-				if uint64(output.index) / 2 - output.indexPrev == 1 && // we just have a line with a single element
-					output.columns[output.index-1] == 0 {			  // and its length is zero (implying empty line)
+				if uint64(output.index)/2-output.indexPrev == 1 && // we just have a line with a single element
+					output.columns[output.index-1] == 0 { // and its length is zero (implying empty line)
 					// prevent empty lines from being written
 				} else {
 					// write out start and length for a new row
 					output.rows[output.line] = output.indexPrev // start of element
 					output.line++
-					output.rows[output.line] = uint64(output.index) / 2 - output.indexPrev // length of element
+					output.rows[output.line] = uint64(output.index)/2 - output.indexPrev // length of element
 					output.line++
 				}
 
-				output.indexPrev = uint64(output.index) / 2	// keep current index for next round
+				output.indexPrev = uint64(output.index) / 2 // keep current index for next round
 
 				input.lastSeparatorOrDelimiter = uint64(delimiterPos) + offset
 			}
@@ -167,7 +167,7 @@ func stage2ParseMasks(input *inputStage2, offset uint64, output *outputStage2) {
 
 			if input.quoted == 0 {
 				// check that this opening quote is preceded by either a separator or delimiter
-				if input.lastSeparatorOrDelimiter + 1 != uint64(quotePos) + offset {
+				if input.lastSeparatorOrDelimiter+1 != uint64(quotePos)+offset {
 					if input.errorOffset == 0 {
 						input.errorOffset = uint64(quotePos) + offset
 					}

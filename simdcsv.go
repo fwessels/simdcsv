@@ -6,8 +6,8 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"log"
 	"io"
+	"log"
 	"math/bits"
 	"strings"
 	"sync"
@@ -96,7 +96,7 @@ type recordsOutput struct {
 }
 
 type chunkIn struct {
-	buf []byte
+	buf  []byte
 	last bool
 }
 
@@ -315,7 +315,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 			var parsingError bool
 			rows, columns, parsingError = stage2ParseBufferExStreaming(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)], chunkInfo.masks[skip*3:], '\n', &inputStage2, &outputStage2, &rows, &columns)
 			if parsingError {
-				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
+				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40 : len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
 				break
 			}
 
@@ -329,7 +329,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 			if len(chunkInfo.postProc) > 0 {
 				pprs := getPostProcRows(chunkInfo.chunk, chunkInfo.postProc, simdrecords[skipRowsForPostProcessing:])
 				for _, ppr := range pprs {
-					for r := ppr.start + skipRowsForPostProcessing; r < ppr.end + skipRowsForPostProcessing; r++ {
+					for r := ppr.start + skipRowsForPostProcessing; r < ppr.end+skipRowsForPostProcessing; r++ {
 						for c := range simdrecords[r] {
 							simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\"\"", "\"")
 							simdrecords[r][c] = strings.ReplaceAll(simdrecords[r][c], "\r\n", "\n")
@@ -339,7 +339,7 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 			}
 
 			if errSimd := ensureFieldsPerRecord(&simdrecords, fieldsPerRecord); errSimd != nil {
-				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40:len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
+				out <- fallback(bytes.NewReader(chunkInfo.chunk[skip*0x40 : len(chunkInfo.chunk)-int(chunkInfo.trailer)]))
 				break
 			}
 		}
@@ -352,13 +352,13 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 		}
 
 		if simdlines < len(simdrecords) {
-			simdlines = len(simdrecords)*9>>3
+			simdlines = len(simdrecords) * 9 >> 3
 		}
 		if rowsSize < cap(rows) {
-			rowsSize = cap(rows)*3/4
+			rowsSize = cap(rows) * 3 / 4
 		}
 		if columnsSize < cap(columns) {
-			columnsSize = cap(columns)*3/4
+			columnsSize = cap(columns) * 3 / 4
 		}
 
 		out <- recordsOutput{chunkInfo.sequence, simdrecords, nil}

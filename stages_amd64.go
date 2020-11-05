@@ -13,8 +13,10 @@ import (
 //
 //go:noescape
 func stage1_preprocess()
+
 //go:noescape
 func partialLoad()
+
 //go:noescape
 func stage2_parse()
 
@@ -96,9 +98,9 @@ func stage2ParseBuffer(buf []byte, masks []uint64, delimiterChar uint64, records
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, /*parsingError*/ bool) {
+func stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, records *[][]string, rows *[]uint64, columns *[]string) ([][]string, []uint64, []string, bool) {
 
-	errorOut := func() ([][]string, []uint64, []string, /*parsingError*/ bool) {
+	errorOut := func() ([][]string, []uint64, []string, bool) {
 		*columns = (*columns)[:0]
 		*rows = (*rows)[:0]
 		return *records, *rows, *columns, true
@@ -139,21 +141,21 @@ func stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 		// Sanity checks
 		if offset == processed {
 			log.Fatalf("failed to process anything")
-		} else if masksOffset + masksRead > uint64(len(masks)) {
+		} else if masksOffset+masksRead > uint64(len(masks)) {
 			log.Fatalf("processed beyond end of masks buffer")
 		}
 		offset = processed
 		masksOffset += masksRead
 
 		// Check whether we need to double columns slice capacity
-		if outputStage2.index / 2 >= cap(*columns) / 2 {
+		if outputStage2.index/2 >= cap(*columns)/2 {
 			_columns := make([]string, cap(*columns)*2)
 			copy(_columns, (*columns)[:outputStage2.index/2])
 			columns = &_columns
 		}
 
 		// Check whether we need to double rows slice capacity
-		if outputStage2.line >= cap(*rows) / 2 {
+		if outputStage2.line >= cap(*rows)/2 {
 			_rows := make([]uint64, cap(*rows)*2)
 			copy(_rows, (*rows)[:outputStage2.line])
 			rows = &_rows
@@ -185,9 +187,9 @@ func stage2ParseBufferEx(buf []byte, masks []uint64, delimiterChar uint64, recor
 }
 
 // Same as above, but allow reuse of `rows` and `columns` slices as well
-func stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *inputStage2, outputStage2 *outputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, /*parsingError*/ bool) {
+func stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint64, inputStage2 *inputStage2, outputStage2 *outputAsm, rows *[]uint64, columns *[]string) ([]uint64, []string, bool) {
 
-	errorOut := func() ([]uint64, []string, /*parsingError*/ bool) {
+	errorOut := func() ([]uint64, []string, bool) {
 		*columns = (*columns)[:0]
 		*rows = (*rows)[:0]
 		return *rows, *columns, true
@@ -219,14 +221,14 @@ func stage2ParseBufferExStreaming(buf []byte, masks []uint64, delimiterChar uint
 		// sanity checks
 		if offset == processed {
 			log.Fatalf("failed to process anything")
-		} else if masksOffset + masksRead > uint64(len(masks)) {
+		} else if masksOffset+masksRead > uint64(len(masks)) {
 			log.Fatalf("processed beyond end of masks buffer")
 		}
 		offset = processed
 		masksOffset += masksRead
 
 		// check whether we need to double columns slice capacity
-		if outputStage2.index / 2 >= cap(*columns)*4/5 {
+		if outputStage2.index/2 >= cap(*columns)*4/5 {
 			_columns := make([]string, cap(*columns)*3/2)
 			copy(_columns, (*columns)[:outputStage2.index/2])
 			columns = &_columns
