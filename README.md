@@ -34,7 +34,6 @@ BenchmarkCsv/worldcitiespop-100K-48        137.40        563.45      4.10x
 BenchmarkCsv/nyc-taxi-data-100K-48         210.25       1007.57      4.79x
 ```
 
-```
 
 ## Stage 1: Preprocessing stage
 
