@@ -372,6 +372,17 @@ func (r *Reader) stage2Streaming(chunks chan chunkInfo, wg *sync.WaitGroup, fiel
 // reported.
 func (r *Reader) ReadAll() ([][]string, error) {
 
+	if !SupportedCPU() {
+		rCsv := csv.NewReader(r.r)
+		rCsv.LazyQuotes = r.LazyQuotes
+		rCsv.TrimLeadingSpace = r.TrimLeadingSpace
+		rCsv.Comment = r.Comment
+		rCsv.Comma = r.Comma
+		rCsv.FieldsPerRecord = r.FieldsPerRecord
+		rCsv.ReuseRecord = r.ReuseRecord
+		return rCsv.ReadAll()
+	}
+
 	out := r.readAllStreaming()
 
 	records := make([][]string, 0)
