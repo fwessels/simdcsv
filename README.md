@@ -25,16 +25,15 @@ Below is a comparison between `encoding/csv` and `simdcsv` for a couple of popul
 
 ![encoding-csv_vs_simdcsv-comparison](charts/encoding-csv_vs_simdcsv.png)
 
-```
-benchmark                                     old MB/s     new MB/s     speedup
-BenchmarkSimdCsv/parking-citations-100K-8     182.36       1074.20      5.89x
-BenchmarkSimdCsv/worldcitiespop-100K-8        124.75       1036.12      8.31x
-BenchmarkSimdCsv/nyc-taxi-data-100K-8         183.91       1067.98      5.81x
+The detailed benchmarks are as follows (taken on a c5.12xlarge instance with an Intel Cascade Lake CPU on AWS):
 
-benchmark                                     old bytes     new bytes     delta
-BenchmarkSimdCsv/parking-citations-100K-8     58601189      1650567       -97.18%
-BenchmarkSimdCsv/worldcitiespop-100K-8        30822166      581103        -98.11%
-BenchmarkSimdCsv/nyc-taxi-data-100K-8         133772128     5554548       -95.85%
+```
+benchmark                                  old MB/s     new MB/s     speedup
+BenchmarkCsv/parking-citations-100K-48     195.82        831.75      4.25x
+BenchmarkCsv/worldcitiespop-100K-48        137.40        563.45      4.10x
+BenchmarkCsv/nyc-taxi-data-100K-48         210.25       1007.57      4.79x
+```
+
 ```
 
 ## Stage 1: Preprocessing stage
@@ -58,6 +57,14 @@ The result from the first stage is a set of three bit-masks:
 - separator mask: mask for splitsing the row of CSV data into separate fields (excluding separator characters in quoted fields)
 - carriage return mask: mask than indicate which carriage returns to treat as newlines
 
+Detailed benchmarks for stage 1:
+
+```
+BenchmarkStage1Preprocessing/parking-citations-100K-48               134           8836499 ns/op        1498.24 MB/s
+BenchmarkStage1Preprocessing/worldcitiespop-100K-48                  434           2751225 ns/op        1802.24 MB/s
+BenchmarkStage1Preprocessing/nyc-taxi-data-100K-48                    49          22652981 ns/op        1464.42 MB/s
+```
+
 ## Stage 2: Parsing stage
 
 The second stage takes the (adjusted) bit masks from the first stage in order the work out the offsets of the individual fields into the originating buffer containing the CSV data.
@@ -71,6 +78,14 @@ Note that empty rows are automatically skipped as well as multiple empty rows im
 For the large majority of the fields we have an optimized "zero-copy" memory optimized representation whereby the field is directly pointing back into the original buffer of CSV data.
 
 However there are certain fields that require post-processing in order to have the correct representation (and meeting equivalence to how `encoding/csv` operates. These fields are all quoted fields that contain either a double quote or a carriage return and newline pair. The first stage outputs a rough indication of which fields require this post-processing and, upon completion of the second stage, a final `string.ReplaceAll()` is invoked on these fields (which then will contain a modified copy of the string out of the original CSV data).
+
+Detailed benchmarks for stage 2:
+
+```
+BenchmarkStage2Parsing/parking-citations-100K-48                     100          10118645 ns/op        1308.40 MB/s
+BenchmarkStage2Parsing/worldcitiespop-100K-48                        314           3785415 ns/op        1309.86 MB/s
+BenchmarkStage2Parsing/nyc-taxi-data-100K-48                          44          26093220 ns/op        1271.34 MB/s
+```
 
 ## Example
 
@@ -233,6 +248,7 @@ func TestStage1PreprocessMasks(t *testing.T) {
 ## Limitations
 
 `simdcsv` has the following limitations:
+- Optimized for AVX2 on Intel and AMD only
 - `LazyQuotes` is not supported (fallback to `encoding/csv`)
 - Non-ASCII characters for either Comma or Comment are not supported (fallback to `encoding/csv`)
 
